@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { FooterGate } from "@/components/chrome/FooterGate";
+import { TopNav } from "@/components/chrome/TopNav";
+
 import { AppStateProvider } from "./providers";
 
 import "./globals.css";
@@ -41,7 +44,11 @@ const RootLayout = ({ children }: RootLayoutProps): JSX.Element => (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
         <body>
             <AppStateProvider>
-                <div className="shell">{children}</div>
+                <div className="shell">
+                    <TopNav />
+                    <main style={{ flex: 1 }}>{children}</main>
+                    <FooterGate />
+                </div>
             </AppStateProvider>
         </body>
     </html>
