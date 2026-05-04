@@ -28,8 +28,6 @@ export type ColumnRole =
 type AppState = {
     intent: string;
     setIntent: (next: string) => void;
-    authed: boolean;
-    setAuthed: (next: boolean) => void;
     mapping: Record<string, ColumnRole>;
     setMapping: (next: Record<string, ColumnRole>) => void;
     chartSlug: ChartSlug | null;
@@ -40,7 +38,6 @@ const AppStateContext = createContext<AppState | null>(null);
 
 export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Element => {
     const [intent, setIntentState] = useState<string>("");
-    const [authed, setAuthed] = useState<boolean>(false);
     const [mapping, setMapping] = useState<Record<string, ColumnRole>>({});
     const [chartSlug, setChartSlug] = useState<ChartSlug | null>(null);
 
@@ -69,14 +66,12 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         () => ({
             intent,
             setIntent,
-            authed,
-            setAuthed,
             mapping,
             setMapping,
             chartSlug,
             setChartSlug,
         }),
-        [intent, setIntent, authed, mapping, chartSlug],
+        [intent, setIntent, mapping, chartSlug],
     );
 
     return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

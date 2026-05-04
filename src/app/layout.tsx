@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { FooterGate } from "@/components/chrome/FooterGate";
-import { TopNav } from "@/components/chrome/TopNav";
+import { TopNav, type TopNavUser } from "@/components/chrome/TopNav";
+import { createClient } from "@/utils/supabase/server";
 
 import { AppStateProvider } from "./providers";
 
@@ -40,18 +42,28 @@ type RootLayoutProps = {
     children: ReactNode;
 };
 
-const RootLayout = ({ children }: RootLayoutProps): JSX.Element => (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
-        <body>
-            <AppStateProvider>
-                <div className="shell">
-                    <TopNav />
-                    <main style={{ flex: 1 }}>{children}</main>
-                    <FooterGate />
-                </div>
-            </AppStateProvider>
-        </body>
-    </html>
-);
+const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> => {
+    const supabase = createClient(await cookies());
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    const navUser: TopNavUser | null =
+        user !== null ? { email: user.email ?? "" } : null;
+
+    return (
+        <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
+            <body>
+                <AppStateProvider>
+                    <div className="shell">
+                        <TopNav user={navUser} />
+                        <main style={{ flex: 1 }}>{children}</main>
+                        <FooterGate />
+                    </div>
+                </AppStateProvider>
+            </body>
+        </html>
+    );
+};
 
 export default RootLayout;

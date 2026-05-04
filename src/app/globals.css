@@ -1038,6 +1038,34 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     transition: border-color 150ms var(--ease);
 }
 .btn-google:hover { border-color: var(--ink); }
+.btn-google:disabled,
+.btn-google[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+.btn-google:disabled:hover,
+.btn-google[aria-disabled="true"]:hover { border-color: var(--hairline-strong); }
+.auth-error {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--hairline-strong);
+    border-left: 2px solid var(--amber);
+    background: var(--paper-card);
+    color: var(--ink);
+    font-size: 12.5px;
+    line-height: 1.4;
+    border-radius: var(--r-2);
+}
+.auth-info {
+    margin: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--hairline);
+    background: var(--paper-card);
+    color: var(--gray);
+    font-size: 12.5px;
+    line-height: 1.4;
+    border-radius: var(--r-2);
+}
 .auth-privacy {
     margin-top: 18px;
     font-size: 12px;

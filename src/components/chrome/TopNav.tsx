@@ -1,15 +1,25 @@
 "use client";
 
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { useAppState } from "@/app/providers";
+import { signOut } from "@/app/auth/actions";
 import { Wordmark } from "@/components/primitives/Wordmark";
+import { createClient } from "@/utils/supabase/client";
+
+export type TopNavUser = {
+    email: string;
+};
 
 type NavLinkSpec = {
     href: string;
     label: string;
+};
+
+type TopNavProps = {
+    user: TopNavUser | null;
 };
 
 const NAV_LINKS: readonly NavLinkSpec[] = [
@@ -26,15 +36,38 @@ const isActive = (pathname: string, href: string): boolean => {
     return pathname === href || pathname.startsWith(`${href}/`);
 };
 
-export const TopNav = (): JSX.Element => {
+const labelFromEmail = (email: string): string => {
+    const local = email.split("@")[0];
+    if (local === undefined || local === "") {
+        return "Account";
+    }
+
+    return local;
+};
+
+export const TopNav = ({ user: initialUser }: TopNavProps): JSX.Element => {
     const pathname = usePathname() ?? "/";
     const router = useRouter();
-    const { authed } = useAppState();
 
+    const [user, setUser] = useState<TopNavUser | null>(initialUser);
     const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
     const toggleRef = useRef<HTMLButtonElement | null>(null);
 
-    const isAuthedView = authed || pathname === "/dashboard";
+    const isAuthedView = user !== null;
+    const accountLabel = user !== null ? labelFromEmail(user.email) : "Account";
+
+    useEffect(() => {
+        const supabase = createClient();
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+            setUser(session?.user != null ? { email: session.user.email ?? "" } : null);
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
 
     useEffect(() => {
         // Safety net: close the drawer if the route changes via a non-drawer path
@@ -118,15 +151,13 @@ export const TopNav = (): JSX.Element => {
                                     className="btn btn--quiet btn--sm"
                                     onClick={() => router.push("/dashboard")}
                                 >
-                                    <span className="ring ring--xs" /> M. Visser
+                                    <span className="ring ring--xs" /> {accountLabel}
                                 </button>
-                                <button
-                                    type="button"
-                                    className="btn btn--primary btn--sm"
-                                    onClick={() => router.push("/upload")}
-                                >
-                                    New chart
-                                </button>
+                                <form action={signOut}>
+                                    <button type="submit" className="btn btn--primary btn--sm">
+                                        Sign out
+                                    </button>
+                                </form>
                             </>
                         )}
                     </div>
@@ -214,15 +245,13 @@ export const TopNav = (): JSX.Element => {
                                 className="btn btn--ghost btn--lg"
                                 onClick={() => navigate("/dashboard")}
                             >
-                                <span className="ring ring--xs" /> M. Visser
+                                <span className="ring ring--xs" /> {accountLabel}
                             </button>
-                            <button
-                                type="button"
-                                className="btn btn--primary btn--lg"
-                                onClick={() => navigate("/upload")}
-                            >
-                                New chart <span className="arrow">→</span>
-                            </button>
+                            <form action={signOut}>
+                                <button type="submit" className="btn btn--primary btn--lg">
+                                    Sign out <span className="arrow">→</span>
+                                </button>
+                            </form>
                         </>
                     )}
                 </div>
