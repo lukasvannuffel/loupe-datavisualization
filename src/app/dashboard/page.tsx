@@ -1,8 +1,5 @@
-const DashboardPage = (): JSX.Element => (
-    <section>
-        <h1>Dashboard</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Dashboard } from "@/components/pages/Dashboard";
+
+const DashboardPage = (): JSX.Element => <Dashboard />;
 
 export default DashboardPage;

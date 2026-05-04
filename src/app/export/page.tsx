@@ -1,8 +1,5 @@
-const ExportPage = (): JSX.Element => (
-    <section>
-        <h1>Export</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Export } from "@/components/pages/Export";
+
+const ExportPage = (): JSX.Element => <Export />;
 
 export default ExportPage;

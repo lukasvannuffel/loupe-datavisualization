@@ -1,26 +1,85 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
+} from "react";
+
+import type { ChartSlug } from "@/components/charts/chartPreviews";
+
+const INTENT_STORAGE_KEY = "loupe.intent";
+
+export type ColumnRole =
+    | "time"
+    | "event"
+    | "group"
+    | "outcome"
+    | "predictor"
+    | "x"
+    | "y"
+    | "id"
+    | "ignore";
 
 type AppState = {
+    intent: string;
+    setIntent: (next: string) => void;
     authed: boolean;
     setAuthed: (next: boolean) => void;
+    mapping: Record<string, ColumnRole>;
+    setMapping: (next: Record<string, ColumnRole>) => void;
+    chartSlug: ChartSlug | null;
+    setChartSlug: (next: ChartSlug | null) => void;
 };
 
 const AppStateContext = createContext<AppState | null>(null);
 
-type AppStateProviderProps = {
-    children: ReactNode;
-};
-
-export const AppStateProvider = ({ children }: AppStateProviderProps): JSX.Element => {
+export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Element => {
+    const [intent, setIntentState] = useState<string>("");
     const [authed, setAuthed] = useState<boolean>(false);
+    const [mapping, setMapping] = useState<Record<string, ColumnRole>>({});
+    const [chartSlug, setChartSlug] = useState<ChartSlug | null>(null);
 
-    return (
-        <AppStateContext.Provider value={{ authed, setAuthed }}>
-            {children}
-        </AppStateContext.Provider>
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const stored = window.sessionStorage.getItem(INTENT_STORAGE_KEY);
+        if (stored !== null) {
+            // Hydrate persisted intent on mount; SSR-safe via the typeof window guard above.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIntentState(stored);
+        }
+    }, []);
+
+    const setIntent = useCallback((next: string): void => {
+        setIntentState(next);
+
+        if (typeof window !== "undefined") {
+            window.sessionStorage.setItem(INTENT_STORAGE_KEY, next);
+        }
+    }, []);
+
+    const value = useMemo<AppState>(
+        () => ({
+            intent,
+            setIntent,
+            authed,
+            setAuthed,
+            mapping,
+            setMapping,
+            chartSlug,
+            setChartSlug,
+        }),
+        [intent, setIntent, authed, mapping, chartSlug],
     );
+
+    return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 };
 
 export const useAppState = (): AppState => {

@@ -1,8 +1,5 @@
-const UploadPage = (): JSX.Element => (
-    <section>
-        <h1>Upload</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Upload } from "@/components/pages/Upload";
+
+const UploadPage = (): JSX.Element => <Upload />;
 
 export default UploadPage;
