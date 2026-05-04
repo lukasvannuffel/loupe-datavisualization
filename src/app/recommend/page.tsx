@@ -1,8 +1,5 @@
-const RecommendPage = (): JSX.Element => (
-    <section>
-        <h1>Recommend</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Recommendation } from "@/components/pages/Recommendation";
+
+const RecommendPage = (): JSX.Element => <Recommendation />;
 
 export default RecommendPage;

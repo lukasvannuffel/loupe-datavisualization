@@ -1,8 +1,5 @@
-const AuthPage = (): JSX.Element => (
-    <section>
-        <h1>Auth</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Auth } from "@/components/pages/Auth";
+
+const AuthPage = (): JSX.Element => <Auth />;
 
 export default AuthPage;
