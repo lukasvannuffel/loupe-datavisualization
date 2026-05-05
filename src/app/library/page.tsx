@@ -1,8 +1,5 @@
-const LibraryPage = (): JSX.Element => (
-    <section>
-        <h1>Library</h1>
-        <p>Shell.</p>
-    </section>
-);
+import { Library } from "@/components/pages/Library";
+
+const LibraryPage = (): JSX.Element => <Library />;
 
 export default LibraryPage;
