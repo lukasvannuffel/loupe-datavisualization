@@ -67,11 +67,7 @@ export const AvatarUploader = ({
 
             <div className="avatar-uploader-controls">
                 <div className="avatar-uploader-actions">
-                    <form
-                        ref={uploadFormRef}
-                        action={uploadAction}
-                        encType="multipart/form-data"
-                    >
+                    <form ref={uploadFormRef} action={uploadAction}>
                         <input
                             ref={fileInputRef}
                             type="file"
