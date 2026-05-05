@@ -88,6 +88,9 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
 
     return (
         <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
+            <head>
+                <meta name="apple-mobile-web-app-title" content="Loupe" />
+            </head>
             <body>
                 <AppStateProvider>
                     <div className="shell">
