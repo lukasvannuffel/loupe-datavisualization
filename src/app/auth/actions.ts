@@ -11,6 +11,12 @@ export type AuthActionState = {
     message: string | null;
 };
 
+type AuthMode = "signin" | "signup";
+
+const readMode = (formData: FormData): AuthMode => {
+    return String(formData.get("mode") ?? "signin") === "signup" ? "signup" : "signin";
+};
+
 const readCredentials = (formData: FormData): { email: string; password: string } => {
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
@@ -18,16 +24,10 @@ const readCredentials = (formData: FormData): { email: string; password: string 
     return { email, password };
 };
 
-export const signIn = async (
-    _prev: AuthActionState | null,
-    formData: FormData,
+const performSignIn = async (
+    email: string,
+    password: string,
 ): Promise<AuthActionState> => {
-    const { email, password } = readCredentials(formData);
-
-    if (email === "" || password === "") {
-        return { error: "Email and password are required.", message: null };
-    }
-
     const supabase = createClient(await cookies());
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -39,16 +39,10 @@ export const signIn = async (
     redirect("/dashboard");
 };
 
-export const signUp = async (
-    _prev: AuthActionState | null,
-    formData: FormData,
+const performSignUp = async (
+    email: string,
+    password: string,
 ): Promise<AuthActionState> => {
-    const { email, password } = readCredentials(formData);
-
-    if (email === "" || password === "") {
-        return { error: "Email and password are required.", message: null };
-    }
-
     const supabase = createClient(await cookies());
     const { data, error } = await supabase.auth.signUp({ email, password });
 
@@ -57,6 +51,17 @@ export const signUp = async (
     }
 
     if (data.session === null) {
+        // Supabase returns { user, session: null } in two distinct cases:
+        // (a) confirmation email was just sent — `identities` is non-empty
+        // (b) email already belongs to a confirmed account — `identities` is empty
+        const identities = data.user?.identities ?? [];
+        if (identities.length === 0) {
+            return {
+                error: "An account with this email already exists. Try signing in.",
+                message: null,
+            };
+        }
+
         return {
             error: null,
             message: "Check your email to confirm your account.",
@@ -65,6 +70,24 @@ export const signUp = async (
 
     revalidatePath("/", "layout");
     redirect("/dashboard");
+};
+
+export const authenticate = async (
+    _prev: AuthActionState | null,
+    formData: FormData,
+): Promise<AuthActionState> => {
+    const mode = readMode(formData);
+    const { email, password } = readCredentials(formData);
+
+    if (email === "" || password === "") {
+        return { error: "Email and password are required.", message: null };
+    }
+
+    if (mode === "signup") {
+        return performSignUp(email, password);
+    }
+
+    return performSignIn(email, password);
 };
 
 export const signOut = async (): Promise<void> => {
