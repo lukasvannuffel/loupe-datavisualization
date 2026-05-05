@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { signIn, signUp, type AuthActionState } from "@/app/auth/actions";
+import { authenticate, type AuthActionState } from "@/app/auth/actions";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 
 type AuthMode = "signin" | "signup";
@@ -15,9 +15,8 @@ const INITIAL_STATE: AuthActionState = {
 export const Auth = (): JSX.Element => {
     const [mode, setMode] = useState<AuthMode>("signin");
 
-    const action = mode === "signin" ? signIn : signUp;
     const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(
-        action,
+        authenticate,
         INITIAL_STATE,
     );
 
@@ -51,6 +50,8 @@ export const Auth = (): JSX.Element => {
                 </p>
 
                 <form className="auth-fields" action={formAction}>
+                    <input type="hidden" name="mode" value={mode} />
+
                     <div className="field">
                         <label htmlFor="auth-email">Email</label>
                         <input

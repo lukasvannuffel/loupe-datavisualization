@@ -48,8 +48,43 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
         data: { user },
     } = await supabase.auth.getUser();
 
-    const navUser: TopNavUser | null =
-        user !== null ? { email: user.email ?? "" } : null;
+    const readMetadataString = (key: string): string | null => {
+        if (user === null) {
+            return null;
+        }
+
+        const raw = user.user_metadata?.[key];
+        if (typeof raw !== "string") {
+            return null;
+        }
+
+        const trimmed = raw.trim();
+
+        return trimmed === "" ? null : trimmed;
+    };
+
+    const composedDisplayName = ((): string | null => {
+        const explicit = readMetadataString("display_name");
+        if (explicit !== null) {
+            return explicit;
+        }
+
+        const first = readMetadataString("first_name");
+        const last = readMetadataString("last_name");
+        if (first !== null && last !== null) {
+            return `${first} ${last}`;
+        }
+
+        return first;
+    })();
+
+    const navUser: TopNavUser | null = user !== null
+        ? {
+            email: user.email ?? "",
+            displayName: composedDisplayName,
+            avatarUrl: readMetadataString("avatar_url"),
+        }
+        : null;
 
     return (
         <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>

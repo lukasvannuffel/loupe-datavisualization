@@ -6,6 +6,7 @@ import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { CHART_PREVIEWS, type ChartSlug } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { greetingByHour } from "@/lib/profile";
 import { ReRunModal } from "./ReRunModal";
 
 type ChartCard = {
@@ -89,12 +90,23 @@ type ReRunTarget = {
     name: string;
 } | null;
 
-export const Dashboard = (): JSX.Element => {
+type DashboardProps = {
+    displayName: string;
+    affiliation: string | null;
+};
+
+export const Dashboard = ({ displayName, affiliation }: DashboardProps): JSX.Element => {
     const router = useRouter();
     const [hoverProject, setHoverProject] = useState<string | null>(null);
     const [openMenu, setOpenMenu] = useState<CardMenuKey | null>(null);
     const [toast, setToast] = useState<string | null>(null);
     const [reRunTarget, setReRunTarget] = useState<ReRunTarget>(null);
+    const [greeting, setGreeting] = useState<string>("Welcome back");
+
+    useEffect(() => {
+        // Computed on the client to avoid SSR/UTC vs browser-local timezone hydration mismatch.
+        setGreeting(greetingByHour(new Date().getHours()));
+    }, []);
 
     useEffect(() => {
         if (openMenu === null) {
@@ -176,11 +188,17 @@ export const Dashboard = (): JSX.Element => {
                 <header className="dash-profile">
                     <div>
                         <Eyebrow>Workspace</Eyebrow>
-                        <h1 className="dash-greeting">Good afternoon, M.</h1>
-                        <p className="dash-affil">Department of Surgical Oncology · Erasmus MC</p>
+                        <h1 className="dash-greeting">{`${greeting}, ${displayName}.`}</h1>
+                        {affiliation !== null && affiliation !== "" ? (
+                            <p className="dash-affil">{affiliation}</p>
+                        ) : null}
                     </div>
                     <div className="dash-profile-actions">
-                        <button type="button" className="btn btn--ghost btn--sm">
+                        <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => router.push("/account")}
+                        >
                             Settings
                         </button>
                         <button

@@ -10,6 +10,7 @@ const PROTECTED_PREFIXES: readonly string[] = [
     "/dashboard",
     "/library",
     "/project",
+    "/account",
 ];
 
 const isProtectedPath = (pathname: string): boolean => {
