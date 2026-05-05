@@ -1,26 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useActionState, useState } from "react";
 
+import { signIn, signUp, type AuthActionState } from "@/app/auth/actions";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
-import { useAppState } from "@/app/providers";
 
 type AuthMode = "signin" | "signup";
 
+const INITIAL_STATE: AuthActionState = {
+    error: null,
+    message: null,
+};
+
 export const Auth = (): JSX.Element => {
-    const router = useRouter();
-    const { setAuthed } = useAppState();
-
     const [mode, setMode] = useState<AuthMode>("signin");
-    const [email, setEmail] = useState<string>("");
-    const [password, setPassword] = useState<string>("");
 
-    const submit = (e: FormEvent<HTMLFormElement>): void => {
-        e.preventDefault();
-        setAuthed(true);
-        router.push("/dashboard");
-    };
+    const action = mode === "signin" ? signIn : signUp;
+    const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(
+        action,
+        INITIAL_STATE,
+    );
 
     return (
         <div className="auth-wrap page-enter">
@@ -51,35 +50,66 @@ export const Auth = (): JSX.Element => {
                         : "Free for academic use. Email verification required."}
                 </p>
 
-                <form className="auth-fields" onSubmit={submit}>
+                <form className="auth-fields" action={formAction}>
                     <div className="field">
-                        <label>Email</label>
+                        <label htmlFor="auth-email">Email</label>
                         <input
+                            id="auth-email"
+                            name="email"
                             className="input"
                             type="email"
+                            autoComplete="email"
                             placeholder="name@institution.edu"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            required
                         />
                     </div>
                     <div className="field">
-                        <label>Password</label>
+                        <label htmlFor="auth-password">Password</label>
                         <input
+                            id="auth-password"
+                            name="password"
                             className="input"
                             type="password"
+                            autoComplete={mode === "signin" ? "current-password" : "new-password"}
                             placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            minLength={6}
                         />
                     </div>
-                    <button className="btn btn--primary auth-submit" type="submit">
-                        {mode === "signin" ? "Sign in" : "Create account"}
+                    {state.error !== null ? (
+                        <p className="auth-error" role="alert">
+                            {state.error}
+                        </p>
+                    ) : null}
+                    {state.message !== null ? (
+                        <p className="auth-info" role="status">
+                            {state.message}
+                        </p>
+                    ) : null}
+                    <button
+                        className="btn btn--primary auth-submit"
+                        type="submit"
+                        disabled={isPending}
+                    >
+                        {isPending
+                            ? mode === "signin"
+                                ? "Signing in…"
+                                : "Creating account…"
+                            : mode === "signin"
+                                ? "Sign in"
+                                : "Create account"}
                     </button>
                 </form>
 
                 <div className="auth-divider">or</div>
 
-                <button type="button" className="btn-google">
+                <button
+                    type="button"
+                    className="btn-google"
+                    disabled
+                    aria-disabled="true"
+                    title="Google sign-in coming soon"
+                >
                     <svg width="14" height="14" viewBox="0 0 14 14">
                         <circle cx="7" cy="7" r="6" fill="none" stroke="var(--ink)" strokeWidth="0.8" />
                         <path d="M7 4 V10 M4 7 H10" stroke="var(--ink)" strokeWidth="0.8" />
