@@ -1,3 +1,7 @@
+import type { StatAnnotation } from "@/lib/chartSpec/types";
+
+export type { StatAnnotation };
+
 export type ChartPreviewProps = {
     w?: number;
     h?: number;
@@ -8,21 +12,6 @@ export type KaplanMeierProps = ChartPreviewProps & {
     animated?: boolean;
     accent?: boolean;
 };
-
-export type StatAnnotation =
-    | {
-          kind: "bracket";
-          from: number;
-          to: number;
-          label: "*" | "**" | "***" | "ns";
-          pValue?: number;
-          level: number;
-      }
-    | {
-          kind: "pLabel";
-          target: number;
-          pValue: number;
-      };
 
 export type PublicationChartProps = {
     animated?: boolean;

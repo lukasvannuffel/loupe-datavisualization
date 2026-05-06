@@ -1,0 +1,232 @@
+/** All chart types Loupe knows about. Renderer dispatches on this; only the four `SpecKind` values have full Specs in V1. */
+export type ChartSlug =
+    | "km"
+    | "forest"
+    | "box"
+    | "roc"
+    | "volcano"
+    | "bland"
+    | "violin"
+    | "funnel"
+    | "spaghetti"
+    | "barError"
+    | "dot"
+    | "groupedBar"
+    | "bar"
+    | "barHorizontal"
+    | "stackedBar"
+    | "stackedBar100"
+    | "line"
+    | "scatter"
+    | "histogram"
+    | "pie"
+    | "donut"
+    | "lollipop"
+    | "pairedPlot"
+    | "sankey"
+    | "sunburst";
+
+/** Significance bracket or p-label drawn over a chart at fixed category indices. */
+export type StatAnnotation =
+    | {
+          kind: "bracket";
+          from: number;
+          to: number;
+          label: "*" | "**" | "***" | "ns";
+          pValue?: number;
+          level: number;
+      }
+    | {
+          kind: "pLabel";
+          target: number;
+          pValue: number;
+      };
+
+/** Discriminator subset: the four chart types V1 ships with full Spec + PlotData. */
+export type SpecKind = Extract<ChartSlug, "km" | "barError" | "roc" | "forest">;
+
+/** Frame, typography, palette and stroke options shared by every Spec. */
+export type BaseSpec = {
+    version: 1;
+    id: string;
+    createdAt: string;
+    title: string;
+    caption?: string;
+    xLabel?: string;
+    yLabel?: string;
+    showLegend: boolean;
+    showGrid: boolean;
+    paletteId: string;
+    strokeWeight: number;
+};
+
+/** Survival curve (Kaplan–Meier) configuration: legends, censoring tick, at-risk table, time unit. */
+export type KMSpec = BaseSpec & {
+    kind: "km";
+    legendA: string;
+    legendB?: string;
+    dashB: boolean;
+    showAtRisk: boolean;
+    showStats: boolean;
+    timeUnit: "days" | "weeks" | "months" | "years";
+};
+
+/** Categorical means with uncertainty: error-bar family + optional significance annotations. */
+export type BarErrorSpec = BaseSpec & {
+    kind: "barError";
+    errorBarType: "sd" | "sem" | "ci95";
+    annotations: readonly StatAnnotation[];
+};
+
+/** Receiver-operating characteristic: area-under-curve readout + diagonal reference. */
+export type RocSpec = BaseSpec & {
+    kind: "roc";
+    showAuc: boolean;
+    showDiagonalRef: boolean;
+};
+
+/** Forest plot of pre-specified subgroup effects: pooled summary, heterogeneity, null-effect line. */
+export type ForestSpec = BaseSpec & {
+    kind: "forest";
+    showPooled: boolean;
+    showHeterogeneity: boolean;
+    nullValue: number;
+};
+
+/** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
+export type ChartSpec = KMSpec | BarErrorSpec | RocSpec | ForestSpec;
+
+/** Single step on a Kaplan–Meier curve at one event/censoring time. Aggregated, never per-patient. */
+export type KMPoint = {
+    time: number;
+    survival: number;
+    atRisk: number;
+    censored: number;
+};
+
+/** Pointwise confidence band around a KM curve at a given time. */
+export type KMConfidenceInterval = {
+    time: number;
+    lower: number;
+    upper: number;
+};
+
+/** One survival curve: label + step points + optional median + optional CI band. No raw rows. */
+export type KMGroup = {
+    label: string;
+    points: readonly KMPoint[];
+    median?: number;
+    ci?: readonly KMConfidenceInterval[];
+};
+
+/** Survival aggregates ready to render: per-group step points + at-risk counts. No per-patient rows. */
+export type KMPlotData = {
+    kind: "km";
+    groups: readonly KMGroup[];
+};
+
+/** One bar: category mean, sample size, and a single error magnitude (SD/SEM/CI half-width). */
+export type BarErrorCategory = {
+    label: string;
+    mean: number;
+    error: number;
+    n: number;
+};
+
+/** Bar-with-error aggregates: per-category summary statistics. No per-patient rows. */
+export type BarErrorPlotData = {
+    kind: "barError";
+    categories: readonly BarErrorCategory[];
+};
+
+/** Single ROC operating point: false-positive rate, true-positive rate, optional decision threshold. */
+export type RocPoint = {
+    fpr: number;
+    tpr: number;
+    threshold?: number;
+};
+
+/** One ROC curve: label + sweep of operating points + computed AUC. */
+export type RocCurve = {
+    label: string;
+    points: readonly RocPoint[];
+    auc: number;
+};
+
+/** ROC aggregates: one or more pre-computed curves. No per-patient rows. */
+export type RocPlotData = {
+    kind: "roc";
+    curves: readonly RocCurve[];
+};
+
+/** One forest row: subgroup label, point estimate with confidence interval, group size. */
+export type ForestRow = {
+    label: string;
+    estimate: number;
+    ciLow: number;
+    ciHigh: number;
+    n: number;
+};
+
+/** Optional pooled summary across forest rows (e.g. random-effects estimate). */
+export type ForestPooled = {
+    estimate: number;
+    ciLow: number;
+    ciHigh: number;
+};
+
+/**
+ * Forest aggregates: per-subgroup effect estimates + optional pooled summary. No per-patient rows.
+ * Field is named `subgroups` (not `rows`) so the privacy guard, which forbids `rows` as a hint of per-patient data, holds.
+ */
+export type ForestPlotData = {
+    kind: "forest";
+    subgroups: readonly ForestRow[];
+    pooled?: ForestPooled;
+};
+
+/** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
+export type PlotData = KMPlotData | BarErrorPlotData | RocPlotData | ForestPlotData;
+
+/** Headline + reasoning shown to the user when a chart type is recommended. */
+export type RecommendationBlock = {
+    chartName: string;
+    headline: string;
+    becauseTitle: string;
+    because: string;
+    handlesTitle: string;
+    handles: string;
+};
+
+/** Considered-but-not-chosen alternative with its slug and the reason it was set aside. */
+export type AlternativeBlock = {
+    slug: ChartSlug;
+    name: string;
+    reason: string;
+};
+
+/** Plain-language description of one data transformation applied prior to rendering. */
+export type TransformationBlock = {
+    verb: string;
+    chart: string;
+};
+
+/** One statistical test result. `label` covers V1; structured fields support V2 (log-rank, Cox) without breaking. */
+export type StatTest = {
+    label: string;
+    name?: string;
+    pValue?: number;
+    statistic?: number;
+    ci95?: readonly [number, number];
+    notes?: string;
+};
+
+/** Reproducibility record bound to a chart: intent, recommendation, alternatives, transformations, tests. */
+export type Receipt = {
+    intent: string;
+    recommendation: RecommendationBlock;
+    alternatives: readonly AlternativeBlock[];
+    transformations: readonly TransformationBlock[];
+    testsTitle: string;
+    tests: readonly StatTest[];
+};
