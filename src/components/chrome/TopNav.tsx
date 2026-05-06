@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent } from "@supabase/supabase-js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -8,7 +8,6 @@ import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/chrome/AccountMenu";
 import { Wordmark } from "@/components/primitives/Wordmark";
-import { safeAvatarUrl } from "@/lib/profile";
 import { createClient } from "@/utils/supabase/client";
 
 export type TopNavUser = {
@@ -40,40 +39,10 @@ const isActive = (pathname: string, href: string): boolean => {
     return pathname === href || pathname.startsWith(`${href}/`);
 };
 
-const readMetadataString = (sessionUser: User, key: string): string | null => {
-    const raw = sessionUser.user_metadata?.[key];
-    if (typeof raw !== "string") {
-        return null;
-    }
-
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-        return null;
-    }
-
-    return trimmed;
-};
-
-const composeDisplayName = (sessionUser: User): string | null => {
-    const explicit = readMetadataString(sessionUser, "display_name");
-    if (explicit !== null) {
-        return explicit;
-    }
-
-    const first = readMetadataString(sessionUser, "first_name");
-    const last = readMetadataString(sessionUser, "last_name");
-    if (first !== null && last !== null) {
-        return `${first} ${last}`;
-    }
-
-    return first;
-};
-
-export const TopNav = ({ user: initialUser }: TopNavProps): JSX.Element => {
+export const TopNav = ({ user }: TopNavProps): JSX.Element => {
     const pathname = usePathname() ?? "/";
     const router = useRouter();
 
-    const [user, setUser] = useState<TopNavUser | null>(initialUser);
     const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
     const toggleRef = useRef<HTMLButtonElement | null>(null);
 
@@ -83,24 +52,18 @@ export const TopNav = ({ user: initialUser }: TopNavProps): JSX.Element => {
         const supabase = createClient();
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-            const sessionUser = session?.user ?? null;
-            if (sessionUser === null) {
-                setUser(null);
+        } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
+            if (event === "INITIAL_SESSION") {
                 return;
             }
 
-            setUser({
-                email: sessionUser.email ?? "",
-                displayName: composeDisplayName(sessionUser),
-                avatarUrl: safeAvatarUrl(readMetadataString(sessionUser, "avatar_url")),
-            });
+            router.refresh();
         });
 
         return () => {
             subscription.unsubscribe();
         };
-    }, []);
+    }, [router]);
 
     useEffect(() => {
         // Safety net: close the drawer if the route changes via a non-drawer path

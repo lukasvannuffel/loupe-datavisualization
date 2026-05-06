@@ -5,8 +5,19 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 const POST_AUTH_DEFAULT = "/dashboard";
+const SAFE_NEXT_PATTERN = /^\/(?![/\\])[\w\-./?#=&%]*$/;
 
-const readMetadataString = (user: User, key: string): string | null => {
+const safeNextPath = (raw: string | null): string => {
+    if (raw === null || !SAFE_NEXT_PATTERN.test(raw)) {
+        return POST_AUTH_DEFAULT;
+    }
+
+    return raw;
+};
+
+export const dynamic = "force-dynamic";
+
+const readOAuthIdentityString = (user: User, key: string): string | null => {
     const raw = user.user_metadata?.[key];
     if (typeof raw !== "string") {
         return null;
@@ -17,28 +28,28 @@ const readMetadataString = (user: User, key: string): string | null => {
     return trimmed === "" ? null : trimmed;
 };
 
-const buildOauthMirror = (user: User): Record<string, string> => {
-    const updates: Record<string, string> = {};
+type ProfileMirror = {
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+};
 
-    if (readMetadataString(user, "first_name") === null) {
-        const givenName = readMetadataString(user, "given_name");
-        if (givenName !== null) {
-            updates.first_name = givenName;
-        }
+const buildOauthMirror = (user: User): ProfileMirror => {
+    const updates: ProfileMirror = {};
+
+    const givenName = readOAuthIdentityString(user, "given_name");
+    if (givenName !== null) {
+        updates.first_name = givenName;
     }
 
-    if (readMetadataString(user, "last_name") === null) {
-        const familyName = readMetadataString(user, "family_name");
-        if (familyName !== null) {
-            updates.last_name = familyName;
-        }
+    const familyName = readOAuthIdentityString(user, "family_name");
+    if (familyName !== null) {
+        updates.last_name = familyName;
     }
 
-    if (readMetadataString(user, "avatar_url") === null) {
-        const picture = readMetadataString(user, "picture");
-        if (picture !== null) {
-            updates.avatar_url = picture;
-        }
+    const picture = readOAuthIdentityString(user, "picture");
+    if (picture !== null) {
+        updates.avatar_url = picture;
     }
 
     return updates;
@@ -47,7 +58,7 @@ const buildOauthMirror = (user: User): Record<string, string> => {
 export const GET = async (request: Request): Promise<NextResponse> => {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get("code");
-    const next = searchParams.get("next") ?? POST_AUTH_DEFAULT;
+    const next = safeNextPath(searchParams.get("next"));
 
     if (code === null) {
         return NextResponse.redirect(`${origin}/auth?error=oauth`);
@@ -61,11 +72,42 @@ export const GET = async (request: Request): Promise<NextResponse> => {
         return NextResponse.redirect(`${origin}/auth?error=oauth`);
     }
 
-    // First-time OAuth: mirror Google profile fields into our schema, but only
-    // for fields that are still empty. Manual edits in /account are preserved.
-    const updates = buildOauthMirror(exchange.user);
-    if (Object.keys(updates).length > 0) {
-        await supabase.auth.updateUser({ data: updates });
+    // First-time OAuth: mirror Google profile fields into our `profiles` table,
+    // but only fill empty columns. Manual edits in /account are preserved.
+    const mirror = buildOauthMirror(exchange.user);
+    const mirrorKeys = Object.keys(mirror) as Array<keyof ProfileMirror>;
+
+    if (mirrorKeys.length > 0) {
+        const { data: existing } = await supabase
+            .from("profiles")
+            .select("first_name, last_name, avatar_url")
+            .eq("id", exchange.user.id)
+            .maybeSingle<{
+                first_name: string | null;
+                last_name: string | null;
+                avatar_url: string | null;
+            }>();
+
+        const fillIfEmpty: ProfileMirror = {};
+        if (mirror.first_name !== undefined && (existing?.first_name ?? null) === null) {
+            fillIfEmpty.first_name = mirror.first_name;
+        }
+        if (mirror.last_name !== undefined && (existing?.last_name ?? null) === null) {
+            fillIfEmpty.last_name = mirror.last_name;
+        }
+        if (mirror.avatar_url !== undefined && (existing?.avatar_url ?? null) === null) {
+            fillIfEmpty.avatar_url = mirror.avatar_url;
+        }
+
+        if (Object.keys(fillIfEmpty).length > 0) {
+            await supabase
+                .from("profiles")
+                .upsert({
+                    id: exchange.user.id,
+                    ...fillIfEmpty,
+                    updated_at: new Date().toISOString(),
+                });
+        }
     }
 
     return NextResponse.redirect(`${origin}${next}`);

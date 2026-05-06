@@ -2,6 +2,8 @@
 
 import { useActionState, useEffect, useRef } from "react";
 
+import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
+
 import {
     requestPasswordChangeCode,
     updatePassword,
@@ -90,7 +92,7 @@ export const PasswordForm = (): JSX.Element => {
                         className="input"
                         type="password"
                         autoComplete="new-password"
-                        minLength={6}
+                        minLength={MIN_NEW_PASSWORD_LENGTH}
                         disabled={!codeSent}
                         required
                     />
@@ -103,7 +105,6 @@ export const PasswordForm = (): JSX.Element => {
                         className="input"
                         type="password"
                         autoComplete="new-password"
-                        minLength={6}
                         disabled={!codeSent}
                         required
                     />

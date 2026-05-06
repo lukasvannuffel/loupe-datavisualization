@@ -3,12 +3,12 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
+import { verifyHuman } from "@/utils/bot-guard";
 import { createClient } from "@/utils/supabase/server";
 
 const MAX_LENGTH_SHORT = 80;
 const MAX_LENGTH_LONG = 160;
-const MIN_PASSWORD_LENGTH = 6;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const REAUTH_NONCE_PATTERN = /^\d{6}$/;
 const AVATAR_BUCKET = "avatars";
 const AVATAR_MAX_BYTES = 4 * 1024 * 1024;
@@ -55,6 +55,11 @@ export const updateProfile = async (
     _prev: FormActionState | null,
     formData: FormData,
 ): Promise<FormActionState> => {
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
+
     const firstName = fieldOrNull(formData, "firstName");
     const lastName = fieldOrNull(formData, "lastName");
     const displayName = fieldOrNull(formData, "displayName");
@@ -88,8 +93,19 @@ export const updateProfile = async (
     }
 
     const supabase = createClient(await cookies());
-    const { error } = await supabase.auth.updateUser({
-        data: {
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user === null) {
+        return { ...INITIAL, error: "Not authenticated." };
+    }
+
+    const { error } = await supabase
+        .from("profiles")
+        .upsert({
+            id: user.id,
+            email: user.email,
             first_name: firstName,
             last_name: lastName,
             display_name: displayName,
@@ -101,8 +117,8 @@ export const updateProfile = async (
             city,
             postal_code: postalCode,
             country,
-        },
-    });
+            updated_at: new Date().toISOString(),
+        });
 
     if (error !== null) {
         return { ...INITIAL, error: error.message };
@@ -150,6 +166,11 @@ export const uploadAvatar = async (
     _prev: FormActionState | null,
     formData: FormData,
 ): Promise<FormActionState> => {
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
+
     const file = formData.get("file");
 
     if (!(file instanceof File) || file.size === 0) {
@@ -187,9 +208,14 @@ export const uploadAvatar = async (
     await removeAvatarFiles(supabase, user.id, stalePaths);
 
     const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-    const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: urlData.publicUrl },
-    });
+    const { error: updateError } = await supabase
+        .from("profiles")
+        .upsert({
+            id: user.id,
+            email: user.email,
+            avatar_url: urlData.publicUrl,
+            updated_at: new Date().toISOString(),
+        });
 
     if (updateError !== null) {
         return { ...INITIAL, error: updateError.message };
@@ -207,6 +233,11 @@ export const removeAvatar = async (
     void _prev;
     void _formData;
 
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
+
     const supabase = createClient(await cookies());
     const {
         data: { user },
@@ -219,9 +250,14 @@ export const removeAvatar = async (
     const existingPaths = await listExistingAvatarPaths(supabase, user.id);
     await removeAvatarFiles(supabase, user.id, existingPaths);
 
-    const { error } = await supabase.auth.updateUser({
-        data: { avatar_url: null },
-    });
+    const { error } = await supabase
+        .from("profiles")
+        .upsert({
+            id: user.id,
+            email: user.email,
+            avatar_url: null,
+            updated_at: new Date().toISOString(),
+        });
 
     if (error !== null) {
         return { ...INITIAL, error: error.message };
@@ -236,13 +272,15 @@ export const updateEmail = async (
     _prev: FormActionState | null,
     formData: FormData,
 ): Promise<FormActionState> => {
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
+
     const newEmail = fieldOrNull(formData, "newEmail");
 
     if (newEmail === null) {
         return { ...INITIAL, error: "Enter a new email address." };
-    }
-    if (!EMAIL_PATTERN.test(newEmail)) {
-        return { ...INITIAL, error: "That doesn't look like a valid email." };
     }
 
     const supabase = createClient(await cookies());
@@ -265,6 +303,11 @@ export const requestPasswordChangeCode = async (
 ): Promise<FormActionState> => {
     void _prev;
     void _formData;
+
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
 
     const supabase = createClient(await cookies());
     const {
@@ -292,6 +335,11 @@ export const updatePassword = async (
     _prev: FormActionState | null,
     formData: FormData,
 ): Promise<FormActionState> => {
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { ...INITIAL, error: guard.error };
+    }
+
     const nonce = String(formData.get("nonce") ?? "").trim();
     const newPassword = String(formData.get("newPassword") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
@@ -302,8 +350,8 @@ export const updatePassword = async (
     if (!REAUTH_NONCE_PATTERN.test(nonce)) {
         return { ...INITIAL, error: "Verification code must be 6 digits." };
     }
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-        return { ...INITIAL, error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
+    if (newPassword.length < MIN_NEW_PASSWORD_LENGTH) {
+        return { ...INITIAL, error: `New password must be at least ${MIN_NEW_PASSWORD_LENGTH} characters.` };
     }
     if (newPassword !== confirmPassword) {
         return { ...INITIAL, error: "New password and confirmation do not match." };
