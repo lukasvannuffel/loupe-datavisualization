@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/chrome/AccountMenu";
 import { Wordmark } from "@/components/primitives/Wordmark";
+import { safeAvatarUrl } from "@/lib/profile";
 import { createClient } from "@/utils/supabase/client";
 
 export type TopNavUser = {
@@ -92,7 +93,7 @@ export const TopNav = ({ user: initialUser }: TopNavProps): JSX.Element => {
             setUser({
                 email: sessionUser.email ?? "",
                 displayName: composeDisplayName(sessionUser),
-                avatarUrl: readMetadataString(sessionUser, "avatar_url"),
+                avatarUrl: safeAvatarUrl(readMetadataString(sessionUser, "avatar_url")),
             });
         });
 

@@ -1,7 +1,29 @@
 import type { User } from "@supabase/supabase-js";
 
+import { SUPABASE_URL } from "@/lib/env";
+
 const FALLBACK_INITIALS = "?";
 const FALLBACK_DISPLAY_NAME = "there";
+
+const SUPABASE_ORIGIN = ((): string | null => {
+    try {
+        return new URL(SUPABASE_URL).origin;
+    } catch {
+        return null;
+    }
+})();
+
+export const safeAvatarUrl = (raw: string | null): string | null => {
+    if (raw === null || SUPABASE_ORIGIN === null) {
+        return null;
+    }
+
+    try {
+        return new URL(raw).origin === SUPABASE_ORIGIN ? raw : null;
+    } catch {
+        return null;
+    }
+};
 
 export type ProfileAddress = {
     line1: string | null;
@@ -74,7 +96,7 @@ export const profileFromUser = (user: User): Profile => {
         affiliation: readMetadataString(user, "affiliation"),
         institution: readMetadataString(user, "institution"),
         role: readMetadataString(user, "role"),
-        avatarUrl: readMetadataString(user, "avatar_url"),
+        avatarUrl: safeAvatarUrl(readMetadataString(user, "avatar_url")),
         address: {
             line1: readMetadataString(user, "address_line1"),
             line2: readMetadataString(user, "address_line2"),
@@ -136,7 +158,7 @@ export const affiliationFromUser = (user: User): string | null => {
 };
 
 export const avatarUrlFromUser = (user: User): string | null => {
-    return readMetadataString(user, "avatar_url");
+    return safeAvatarUrl(readMetadataString(user, "avatar_url"));
 };
 
 export const greetingByHour = (hour: number): string => {

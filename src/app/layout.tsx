@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { FooterGate } from "@/components/chrome/FooterGate";
 import { TopNav, type TopNavUser } from "@/components/chrome/TopNav";
+import { avatarUrlFromUser } from "@/lib/profile";
 import { createClient } from "@/utils/supabase/server";
 
 import { AppStateProvider } from "./providers";
@@ -82,7 +83,7 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
         ? {
             email: user.email ?? "",
             displayName: composedDisplayName,
-            avatarUrl: readMetadataString("avatar_url"),
+            avatarUrl: avatarUrlFromUser(user),
         }
         : null;
 

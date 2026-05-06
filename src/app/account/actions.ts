@@ -3,13 +3,13 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
 const MAX_LENGTH_SHORT = 80;
 const MAX_LENGTH_LONG = 160;
 const MIN_PASSWORD_LENGTH = 6;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REAUTH_NONCE_PATTERN = /^\d{6}$/;
 const AVATAR_BUCKET = "avatars";
 const AVATAR_MAX_BYTES = 4 * 1024 * 1024;
 const AVATAR_ALLOWED_TYPES: ReadonlyArray<string> = [
@@ -113,29 +113,37 @@ export const updateProfile = async (
     return { error: null, message: "Profile saved.", ok: true };
 };
 
-type AdminClient = ReturnType<typeof createAdminClient>;
+type StorageClient = ReturnType<typeof createClient>;
+
+const ownsPath = (path: string, userId: string): boolean => {
+    return path === userId || path.startsWith(`${userId}/`);
+};
 
 const listExistingAvatarPaths = async (
-    admin: AdminClient,
+    supabase: StorageClient,
     userId: string,
 ): Promise<ReadonlyArray<string>> => {
-    const { data: files } = await admin.storage.from(AVATAR_BUCKET).list(userId);
+    const { data: files } = await supabase.storage.from(AVATAR_BUCKET).list(userId);
     if (files === null) {
         return [];
     }
 
-    return files.map((entry) => `${userId}/${entry.name}`);
+    return files
+        .map((entry: { name: string }): string => `${userId}/${entry.name}`)
+        .filter((path: string): boolean => ownsPath(path, userId));
 };
 
 const removeAvatarFiles = async (
-    admin: AdminClient,
+    supabase: StorageClient,
+    userId: string,
     paths: ReadonlyArray<string>,
 ): Promise<void> => {
-    if (paths.length === 0) {
+    const safePaths = paths.filter((path) => ownsPath(path, userId));
+    if (safePaths.length === 0) {
         return;
     }
 
-    await admin.storage.from(AVATAR_BUCKET).remove([...paths]);
+    await supabase.storage.from(AVATAR_BUCKET).remove([...safePaths]);
 };
 
 export const uploadAvatar = async (
@@ -163,14 +171,12 @@ export const uploadAvatar = async (
         return { ...INITIAL, error: "Not authenticated." };
     }
 
-    // Storage operations go through the admin client because the SSR cookie-authed
-    // client's JWT does not always reach the Storage service as `authenticated`.
-    // Path is constrained to the verified user's folder, so privilege isn't widened.
-    const admin = createAdminClient();
-    const stalePaths = await listExistingAvatarPaths(admin, user.id);
+    const stalePaths = await listExistingAvatarPaths(supabase, user.id);
 
-    const path = `${user.id}/avatar-${Date.now()}.${extensionFromType(file.type)}`;
-    const { error: uploadError } = await admin.storage
+    const filename = `avatar-${Date.now()}-${crypto.randomUUID()}.${extensionFromType(file.type)}`;
+    const path = `${user.id}/${filename}`;
+
+    const { error: uploadError } = await supabase.storage
         .from(AVATAR_BUCKET)
         .upload(path, file, { upsert: true, cacheControl: "3600", contentType: file.type });
 
@@ -178,10 +184,9 @@ export const uploadAvatar = async (
         return { ...INITIAL, error: uploadError.message };
     }
 
-    // Delete the previous files only after the new upload succeeded.
-    await removeAvatarFiles(admin, stalePaths);
+    await removeAvatarFiles(supabase, user.id, stalePaths);
 
-    const { data: urlData } = admin.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+    const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
     const { error: updateError } = await supabase.auth.updateUser({
         data: { avatar_url: urlData.publicUrl },
     });
@@ -211,9 +216,8 @@ export const removeAvatar = async (
         return { ...INITIAL, error: "Not authenticated." };
     }
 
-    const admin = createAdminClient();
-    const existingPaths = await listExistingAvatarPaths(admin, user.id);
-    await removeAvatarFiles(admin, existingPaths);
+    const existingPaths = await listExistingAvatarPaths(supabase, user.id);
+    await removeAvatarFiles(supabase, user.id, existingPaths);
 
     const { error } = await supabase.auth.updateUser({
         data: { avatar_url: null },
@@ -255,16 +259,48 @@ export const updateEmail = async (
     };
 };
 
+export const requestPasswordChangeCode = async (
+    _prev: FormActionState | null,
+    _formData: FormData,
+): Promise<FormActionState> => {
+    void _prev;
+    void _formData;
+
+    const supabase = createClient(await cookies());
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user === null) {
+        return { ...INITIAL, error: "Not authenticated." };
+    }
+
+    const { error } = await supabase.auth.reauthenticate();
+
+    if (error !== null) {
+        return { ...INITIAL, error: error.message };
+    }
+
+    return {
+        error: null,
+        message: "We sent a 6-digit verification code to your email.",
+        ok: true,
+    };
+};
+
 export const updatePassword = async (
     _prev: FormActionState | null,
     formData: FormData,
 ): Promise<FormActionState> => {
-    const currentPassword = String(formData.get("currentPassword") ?? "");
+    const nonce = String(formData.get("nonce") ?? "").trim();
     const newPassword = String(formData.get("newPassword") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-    if (currentPassword === "" || newPassword === "" || confirmPassword === "") {
-        return { ...INITIAL, error: "All password fields are required." };
+    if (nonce === "" || newPassword === "" || confirmPassword === "") {
+        return { ...INITIAL, error: "All fields are required." };
+    }
+    if (!REAUTH_NONCE_PATTERN.test(nonce)) {
+        return { ...INITIAL, error: "Verification code must be 6 digits." };
     }
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
         return { ...INITIAL, error: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
@@ -272,32 +308,12 @@ export const updatePassword = async (
     if (newPassword !== confirmPassword) {
         return { ...INITIAL, error: "New password and confirmation do not match." };
     }
-    if (newPassword === currentPassword) {
-        return { ...INITIAL, error: "New password must differ from the current one." };
-    }
 
     const supabase = createClient(await cookies());
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const { error } = await supabase.auth.updateUser({ password: newPassword, nonce });
 
-    if (user === null || user.email === undefined || user.email === "") {
-        return { ...INITIAL, error: "Not authenticated." };
-    }
-
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
-    });
-
-    if (verifyError !== null) {
-        return { ...INITIAL, error: "Current password is incorrect." };
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (updateError !== null) {
-        return { ...INITIAL, error: updateError.message };
+    if (error !== null) {
+        return { ...INITIAL, error: error.message };
     }
 
     return { error: null, message: "Password updated.", ok: true };

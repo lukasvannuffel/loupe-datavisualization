@@ -68,7 +68,7 @@ export const Auth = (): JSX.Element => {
                 </div>
                 <Eyebrow>{mode === "signin" ? "Welcome back" : "Begin"}</Eyebrow>
                 <h2 className="auth-title">
-                    {mode === "signin" ? "Sign in to your workspace." : "Create a research workspace."}
+                    {mode === "signin" ? "Sign in to your workspace." : "Create a workspace."}
                 </h2>
                 <p className="auth-sub">
                     {mode === "signin"
