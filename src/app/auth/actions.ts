@@ -4,7 +4,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
+import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
+import { SITE_URL } from "@/lib/env";
+import { verifyHuman } from "@/utils/bot-guard";
 import { createClient } from "@/utils/supabase/server";
+
+const GENERIC_SIGNUP_MESSAGE =
+    "If your email isn't already registered, we've sent a confirmation link.";
 
 export type AuthActionState = {
     error: string | null;
@@ -43,29 +49,31 @@ const performSignUp = async (
     email: string,
     password: string,
 ): Promise<AuthActionState> => {
+    if (password.length < MIN_NEW_PASSWORD_LENGTH) {
+        return {
+            error: `Password must be at least ${MIN_NEW_PASSWORD_LENGTH} characters.`,
+            message: null,
+        };
+    }
+
     const supabase = createClient(await cookies());
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            emailRedirectTo: SITE_URL === null ? undefined : `${SITE_URL}/auth/callback`,
+        },
+    });
 
     if (error !== null) {
-        return { error: error.message, message: null };
+        // Collapse every signup error (already-registered, password policy,
+        // rate-limit, network) into the same generic message — prevents
+        // email enumeration via distinguishable error text.
+        return { error: null, message: GENERIC_SIGNUP_MESSAGE };
     }
 
     if (data.session === null) {
-        // Supabase returns { user, session: null } in two distinct cases:
-        // (a) confirmation email was just sent — `identities` is non-empty
-        // (b) email already belongs to a confirmed account — `identities` is empty
-        const identities = data.user?.identities ?? [];
-        if (identities.length === 0) {
-            return {
-                error: "An account with this email already exists. Try signing in.",
-                message: null,
-            };
-        }
-
-        return {
-            error: null,
-            message: "Check your email to confirm your account.",
-        };
+        return { error: null, message: GENERIC_SIGNUP_MESSAGE };
     }
 
     revalidatePath("/", "layout");
@@ -76,6 +84,11 @@ export const authenticate = async (
     _prev: AuthActionState | null,
     formData: FormData,
 ): Promise<AuthActionState> => {
+    const guard = await verifyHuman();
+    if (!guard.ok) {
+        return { error: guard.error, message: null };
+    }
+
     const mode = readMode(formData);
     const { email, password } = readCredentials(formData);
 

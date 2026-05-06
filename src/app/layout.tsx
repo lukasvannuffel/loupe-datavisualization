@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { FooterGate } from "@/components/chrome/FooterGate";
 import { TopNav, type TopNavUser } from "@/components/chrome/TopNav";
+import { displayNameFor, loadProfile } from "@/lib/profile";
 import { createClient } from "@/utils/supabase/server";
 
 import { AppStateProvider } from "./providers";
@@ -48,43 +49,20 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
         data: { user },
     } = await supabase.auth.getUser();
 
-    const readMetadataString = (key: string): string | null => {
+    const navUser: TopNavUser | null = await (async (): Promise<TopNavUser | null> => {
         if (user === null) {
             return null;
         }
 
-        const raw = user.user_metadata?.[key];
-        if (typeof raw !== "string") {
-            return null;
-        }
+        const profile = await loadProfile(supabase, user.id);
+        const email = user.email ?? "";
 
-        const trimmed = raw.trim();
-
-        return trimmed === "" ? null : trimmed;
-    };
-
-    const composedDisplayName = ((): string | null => {
-        const explicit = readMetadataString("display_name");
-        if (explicit !== null) {
-            return explicit;
-        }
-
-        const first = readMetadataString("first_name");
-        const last = readMetadataString("last_name");
-        if (first !== null && last !== null) {
-            return `${first} ${last}`;
-        }
-
-        return first;
+        return {
+            email,
+            displayName: displayNameFor(profile, email),
+            avatarUrl: profile.avatarUrl,
+        };
     })();
-
-    const navUser: TopNavUser | null = user !== null
-        ? {
-            email: user.email ?? "",
-            displayName: composedDisplayName,
-            avatarUrl: readMetadataString("avatar_url"),
-        }
-        : null;
 
     return (
         <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
