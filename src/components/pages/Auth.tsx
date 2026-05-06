@@ -1,9 +1,11 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { authenticate, type AuthActionState } from "@/app/auth/actions";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { createClient } from "@/utils/supabase/client";
 
 type AuthMode = "signin" | "signup";
 
@@ -14,11 +16,36 @@ const INITIAL_STATE: AuthActionState = {
 
 export const Auth = (): JSX.Element => {
     const [mode, setMode] = useState<AuthMode>("signin");
+    const [oauthError, setOauthError] = useState<string | null>(null);
+    const [isOauthPending, setIsOauthPending] = useState<boolean>(false);
+
+    const searchParams = useSearchParams();
+    const oauthFailed = searchParams?.get("error") === "oauth";
 
     const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(
         authenticate,
         INITIAL_STATE,
     );
+
+    const onGoogleClick = async (): Promise<void> => {
+        setOauthError(null);
+        setIsOauthPending(true);
+
+        const supabase = createClient();
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            },
+        });
+
+        if (error !== null) {
+            setIsOauthPending(false);
+            setOauthError("Couldn't start Google sign-in. Try again.");
+        }
+    };
+
+    const inlineError = state.error ?? oauthError ?? (oauthFailed ? "Google sign-in failed. Try again." : null);
 
     return (
         <div className="auth-wrap page-enter">
@@ -77,9 +104,9 @@ export const Auth = (): JSX.Element => {
                             minLength={6}
                         />
                     </div>
-                    {state.error !== null ? (
+                    {inlineError !== null ? (
                         <p className="auth-error" role="alert">
-                            {state.error}
+                            {inlineError}
                         </p>
                     ) : null}
                     {state.message !== null ? (
@@ -107,15 +134,11 @@ export const Auth = (): JSX.Element => {
                 <button
                     type="button"
                     className="btn-google"
-                    disabled
-                    aria-disabled="true"
-                    title="Google sign-in coming soon"
+                    onClick={onGoogleClick}
+                    disabled={isOauthPending || isPending}
                 >
-                    <svg width="14" height="14" viewBox="0 0 14 14">
-                        <circle cx="7" cy="7" r="6" fill="none" stroke="var(--ink)" strokeWidth="0.8" />
-                        <path d="M7 4 V10 M4 7 H10" stroke="var(--ink)" strokeWidth="0.8" />
-                    </svg>
-                    Continue with Google
+                    <img src="/assets/google.svg" alt="" width={18} height={18} aria-hidden="true" />
+                    {isOauthPending ? "Redirecting…" : "Continue with Google"}
                 </button>
 
                 <div className="auth-privacy">
