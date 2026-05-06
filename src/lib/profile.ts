@@ -1,7 +1,30 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { SUPABASE_URL } from "@/lib/env";
 
 const FALLBACK_INITIALS = "?";
 const FALLBACK_DISPLAY_NAME = "there";
+const PROFILES_TABLE = "profiles";
+
+const SUPABASE_ORIGIN = ((): string | null => {
+    try {
+        return new URL(SUPABASE_URL).origin;
+    } catch {
+        return null;
+    }
+})();
+
+export const safeAvatarUrl = (raw: string | null): string | null => {
+    if (raw === null || SUPABASE_ORIGIN === null) {
+        return null;
+    }
+
+    try {
+        return new URL(raw).origin === SUPABASE_ORIGIN ? raw : null;
+    } catch {
+        return null;
+    }
+};
 
 export type ProfileAddress = {
     line1: string | null;
@@ -22,18 +45,90 @@ export type Profile = {
     address: ProfileAddress;
 };
 
-const readMetadataString = (user: User, key: string): string | null => {
-    const raw = user.user_metadata?.[key];
-    if (typeof raw !== "string") {
+export const EMPTY_PROFILE: Profile = {
+    firstName: null,
+    lastName: null,
+    displayName: null,
+    affiliation: null,
+    institution: null,
+    role: null,
+    avatarUrl: null,
+    address: {
+        line1: null,
+        line2: null,
+        city: null,
+        postalCode: null,
+        country: null,
+    },
+};
+
+type ProfileRow = {
+    first_name: string | null;
+    last_name: string | null;
+    display_name: string | null;
+    institution: string | null;
+    affiliation: string | null;
+    role: string | null;
+    avatar_url: string | null;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    postal_code: string | null;
+    country: string | null;
+};
+
+const trimOrNull = (value: string | null): string | null => {
+    if (value === null) {
         return null;
     }
 
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-        return null;
+    const trimmed = value.trim();
+
+    return trimmed === "" ? null : trimmed;
+};
+
+const profileFromRow = (row: ProfileRow): Profile => {
+    return {
+        firstName: trimOrNull(row.first_name),
+        lastName: trimOrNull(row.last_name),
+        displayName: trimOrNull(row.display_name),
+        affiliation: trimOrNull(row.affiliation),
+        institution: trimOrNull(row.institution),
+        role: trimOrNull(row.role),
+        avatarUrl: safeAvatarUrl(trimOrNull(row.avatar_url)),
+        address: {
+            line1: trimOrNull(row.address_line1),
+            line2: trimOrNull(row.address_line2),
+            city: trimOrNull(row.city),
+            postalCode: trimOrNull(row.postal_code),
+            country: trimOrNull(row.country),
+        },
+    };
+};
+
+export const loadProfile = async (
+    supabase: SupabaseClient,
+    userId: string,
+): Promise<Profile> => {
+    const { data, error } = await supabase
+        .from(PROFILES_TABLE)
+        .select(
+            "first_name, last_name, display_name, institution, affiliation, role, avatar_url, address_line1, address_line2, city, postal_code, country",
+        )
+        .eq("id", userId)
+        .maybeSingle<ProfileRow>();
+
+    if (error !== null) {
+        console.error("[loadProfile] failed to fetch profile", { userId, error });
+
+        return EMPTY_PROFILE;
     }
 
-    return trimmed;
+    if (data === null) {
+        return EMPTY_PROFILE;
+    }
+
+    return profileFromRow(data);
 };
 
 export const initialsFromNameOrEmail = (value: string): string => {
@@ -66,84 +161,45 @@ export const initialsFromNameOrEmail = (value: string): string => {
     return (first + last).toUpperCase();
 };
 
-export const profileFromUser = (user: User): Profile => {
-    return {
-        firstName: readMetadataString(user, "first_name"),
-        lastName: readMetadataString(user, "last_name"),
-        displayName: readMetadataString(user, "display_name"),
-        affiliation: readMetadataString(user, "affiliation"),
-        institution: readMetadataString(user, "institution"),
-        role: readMetadataString(user, "role"),
-        avatarUrl: readMetadataString(user, "avatar_url"),
-        address: {
-            line1: readMetadataString(user, "address_line1"),
-            line2: readMetadataString(user, "address_line2"),
-            city: readMetadataString(user, "city"),
-            postalCode: readMetadataString(user, "postal_code"),
-            country: readMetadataString(user, "country"),
-        },
-    };
+const localPartFromEmail = (email: string | null): string | null => {
+    if (email === null || email === "") {
+        return null;
+    }
+
+    const local = email.split("@")[0];
+
+    return local !== undefined && local !== "" ? local : null;
 };
 
-export const displayNameFromUser = (user: User): string => {
-    const explicit = readMetadataString(user, "display_name");
-    if (explicit !== null) {
-        return explicit;
+export const displayNameFor = (profile: Profile, email: string | null): string => {
+    if (profile.displayName !== null) {
+        return profile.displayName;
+    }
+    if (profile.firstName !== null && profile.lastName !== null) {
+        return `${profile.firstName} ${profile.lastName}`;
+    }
+    if (profile.firstName !== null) {
+        return profile.firstName;
     }
 
-    const first = readMetadataString(user, "first_name");
-    const last = readMetadataString(user, "last_name");
-    if (first !== null && last !== null) {
-        return `${first} ${last}`;
-    }
-    if (first !== null) {
-        return first;
-    }
-
-    if (user.email !== undefined && user.email !== "") {
-        const local = user.email.split("@")[0];
-        if (local !== undefined && local !== "") {
-            return local;
-        }
-    }
-
-    return FALLBACK_DISPLAY_NAME;
+    return localPartFromEmail(email) ?? FALLBACK_DISPLAY_NAME;
 };
 
-export const greetingNameFromUser = (user: User): string => {
-    const first = readMetadataString(user, "first_name");
-    if (first !== null) {
-        return first;
+export const greetingNameFor = (profile: Profile, email: string | null): string => {
+    if (profile.firstName !== null) {
+        return profile.firstName;
+    }
+    if (profile.displayName !== null) {
+        return profile.displayName;
     }
 
-    const explicit = readMetadataString(user, "display_name");
-    if (explicit !== null) {
-        return explicit;
-    }
-
-    if (user.email !== undefined && user.email !== "") {
-        const local = user.email.split("@")[0];
-        if (local !== undefined && local !== "") {
-            return local;
-        }
-    }
-
-    return FALLBACK_DISPLAY_NAME;
-};
-
-export const affiliationFromUser = (user: User): string | null => {
-    return readMetadataString(user, "affiliation");
-};
-
-export const avatarUrlFromUser = (user: User): string | null => {
-    return readMetadataString(user, "avatar_url");
+    return localPartFromEmail(email) ?? FALLBACK_DISPLAY_NAME;
 };
 
 export const greetingByHour = (hour: number): string => {
     if (hour < 12) {
         return "Good morning";
     }
-
     if (hour < 18) {
         return "Good afternoon";
     }

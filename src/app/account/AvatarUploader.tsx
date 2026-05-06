@@ -59,6 +59,7 @@ export const AvatarUploader = ({
                         className="avatar-uploader-image"
                         width={96}
                         height={96}
+                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     <span className="avatar-uploader-initials">{initials}</span>

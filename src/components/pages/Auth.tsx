@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 
 import { authenticate, type AuthActionState } from "@/app/auth/actions";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/client";
 
 type AuthMode = "signin" | "signup";
@@ -14,13 +15,32 @@ const INITIAL_STATE: AuthActionState = {
     message: null,
 };
 
+const resolveCallbackError = (errorParam: string | null): string | null => {
+    if (errorParam === "oauth") {
+        return "Google sign-in failed. Try again.";
+    }
+    if (errorParam === "callback") {
+        return "That confirmation link is invalid or has expired.";
+    }
+
+    return null;
+};
+
+const submitLabel = (mode: AuthMode, isPending: boolean): string => {
+    if (mode === "signin") {
+        return isPending ? "Signing in…" : "Sign in";
+    }
+
+    return isPending ? "Creating account…" : "Create account";
+};
+
 export const Auth = (): JSX.Element => {
     const [mode, setMode] = useState<AuthMode>("signin");
     const [oauthError, setOauthError] = useState<string | null>(null);
     const [isOauthPending, setIsOauthPending] = useState<boolean>(false);
 
     const searchParams = useSearchParams();
-    const oauthFailed = searchParams?.get("error") === "oauth";
+    const callbackError = resolveCallbackError(searchParams?.get("error") ?? null);
 
     const [state, formAction, isPending] = useActionState<AuthActionState, FormData>(
         authenticate,
@@ -45,7 +65,7 @@ export const Auth = (): JSX.Element => {
         }
     };
 
-    const inlineError = state.error ?? oauthError ?? (oauthFailed ? "Google sign-in failed. Try again." : null);
+    const inlineError = state.error ?? oauthError ?? callbackError;
 
     return (
         <div className="auth-wrap page-enter">
@@ -68,7 +88,7 @@ export const Auth = (): JSX.Element => {
                 </div>
                 <Eyebrow>{mode === "signin" ? "Welcome back" : "Begin"}</Eyebrow>
                 <h2 className="auth-title">
-                    {mode === "signin" ? "Sign in to your workspace." : "Create a research workspace."}
+                    {mode === "signin" ? "Sign in to your workspace." : "Create a workspace."}
                 </h2>
                 <p className="auth-sub">
                     {mode === "signin"
@@ -101,7 +121,7 @@ export const Auth = (): JSX.Element => {
                             autoComplete={mode === "signin" ? "current-password" : "new-password"}
                             placeholder="••••••••"
                             required
-                            minLength={6}
+                            minLength={mode === "signup" ? MIN_NEW_PASSWORD_LENGTH : undefined}
                         />
                     </div>
                     {inlineError !== null ? (
@@ -119,13 +139,7 @@ export const Auth = (): JSX.Element => {
                         type="submit"
                         disabled={isPending}
                     >
-                        {isPending
-                            ? mode === "signin"
-                                ? "Signing in…"
-                                : "Creating account…"
-                            : mode === "signin"
-                                ? "Sign in"
-                                : "Create account"}
+                        {submitLabel(mode, isPending)}
                     </button>
                 </form>
 

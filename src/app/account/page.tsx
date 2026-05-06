@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 import { Eyebrow } from "@/components/primitives/Eyebrow";
-import { displayNameFromUser, profileFromUser } from "@/lib/profile";
-import { createClient } from "@/utils/supabase/server";
+import { displayNameFor, loadProfile } from "@/lib/profile";
+import { createClient, requireUser } from "@/utils/supabase/server";
 
 import { AccountForm } from "./AccountForm";
 import { AvatarUploader } from "./AvatarUploader";
@@ -11,18 +10,11 @@ import { EmailForm } from "./EmailForm";
 import { PasswordForm } from "./PasswordForm";
 
 const AccountPage = async (): Promise<JSX.Element> => {
+    const user = await requireUser();
     const supabase = createClient(await cookies());
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user === null) {
-        redirect("/auth");
-    }
-
-    const profile = profileFromUser(user);
+    const profile = await loadProfile(supabase, user.id);
     const email = user.email ?? "";
-    const fallbackLabel = displayNameFromUser(user);
+    const fallbackLabel = displayNameFor(profile, email);
 
     return (
         <div className="page-enter">

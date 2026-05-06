@@ -1,19 +1,20 @@
 import { cookies } from "next/headers";
 
 import { Dashboard } from "@/components/pages/Dashboard";
-import { affiliationFromUser, greetingNameFromUser } from "@/lib/profile";
-import { createClient } from "@/utils/supabase/server";
+import { greetingNameFor, loadProfile } from "@/lib/profile";
+import { createClient, requireUser } from "@/utils/supabase/server";
 
 const DashboardPage = async (): Promise<JSX.Element> => {
+    const user = await requireUser();
     const supabase = createClient(await cookies());
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const profile = await loadProfile(supabase, user.id);
 
-    const displayName = user !== null ? greetingNameFromUser(user) : "there";
-    const affiliation = user !== null ? affiliationFromUser(user) : null;
-
-    return <Dashboard displayName={displayName} affiliation={affiliation} />;
+    return (
+        <Dashboard
+            displayName={greetingNameFor(profile, user.email ?? null)}
+            affiliation={profile.affiliation}
+        />
+    );
 };
 
 export default DashboardPage;

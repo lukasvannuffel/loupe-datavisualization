@@ -3,6 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env";
 
+import { hardenSupabaseCookieOptions } from "./cookies";
+
 const PROTECTED_PREFIXES: readonly string[] = [
     "/upload",
     "/recommend",
@@ -19,10 +21,13 @@ const isProtectedPath = (pathname: string): boolean => {
     );
 };
 
-export const updateSession = async (request: NextRequest): Promise<NextResponse> => {
+export const updateSession = async (
+    request: NextRequest,
+    requestHeaders: Headers,
+): Promise<NextResponse> => {
     let supabaseResponse = NextResponse.next({
         request: {
-            headers: request.headers,
+            headers: requestHeaders,
         },
     });
 
@@ -39,10 +44,12 @@ export const updateSession = async (request: NextRequest): Promise<NextResponse>
                         request.cookies.set(name, value),
                     );
                     supabaseResponse = NextResponse.next({
-                        request,
+                        request: {
+                            headers: requestHeaders,
+                        },
                     });
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options),
+                        supabaseResponse.cookies.set(name, value, hardenSupabaseCookieOptions(name, options)),
                     );
                 },
             },

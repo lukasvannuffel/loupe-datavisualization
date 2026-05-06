@@ -83,6 +83,7 @@ export const AccountMenu = ({ user }: AccountMenuProps): JSX.Element => {
                         className="account-avatar-image"
                         width={32}
                         height={32}
+                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     <span className="account-avatar-initials" aria-hidden="true">
