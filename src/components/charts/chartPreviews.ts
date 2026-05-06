@@ -1,5 +1,7 @@
 import type { ComponentType } from "react";
 
+import type { ChartSlug } from "@/lib/chartSpec/types";
+
 import { Bar } from "./Bar";
 import { BarHorizontal } from "./BarHorizontal";
 import { BarWithError } from "./BarWithError";
@@ -28,32 +30,7 @@ import { Violin } from "./Violin";
 import { Volcano } from "./Volcano";
 import type { ChartPreviewProps, PublicationChartProps } from "./types";
 
-export type ChartSlug =
-    | "km"
-    | "forest"
-    | "box"
-    | "roc"
-    | "volcano"
-    | "bland"
-    | "violin"
-    | "funnel"
-    | "spaghetti"
-    | "barError"
-    | "dot"
-    | "groupedBar"
-    | "bar"
-    | "barHorizontal"
-    | "stackedBar"
-    | "stackedBar100"
-    | "line"
-    | "scatter"
-    | "histogram"
-    | "pie"
-    | "donut"
-    | "lollipop"
-    | "pairedPlot"
-    | "sankey"
-    | "sunburst";
+export type { ChartSlug };
 
 export const CHART_PREVIEWS: Record<ChartSlug, ComponentType<ChartPreviewProps>> = {
     km: KaplanMeier,
