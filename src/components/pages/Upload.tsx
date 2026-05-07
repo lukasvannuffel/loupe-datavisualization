@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { inferColumnTypes } from "@/lib/parser/inferColumnTypes";
 import { useFileParser } from "@/lib/parser/useFileParser";
 import { PrivacyDiagram } from "./PrivacyDiagram";
 
@@ -85,6 +86,10 @@ export const Upload = (): JSX.Element => {
 
     const result = state.status === "success" ? state.result : null;
     const errorMessage = state.status === "error" ? state.error.message : null;
+    const inferences = useMemo(
+        () => (result !== null ? inferColumnTypes(result) : null),
+        [result],
+    );
 
     return (
         <div className="upload-page page-enter">
@@ -209,6 +214,49 @@ export const Upload = (): JSX.Element => {
                         >
                             Try again
                         </button>
+                    </div>
+                )}
+
+                {phase === "uploaded" && inferences !== null && (
+                    <div className="col-preview">
+                        <div className="col-preview-head">
+                            <div className="col-preview-head-title">What we detected.</div>
+                            <span className="muted mono">{inferences.length} columns</span>
+                        </div>
+                        <div className="col-preview-scroll">
+                            <table className="col-preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Type</th>
+                                        <th>Confidence</th>
+                                        <th>Sample</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inferences.map((c) => (
+                                        <tr key={c.name}>
+                                            <td>{c.name}</td>
+                                            <td className="col-type-cell">
+                                                <span
+                                                    className={
+                                                        "col-type" +
+                                                        (c.confidence < 0.5 ? " col-badge--unsure" : "")
+                                                    }
+                                                >
+                                                    {c.primaryType}
+                                                </span>
+                                                {c.semanticTag !== undefined && (
+                                                    <span className="col-type tt-event">{c.semanticTag}</span>
+                                                )}
+                                            </td>
+                                            <td className="mono">{Math.round(c.confidence * 100)}%</td>
+                                            <td className="muted mono">{c.sampleValues.join(", ")}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
