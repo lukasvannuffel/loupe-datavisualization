@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
+import { useAppState } from "@/app/providers";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { SEMANTIC_TAG_LABEL } from "@/lib/parser/inference.types";
 import { inferColumnTypes } from "@/lib/parser/inferColumnTypes";
 import { useFileParser } from "@/lib/parser/useFileParser";
 import { PrivacyDiagram } from "./PrivacyDiagram";
@@ -33,6 +35,7 @@ export const Upload = (): JSX.Element => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const tryAgainRef = useRef<HTMLButtonElement | null>(null);
     const { state, parse, reset } = useFileParser();
+    const { setDataset, clearDataset, setMapping } = useAppState();
 
     const [dragOver, setDragOver] = useState<boolean>(false);
     const [phIndex, setPhIndex] = useState<number>(0);
@@ -92,6 +95,20 @@ export const Upload = (): JSX.Element => {
         () => (result !== null ? inferColumnTypes(result) : null),
         [result],
     );
+
+    useEffect(() => {
+        if (inferences === null) {
+            return;
+        }
+        setDataset(inferences);
+        setMapping({});
+    }, [inferences, setDataset, setMapping]);
+
+    const onReplace = (): void => {
+        reset();
+        clearDataset();
+        setMapping({});
+    };
 
     return (
         <div className="upload-page page-enter">
@@ -184,7 +201,7 @@ export const Upload = (): JSX.Element => {
                                             className="btn btn--ghost btn--sm"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                reset();
+                                                onReplace();
                                             }}
                                         >
                                             Replace
@@ -212,7 +229,7 @@ export const Upload = (): JSX.Element => {
                             ref={tryAgainRef}
                             type="button"
                             className="btn btn--ghost btn--sm"
-                            onClick={() => reset()}
+                            onClick={onReplace}
                         >
                             Try again
                         </button>
@@ -247,10 +264,14 @@ export const Upload = (): JSX.Element => {
                                                 <td>{c.name}</td>
                                                 <td className="col-type-cell" title={reasonsText}>
                                                     <span id={reasonsId} hidden>{reasonsText}</span>
-                                                    <span className="col-type">{c.primaryType}</span>
-                                                    {c.semanticTag !== undefined && (
-                                                        <span className="col-type tt-event">{c.semanticTag}</span>
-                                                    )}
+                                                    <span className="type-badges">
+                                                        <span className="type-badge">{c.primaryType}</span>
+                                                        {c.semanticTag !== undefined && (
+                                                            <span className="type-badge type-badge--accent">
+                                                                {SEMANTIC_TAG_LABEL[c.semanticTag]}
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                 </td>
                                                 <td className={"mono" + (needsReview ? " col-confidence--review" : "")}>
                                                     {pct}%

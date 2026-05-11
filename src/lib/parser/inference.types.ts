@@ -10,6 +10,13 @@ export type PrimaryType =
 /** Optional medical-domain layer on top of a primaryType (e.g. a numeric column that is also time-to-event). */
 export type SemanticTag = "time-to-event" | "event-status" | "patient-id";
 
+/** Shared short labels for semantic tags. Render this — never the raw tag value — in any UI. */
+export const SEMANTIC_TAG_LABEL: Readonly<Record<SemanticTag, string>> = {
+    "time-to-event": "time-to-event",
+    "event-status": "event",
+    "patient-id": "id",
+};
+
 /** Result of one detector run: did it match, with what confidence, and which rules fired (for UI tooltips). */
 export type DetectorResult = {
     readonly matches: boolean;
