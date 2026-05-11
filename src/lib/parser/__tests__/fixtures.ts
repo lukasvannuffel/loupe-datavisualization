@@ -9,9 +9,6 @@ export type Fixture = {
     };
 };
 
-export const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-export const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/;
-
 export const FIXTURES: readonly Fixture[] = [
     // numeric (≥5)
     {
@@ -144,6 +141,12 @@ export const FIXTURES: readonly Fixture[] = [
         values: ["2024-01-15", "not-a-date", "2024-02-20", "invalid", "2024-03-10", "bad", "huh", "tomorrow"],
         expected: { primaryType: "categorical" },
     },
+    // adversarial (I4): only 40% parseable numbers — primary fails to clear, time-to-event must NOT fire
+    {
+        name: "survival_months",
+        values: ["junk_a", "junk_b", "junk_c", "junk_d", "junk_e", "junk_f", "12.5", "8.3", "24.7", "6.2"],
+        expected: { primaryType: "categorical" },
+    },
 
     // patient-id (≥3) — IDs always demote to categorical
     {
@@ -157,14 +160,37 @@ export const FIXTURES: readonly Fixture[] = [
         expected: { primaryType: "categorical", semanticTag: "patient-id" },
     },
     {
-        name: "subject_id",
-        values: ["S-001", "S-002", "S-003", "S-004", "S-005", "S-006"],
-        expected: { primaryType: "categorical", semanticTag: "patient-id" },
-    },
-    {
         name: "record_id",
         values: ["R001", "R002", "R003", "R004", "R005", "R006"],
         expected: { primaryType: "categorical", semanticTag: "patient-id" },
+    },
+    {
+        name: "patientid",
+        values: ["2001", "2002", "2003", "2004", "2005", "2006", "2007"],
+        expected: { primaryType: "categorical", semanticTag: "patient-id" },
+    },
+    {
+        name: "subject",
+        values: ["S001", "S002", "S003", "S004", "S005", "S006", "S007", "S008"],
+        expected: { primaryType: "categorical", semanticTag: "patient-id" },
+    },
+    // Adversarial: bare 'patient' and 'record' are too ambiguous to auto-tag (e.g. 'patient_satisfaction', 'record_date').
+    {
+        name: "patient",
+        values: ["alice", "bob", "carol", "dave", "eve", "frank", "grace", "henry"],
+        expected: { primaryType: "categorical" },
+    },
+    {
+        name: "record",
+        values: ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"],
+        expected: { primaryType: "categorical" },
+    },
+    // Tightened ID_NAME (LOUPE-03 follow-up): subject_id intentionally NOT auto-tagged — only bare 'subject' or
+    // (patient|record)[._-]?id variants match. subject_id falls through to categorical with no semantic tag.
+    {
+        name: "subject_id",
+        values: ["S-001", "S-002", "S-003", "S-004", "S-005", "S-006"],
+        expected: { primaryType: "categorical" },
     },
 
     // binary (≥5)

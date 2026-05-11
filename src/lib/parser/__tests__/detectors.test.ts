@@ -75,6 +75,17 @@ describe("detectCategorical", () => {
         const result = detectCategorical(["1", "2", "3", "1", "2", "3"]);
         expect(result.matches).toBe(false);
     });
+
+    it("clamps confidence to [0.55, 0.95] — never returns exactly 0.5", () => {
+        // Boundary case: 10 values, 5 distinct, ratio = 0.5 — would be 0.5 unclamped.
+        const boundary = detectCategorical(["a", "b", "c", "d", "e", "a", "b", "c", "d", "e"]);
+        expect(boundary.confidence).not.toBe(0.5);
+        expect(boundary.confidence).toBeGreaterThanOrEqual(0.55);
+        expect(boundary.confidence).toBeLessThanOrEqual(0.95);
+        // High-repetition case: 10 values, 2 distinct, ratio = 0.2 — confidence should clamp to 0.95.
+        const highRep = detectCategorical(["a", "a", "a", "a", "a", "b", "b", "b", "b", "b"]);
+        expect(highRep.confidence).toBeLessThanOrEqual(0.95);
+    });
 });
 
 describe("detectDate", () => {
@@ -138,10 +149,18 @@ describe("resolvePrimary tie-breaks", () => {
         expect(result.primaryType).toBe("binary");
     });
 
-    it("falls back to categorical 0.4 when nothing clears 0.5", () => {
+    it("empty values branch → reason 'column has no values'", () => {
+        const result = resolvePrimary([]);
+        expect(result.primaryType).toBe("categorical");
+        expect(result.confidence).toBe(0.4);
+        expect(result.reasons).toEqual(["column has no values"]);
+    });
+
+    it("nothing-matched branch → reason 'no detector reached 0.5 confidence'", () => {
         const result = resolvePrimary(["one-off-1", "one-off-2", "one-off-3", "one-off-4", "one-off-5"]);
         expect(result.primaryType).toBe("categorical");
         expect(result.confidence).toBe(0.4);
+        expect(result.reasons).toEqual(["no detector reached 0.5 confidence"]);
     });
 });
 
@@ -160,6 +179,25 @@ describe("semantic detectors", () => {
         expect(detectTimeToEvent("time_x", "numeric", ["-1", "2"])).toBe(false);
     });
 
+    it("detectTimeToEvent requires parsedRatio ≥ 0.9", () => {
+        // 80% parseable — primary may be numeric, but time-to-event must NOT fire.
+        expect(
+            detectTimeToEvent(
+                "time_x",
+                "numeric",
+                ["1", "2", "3", "4", "5", "6", "7", "8", "x", "y"],
+            ),
+        ).toBe(false);
+        // 90% parseable — fires.
+        expect(
+            detectTimeToEvent(
+                "time_x",
+                "numeric",
+                ["1", "2", "3", "4", "5", "6", "7", "8", "9", "x"],
+            ),
+        ).toBe(true);
+    });
+
     it("detectEventStatus fires on binary + event-name", () => {
         expect(detectEventStatus("event_observed", "binary")).toBe(true);
         expect(detectEventStatus("death_status", "binary")).toBe(true);
@@ -173,7 +211,14 @@ describe("semantic detectors", () => {
     it("detectPatientId fires on id-like names with high uniqueness", () => {
         expect(detectPatientId("id", 100, 100)).toBe(true);
         expect(detectPatientId("patient_id", 95, 100)).toBe(true);
+        expect(detectPatientId("patientid", 100, 100)).toBe(true);
+        expect(detectPatientId("record_id", 100, 100)).toBe(true);
         expect(detectPatientId("subject", 100, 100)).toBe(true);
+    });
+
+    it("detectPatientId rejects bare 'patient' / 'record' (ambiguous without _id suffix)", () => {
+        expect(detectPatientId("patient", 100, 100)).toBe(false);
+        expect(detectPatientId("record", 100, 100)).toBe(false);
     });
 
     it("detectPatientId rejects low uniqueness", () => {

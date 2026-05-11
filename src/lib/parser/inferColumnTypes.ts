@@ -5,7 +5,11 @@ import type { ParseResult } from "./types";
 
 export const INFERENCE_SAMPLE_SIZE = 1000;
 
-/** Pure column-type inference. Reads PrivateRows but returns schema-only data — never row arrays. */
+/**
+ * Infers a `ColumnInference` per header from a `ParseResult`.
+ * Privacy contract: returns schema-only data — never row arrays; at most 5 sample values per column.
+ * Performance: reads at most `INFERENCE_SAMPLE_SIZE` rows per column (skips empty/whitespace cells).
+ */
 export const inferColumnTypes = (parseResult: ParseResult): readonly ColumnInference[] => {
     const { headers, rows } = parseResult;
     const cap = Math.min(rows.length, INFERENCE_SAMPLE_SIZE);
@@ -15,7 +19,7 @@ export const inferColumnTypes = (parseResult: ParseResult): readonly ColumnInfer
         let nullCount = 0;
         for (let i = 0; i < cap; i++) {
             const v = rows[i][name];
-            if (v === undefined || v === "") {
+            if (v === undefined || v.trim() === "") {
                 nullCount++;
                 continue;
             }

@@ -71,22 +71,42 @@ describe("inferColumnTypes — acceptance criterion (LOUPE-03)", () => {
         expect(byName.get("treatment_arm")?.primaryType).toBe("categorical");
         expect(byName.get("treatment_arm")?.semanticTag).toBeUndefined();
     });
+
+    it("demotes an integer-valued patient_id column to categorical (override rule)", () => {
+        const result = inferColumnTypes(
+            buildParseResult([
+                {
+                    name: "patient_id",
+                    values: ["1001", "1002", "1003", "1004", "1005", "1006", "1007"],
+                },
+            ]),
+        );
+        const got = result[0];
+
+        expect(got.semanticTag).toBe("patient-id");
+        expect(got.primaryType).toBe("categorical");
+        expect(got.primaryType).not.toBe("integer");
+        expect(got.primaryType).not.toBe("numeric");
+    });
 });
 
 describe("inferColumnTypes — sample-size cap", () => {
-    it("never reads beyond INFERENCE_SAMPLE_SIZE rows per column", () => {
+    it("throws if any column reads at index ≥ INFERENCE_SAMPLE_SIZE (3-column proxy regression)", () => {
         const total = 5000;
         const raw: Record<string, string>[] = [];
         for (let i = 0; i < total; i++) {
-            raw.push({ col: String(i) });
+            raw.push({
+                a: String(i),
+                b: i < 800 ? `val_${i}` : "",
+                c: i < 100 ? "" : `c_${i}`,
+            });
         }
-        let maxIndex = -1;
-        const proxied = new Proxy(raw, {
+        const guarded = new Proxy(raw, {
             get(target, prop, receiver) {
                 if (typeof prop === "string" && /^\d+$/.test(prop)) {
                     const i = Number(prop);
-                    if (i > maxIndex) {
-                        maxIndex = i;
+                    if (i >= INFERENCE_SAMPLE_SIZE) {
+                        throw new Error(`Sample-cap breach: index ${i} ≥ ${INFERENCE_SAMPLE_SIZE}`);
                     }
                 }
 
@@ -94,17 +114,16 @@ describe("inferColumnTypes — sample-size cap", () => {
             },
         });
 
-        inferColumnTypes({
-            headers: ["col"],
-            rows: brandRows(proxied),
-            rowCount: total,
-            fileName: "big.csv",
-            sizeBytes: 0,
-            sourceFormat: "csv",
-        });
-
-        expect(maxIndex).toBeLessThan(INFERENCE_SAMPLE_SIZE);
-        expect(maxIndex).toBe(INFERENCE_SAMPLE_SIZE - 1);
+        expect(() =>
+            inferColumnTypes({
+                headers: ["a", "b", "c"],
+                rows: brandRows(guarded),
+                rowCount: total,
+                fileName: "big.csv",
+                sizeBytes: 0,
+                sourceFormat: "csv",
+            }),
+        ).not.toThrow();
     });
 });
 
@@ -148,6 +167,60 @@ describe("inferColumnTypes — fixture corpus accuracy ≥ 90%", () => {
 
         expect({ rate, misses: semanticMisses }).toMatchObject({ rate: expect.any(Number) });
         expect(rate).toBeGreaterThanOrEqual(0.9);
+    });
+});
+
+describe("inferColumnTypes — false-positive rate < 10% (LOUPE-03 acceptance)", () => {
+    const FP_RATE_THRESHOLD = 0.1;
+
+    it("primaryType false-positive rate stays below 10% over the corpus", () => {
+        const result = inferColumnTypes(buildParseResult(FIXTURES));
+        const byName = new Map(result.map((c) => [c.name, c]));
+        const falsePositives: string[] = [];
+
+        for (const f of FIXTURES) {
+            const got = byName.get(f.name);
+            if (got?.primaryType !== f.expected.primaryType) {
+                falsePositives.push(`${f.name}: expected ${f.expected.primaryType}, got ${got?.primaryType}`);
+            }
+        }
+        const fpRate = falsePositives.length / FIXTURES.length;
+
+        expect(fpRate, `primaryType false positives: ${falsePositives.join(" | ")}`).toBeLessThan(FP_RATE_THRESHOLD);
+    });
+
+    it("semanticTag false-positive rate stays below 10% over negative fixtures", () => {
+        const result = inferColumnTypes(buildParseResult(FIXTURES));
+        const byName = new Map(result.map((c) => [c.name, c]));
+        const negatives: readonly Fixture[] = FIXTURES.filter((f) => f.expected.semanticTag === undefined);
+        const falsePositives: string[] = [];
+
+        expect(negatives.length).toBeGreaterThan(0);
+
+        for (const f of negatives) {
+            const got = byName.get(f.name);
+            if (got?.semanticTag !== undefined) {
+                falsePositives.push(`${f.name}: expected no tag, got ${got.semanticTag}`);
+            }
+        }
+        const fpRate = falsePositives.length / negatives.length;
+
+        expect(fpRate, `semanticTag false positives: ${falsePositives.join(" | ")}`).toBeLessThan(FP_RATE_THRESHOLD);
+    });
+});
+
+describe("inferColumnTypes — whitespace cells (N1 regression)", () => {
+    it("does not infer high numeric confidence on whitespace-only cells (Number(' ') === 0)", () => {
+        const result = inferColumnTypes(
+            buildParseResult([
+                { name: "blanks", values: ["   ", "  ", "    ", " ", "   "] },
+            ]),
+        );
+        const got = result[0];
+        expect(got.primaryType).toBe("categorical");
+        expect(got.confidence).toBe(0.4);
+        expect(got.reasons).toEqual(["column has no values"]);
+        expect(got.nullCount).toBe(5);
     });
 });
 

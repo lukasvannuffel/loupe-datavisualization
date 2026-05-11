@@ -1324,9 +1324,23 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     margin-left: 8px;
 }
 .col-type.tt-event { color: var(--amber); background: rgba(181,101,29,0.07); }
-.col-badge--unsure {
-    border-left: 1px dotted var(--amber);
-    padding-left: 5px;
+.col-confidence--review { color: var(--amber); }
+.col-review-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    border: 1px solid var(--amber-soft);
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--amber);
+    text-transform: lowercase;
+    white-space: nowrap;
+}
+.col-preview-empty {
+    margin-top: 28px;
+    font-size: 13px;
 }
 @media (max-width: 480px) {
     .col-type-cell .col-type { display: block; margin: 2px 0 0; }

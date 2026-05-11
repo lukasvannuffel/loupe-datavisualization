@@ -15,6 +15,8 @@ const PLACEHOLDERS: readonly string[] = [
     "Compare biomarker concordance between two assays…",
 ];
 
+const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
 const formatBytes = (bytes: number): string => {
     if (bytes < 1024) {
         return `${bytes} B`;
@@ -217,7 +219,7 @@ export const Upload = (): JSX.Element => {
                     </div>
                 )}
 
-                {phase === "uploaded" && inferences !== null && (
+                {phase === "uploaded" && inferences !== null && inferences.length > 0 && (
                     <div className="col-preview">
                         <div className="col-preview-head">
                             <div className="col-preview-head-title">What we detected.</div>
@@ -234,30 +236,38 @@ export const Upload = (): JSX.Element => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {inferences.map((c) => (
-                                        <tr key={c.name}>
-                                            <td>{c.name}</td>
-                                            <td className="col-type-cell">
-                                                <span
-                                                    className={
-                                                        "col-type" +
-                                                        (c.confidence < 0.5 ? " col-badge--unsure" : "")
-                                                    }
-                                                >
-                                                    {c.primaryType}
-                                                </span>
-                                                {c.semanticTag !== undefined && (
-                                                    <span className="col-type tt-event">{c.semanticTag}</span>
-                                                )}
-                                            </td>
-                                            <td className="mono">{Math.round(c.confidence * 100)}%</td>
-                                            <td className="muted mono">{c.sampleValues.join(", ")}</td>
-                                        </tr>
-                                    ))}
+                                    {inferences.map((c) => {
+                                        const reasonsText = c.reasons.join("; ");
+                                        const reasonsId = `col-reasons-${c.name}`;
+                                        const needsReview = c.confidence < LOW_CONFIDENCE_THRESHOLD;
+                                        const pct = Math.round(c.confidence * 100);
+
+                                        return (
+                                            <tr key={c.name} aria-describedby={reasonsId}>
+                                                <td>{c.name}</td>
+                                                <td className="col-type-cell" title={reasonsText}>
+                                                    <span id={reasonsId} hidden>{reasonsText}</span>
+                                                    <span className="col-type">{c.primaryType}</span>
+                                                    {c.semanticTag !== undefined && (
+                                                        <span className="col-type tt-event">{c.semanticTag}</span>
+                                                    )}
+                                                </td>
+                                                <td className={"mono" + (needsReview ? " col-confidence--review" : "")}>
+                                                    {pct}%
+                                                    {needsReview && <span className="col-review-tag">review</span>}
+                                                </td>
+                                                <td className="muted mono">{c.sampleValues.join(", ")}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                )}
+
+                {phase === "uploaded" && inferences !== null && inferences.length === 0 && (
+                    <p className="muted col-preview-empty">No columns detected — check the file&apos;s header row.</p>
                 )}
 
                 {phase === "uploaded" && result !== null && (

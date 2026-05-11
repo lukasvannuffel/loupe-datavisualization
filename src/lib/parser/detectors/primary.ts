@@ -108,7 +108,8 @@ export const detectCategorical = (values: readonly string[]): DetectorResult => 
 
     return {
         matches,
-        confidence: matches ? 1 - ratio : 0,
+        // Clamped to [0.55, 0.95] so a matching categorical never sits exactly on the UI's < 0.5 threshold.
+        confidence: matches ? Math.max(0.55, Math.min(0.95, 1 - ratio)) : 0,
         reasons: [`categorical: ${distinct} distinct, ratio ${ratio.toFixed(2)}`],
     };
 };
@@ -181,7 +182,16 @@ const decide = (primaryType: PrimaryType, result: DetectorResult): PrimaryDecisi
     };
 };
 
+const FALLBACK_CONFIDENCE = 0.4;
+
 export const resolvePrimary = (values: readonly string[]): PrimaryDecision => {
+    if (values.length === 0) {
+        return {
+            primaryType: "categorical",
+            confidence: FALLBACK_CONFIDENCE,
+            reasons: ["column has no values"],
+        };
+    }
     const datetime = detectDatetime(values);
     if (datetime.matches) {
         return decide("datetime", datetime);
@@ -212,7 +222,7 @@ export const resolvePrimary = (values: readonly string[]): PrimaryDecision => {
 
     return {
         primaryType: "categorical",
-        confidence: 0.4,
-        reasons: ["fallback: no detector cleared 0.5"],
+        confidence: FALLBACK_CONFIDENCE,
+        reasons: ["no detector reached 0.5 confidence"],
     };
 };
