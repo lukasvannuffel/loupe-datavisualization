@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import { inferColumnTypes } from "@/lib/parser/inferColumnTypes";
 import { useFileParser } from "@/lib/parser/useFileParser";
 import { PrivacyDiagram } from "./PrivacyDiagram";
 
@@ -13,6 +14,8 @@ const PLACEHOLDERS: readonly string[] = [
     "Plot hazard ratios across pre-specified subgroups…",
     "Compare biomarker concordance between two assays…",
 ];
+
+const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
 const formatBytes = (bytes: number): string => {
     if (bytes < 1024) {
@@ -85,6 +88,10 @@ export const Upload = (): JSX.Element => {
 
     const result = state.status === "success" ? state.result : null;
     const errorMessage = state.status === "error" ? state.error.message : null;
+    const inferences = useMemo(
+        () => (result !== null ? inferColumnTypes(result) : null),
+        [result],
+    );
 
     return (
         <div className="upload-page page-enter">
@@ -210,6 +217,57 @@ export const Upload = (): JSX.Element => {
                             Try again
                         </button>
                     </div>
+                )}
+
+                {phase === "uploaded" && inferences !== null && inferences.length > 0 && (
+                    <div className="col-preview">
+                        <div className="col-preview-head">
+                            <div className="col-preview-head-title">What we detected.</div>
+                            <span className="muted mono">{inferences.length} columns</span>
+                        </div>
+                        <div className="col-preview-scroll">
+                            <table className="col-preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Type</th>
+                                        <th>Confidence</th>
+                                        <th>Sample</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inferences.map((c) => {
+                                        const reasonsText = c.reasons.join("; ");
+                                        const reasonsId = `col-reasons-${c.name}`;
+                                        const needsReview = c.confidence < LOW_CONFIDENCE_THRESHOLD;
+                                        const pct = Math.round(c.confidence * 100);
+
+                                        return (
+                                            <tr key={c.name} aria-describedby={reasonsId}>
+                                                <td>{c.name}</td>
+                                                <td className="col-type-cell" title={reasonsText}>
+                                                    <span id={reasonsId} hidden>{reasonsText}</span>
+                                                    <span className="col-type">{c.primaryType}</span>
+                                                    {c.semanticTag !== undefined && (
+                                                        <span className="col-type tt-event">{c.semanticTag}</span>
+                                                    )}
+                                                </td>
+                                                <td className={"mono" + (needsReview ? " col-confidence--review" : "")}>
+                                                    {pct}%
+                                                    {needsReview && <span className="col-review-tag">review</span>}
+                                                </td>
+                                                <td className="muted mono">{c.sampleValues.join(", ")}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {phase === "uploaded" && inferences !== null && inferences.length === 0 && (
+                    <p className="muted col-preview-empty">No columns detected — check the file&apos;s header row.</p>
                 )}
 
                 {phase === "uploaded" && result !== null && (
