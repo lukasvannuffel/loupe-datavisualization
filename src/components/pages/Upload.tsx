@@ -100,6 +100,7 @@ export const Upload = (): JSX.Element => {
         if (inferences === null) {
             return;
         }
+        // Intent intentionally preserved across uploads: same-study workflow is the common case.
         setDataset(inferences);
         setMapping({});
     }, [inferences, setDataset, setMapping]);

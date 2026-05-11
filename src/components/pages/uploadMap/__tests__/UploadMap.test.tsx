@@ -94,6 +94,12 @@ describe("UploadMap", () => {
         expect(getSelect("event_observed").value).toBe("event");
     });
 
+    it("does NOT redirect to /upload when a dataset is persisted (hydration-race guard)", () => {
+        seedDataset(KM_DATASET);
+        renderPage();
+        expect(replace).not.toHaveBeenCalledWith("/upload");
+    });
+
     it("changing time from one column to another reverts the old one to Ignore", () => {
         seedDataset(KM_DATASET);
         renderPage();

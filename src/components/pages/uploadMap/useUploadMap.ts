@@ -18,17 +18,25 @@ type UploadMapApi = {
 
 export const useUploadMap = (): UploadMapApi => {
     const router = useRouter();
-    const { intent, mapping, setMapping, dataset, clearDataset } = useAppState();
+    const { hydrated, intent, mapping, setMapping, dataset, clearDataset } = useAppState();
+    // Per-mount intentionally — autoMap should not re-fire on the same dataset within a session
+    // once the user has touched the mapping. A remount (e.g. after Replace) is a fresh seed.
     const autoMapped = useRef<boolean>(false);
 
     useEffect(() => {
+        // Wait for provider hydration before deciding to redirect, otherwise a fresh mount
+        // (page refresh / direct link) sees a transient null dataset and bounces the user
+        // off /upload/map even when sessionStorage has valid persisted state.
+        if (!hydrated) {
+            return;
+        }
         if (dataset === null) {
             router.replace("/upload");
         }
-    }, [dataset, router]);
+    }, [hydrated, dataset, router]);
 
     useEffect(() => {
-        if (autoMapped.current || dataset === null || Object.keys(mapping).length > 0) {
+        if (!hydrated || autoMapped.current || dataset === null || Object.keys(mapping).length > 0) {
             return;
         }
         autoMapped.current = true;
@@ -36,12 +44,13 @@ export const useUploadMap = (): UploadMapApi => {
         if (Object.keys(seeded).length > 0) {
             setMapping(seeded);
         }
-    }, [dataset, mapping, setMapping]);
+    }, [hydrated, dataset, mapping, setMapping]);
 
     const inferences = useMemo<readonly ColumnInference[]>(() => dataset ?? [], [dataset]);
     const validation = useMemo(() => validateMapping(mapping, inferences), [mapping, inferences]);
     const continueDisabled = validation.status !== "valid" || intent.trim().length === 0;
 
+    // React Compiler memoizes — do not wrap in useCallback.
     return {
         inferences,
         validation,

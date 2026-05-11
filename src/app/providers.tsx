@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import type { ChartSlug } from "@/components/charts/chartPreviews";
+import { columnInferenceArraySchema } from "@/lib/parser/inference.schemas";
 import type { ColumnInference } from "@/lib/parser/inference.types";
 
 const INTENT_KEY = "loupe.intent";
@@ -32,6 +33,7 @@ export type ColumnRole =
 export type Mapping = Partial<Record<ColumnRole, string>>;
 
 type AppState = {
+    readonly hydrated: boolean;
     readonly intent: string;
     readonly setIntent: (next: string) => void;
     readonly mapping: Mapping;
@@ -58,15 +60,32 @@ const safeParse = <T,>(raw: string | null, guard: (v: unknown) => v is T): T | n
     }
 };
 
-const isInferenceArray = (v: unknown): v is readonly ColumnInference[] =>
-    Array.isArray(v) &&
-    v.every(
-        (c) =>
-            c !== null &&
-            typeof c === "object" &&
-            typeof (c as { name?: unknown }).name === "string" &&
-            typeof (c as { primaryType?: unknown }).primaryType === "string",
-    );
+/**
+ * Schema-gated hydration: any persisted dataset that does not match the strict
+ * ColumnInference contract is dropped (key removed) so we never render broken UI
+ * over malformed state. Silent by design — no console noise for tampered storage.
+ */
+const hydrateDataset = (
+    store: Storage,
+    key: string,
+): readonly ColumnInference[] | null => {
+    const raw = store.getItem(key);
+    if (raw === null) {
+        return null;
+    }
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        const result = columnInferenceArraySchema.safeParse(parsed);
+        if (result.success) {
+            return result.data;
+        }
+    } catch {
+        // fall through to drop
+    }
+    store.removeItem(key);
+
+    return null;
+};
 
 const isMapping = (v: unknown): v is Mapping =>
     v !== null && typeof v === "object" && !Array.isArray(v);
@@ -76,13 +95,14 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
     const [mapping, setMappingState] = useState<Mapping>({});
     const [dataset, setDatasetState] = useState<readonly ColumnInference[] | null>(null);
     const [chartSlug, setChartSlug] = useState<ChartSlug | null>(null);
-    const hydrated = useRef<boolean>(false);
+    const [hydrated, setHydrated] = useState<boolean>(false);
+    const didHydrate = useRef<boolean>(false);
 
     useEffect(() => {
-        if (typeof window === "undefined" || hydrated.current) {
+        if (typeof window === "undefined" || didHydrate.current) {
             return;
         }
-        hydrated.current = true;
+        didHydrate.current = true;
 
         const store = window.sessionStorage;
         const storedIntent = store.getItem(INTENT_KEY);
@@ -90,7 +110,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setIntentState(storedIntent);
         }
-        const storedDataset = safeParse(store.getItem(DATASET_KEY), isInferenceArray);
+        const storedDataset = hydrateDataset(store, DATASET_KEY);
         if (storedDataset !== null) {
             setDatasetState(storedDataset);
         }
@@ -98,6 +118,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         if (storedMapping !== null) {
             setMappingState(storedMapping);
         }
+        setHydrated(true);
     }, []);
 
     const setIntent = useCallback((next: string): void => {
@@ -130,6 +151,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
 
     const value = useMemo<AppState>(
         () => ({
+            hydrated,
             intent,
             setIntent,
             mapping,
@@ -140,7 +162,17 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             chartSlug,
             setChartSlug,
         }),
-        [intent, setIntent, mapping, setMapping, dataset, setDataset, clearDataset, chartSlug],
+        [
+            hydrated,
+            intent,
+            setIntent,
+            mapping,
+            setMapping,
+            dataset,
+            setDataset,
+            clearDataset,
+            chartSlug,
+        ],
     );
 
     return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

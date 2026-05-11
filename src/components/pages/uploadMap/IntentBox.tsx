@@ -14,12 +14,16 @@ type IntentBoxProps = {
 
 export const IntentBox = ({ intent, onChange }: IntentBoxProps): JSX.Element => {
     const [phIndex, setPhIndex] = useState<number>(0);
+    const isEmpty = intent.length === 0;
 
     useEffect(() => {
+        if (!isEmpty) {
+            return;
+        }
         const t = setInterval(() => setPhIndex((i) => (i + 1) % PLACEHOLDERS.length), 3500);
 
         return () => clearInterval(t);
-    }, []);
+    }, [isEmpty]);
 
     return (
         <div className="intent-block">

@@ -2,6 +2,16 @@ import type { ColumnInference } from "@/lib/parser/inference.types";
 import type { ColumnRole } from "@/app/providers";
 import type { Mapping } from "@/app/providers";
 
+/**
+ * Anchored regex for ID-like column names. Accepts: `id`, `subject`, `patient_id`,
+ * `patient-id`, `patient.id`, `patientid`, `record_id`, `record-id`, `record.id`,
+ * `recordid` (all case-insensitive).
+ *
+ * Rejects bare `patient` and `record` — they are ambiguous outside clinical-trial
+ * idiom (a "patient" column might hold a name, a hospital code, etc.). Bare
+ * `subject` IS accepted because the clinical-trial usage is the dominant idiom and
+ * "subject" alone is a stronger signal there than "patient" alone.
+ */
 const ID_NAME = /^(id|subject|(patient|record)[._-]?id|patientid|recordid)$/i;
 const GROUP_NAME = /(arm|group|cohort|treatment|condition)/i;
 
