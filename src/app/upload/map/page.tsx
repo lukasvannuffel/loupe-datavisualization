@@ -1,4 +1,4 @@
-import { UploadMap } from "@/components/pages/UploadMap";
+import { UploadMap } from "@/components/pages/uploadMap/UploadMap";
 
 const UploadMapPage = (): JSX.Element => <UploadMap />;
 
