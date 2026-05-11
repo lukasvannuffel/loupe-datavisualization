@@ -72,6 +72,10 @@ This is the load-bearing model of the product. **Read it before changing anythin
 
 **Privacy invariant on `PlotData`:** every variant is aggregated (per-group / per-category / per-curve / per-subgroup). There are no per-patient rows. The `ForestPlotData` field is intentionally named `subgroups` rather than `rows` so privacy guards that flag the substring `rows` continue to hold. **Don't add raw row-level data to `PlotData`.**
 
+### Browser-only file parser: `src/lib/parser/`
+
+`useFileParser` (`src/lib/parser/useFileParser.ts`) is the single entry point for ingesting user data — CSV via `parseCsv` (papaparse) and `.xlsx` via `parseXlsx` (SheetJS), dispatched on extension. Files over `WORKER_THRESHOLD_BYTES` are parsed in `xlsx.worker.ts` (module worker); construction failures gracefully fall back to the main thread. All parsing is in-browser — **no upload endpoint exists; nothing should ever cross the network with raw row data.** Column-type inference lives in `detectors/` (`primary.ts`, `semantic.ts`) and is consumed via `inferColumnTypes.ts`. Errors are normalised through `errors.ts` (`UNSUPPORTED_FORMAT`, `FILE_EMPTY`, `FILE_TOO_LARGE`, `ABORTED`, …) — surface those codes to UI rather than raw exceptions.
+
 ### Chart components: `src/components/charts/`
 
 `chartPreviews.ts` is the registry mapping every `ChartSlug` to a React component (`CHART_PREVIEWS`). When adding a chart slug, you must update both `ChartSlug` in `src/lib/chartSpec/types.ts` (and the matching enum in `schemas.ts`) and the registry. Annotation components (`SignificanceBracket`, `PValueLabel`) live under `annotations/`.
