@@ -205,6 +205,42 @@ describe("plotDataSchema round-trip", () => {
         const parsed = plotDataSchema.parse(roundTrip(fixture));
         expect(parsed).toEqual(fixture);
     });
+
+    it("preserves box plot data with outliers (order preserved)", () => {
+        const parsed = plotDataSchema.parse(roundTrip(boxPlotDataWithOutliers));
+        expect(parsed).toEqual(boxPlotDataWithOutliers);
+        if (parsed.kind === "box") {
+            expect(parsed.groups[0]?.outliers).toEqual([4.5, 4.9]);
+        }
+    });
+
+    it("preserves box plot data with empty outliers", () => {
+        const parsed = plotDataSchema.parse(roundTrip(boxPlotDataEmptyOutliers));
+        expect(parsed).toEqual(boxPlotDataEmptyOutliers);
+    });
+
+    it("preserves xy plot data (line-style multi-series + error bands)", () => {
+        const parsed = plotDataSchema.parse(roundTrip(xyPlotDataLine));
+        expect(parsed).toEqual(xyPlotDataLine);
+    });
+
+    it("preserves xy plot data (scatter + regression)", () => {
+        const parsed = plotDataSchema.parse(roundTrip(xyPlotDataScatterRegression));
+        expect(parsed).toEqual(xyPlotDataScatterRegression);
+        if (parsed.kind === "xy") {
+            expect(parsed.series[0]?.regression).toEqual({
+                slope: 3.42,
+                intercept: 0.41,
+                r2: 0.972,
+            });
+        }
+    });
+});
+
+describe("ChartSpec discriminant", () => {
+    it("pins the closed set of `kind` literals on ChartSpec", () => {
+        expectTypeOf<ChartSpec["kind"]>().toEqualTypeOf<"km" | "barError" | "box" | "xy">();
+    });
 });
 
 describe("receiptSchema round-trip", () => {
@@ -382,12 +418,77 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
         };
         const result = plotDataSchema.safeParse(smuggled);
         expect(result.success).toBe(false);
+
+        if (!result.success) {
+            const unrecognized = result.error.issues.find(
+                (i) => i.code === "unrecognized_keys",
+            ) as { code: "unrecognized_keys"; keys: string[] } | undefined;
+            expect(unrecognized).toBeDefined();
+            expect(unrecognized?.keys).toContain("patients");
+        }
+    });
+
+    it("plotDataSchema rejects top-level `records` on a box payload", () => {
+        const smuggled = {
+            kind: "box",
+            groups: boxPlotDataEmptyOutliers.groups,
+            records: [{ id: "r1" }],
+        };
+        const result = plotDataSchema.safeParse(smuggled);
+        expect(result.success).toBe(false);
+
+        if (!result.success) {
+            const unrecognized = result.error.issues.find(
+                (i) => i.code === "unrecognized_keys",
+            ) as { code: "unrecognized_keys"; keys: string[] } | undefined;
+            expect(unrecognized).toBeDefined();
+            expect(unrecognized?.keys).toContain("records");
+        }
     });
 
     it("chartSpecSchema rejects unknown top-level keys", () => {
         const smuggled = { ...kmSpec, raw: "should not pass" };
         const result = chartSpecSchema.safeParse(smuggled);
         expect(result.success).toBe(false);
+    });
+});
+
+describe("removed kinds — plotDataSchema + chartSpecSchema", () => {
+    it("rejects legacy kind `roc` on PlotData", () => {
+        const legacy: unknown = {
+            kind: "roc",
+            curves: [],
+        };
+        expect(plotDataSchema.safeParse(legacy).success).toBe(false);
+    });
+
+    it("rejects legacy kind `forest` on PlotData", () => {
+        const legacy: unknown = {
+            kind: "forest",
+            subgroups: [],
+        };
+        expect(plotDataSchema.safeParse(legacy).success).toBe(false);
+    });
+
+    it("rejects legacy kind `roc` on ChartSpec", () => {
+        const legacy: unknown = {
+            ...baseFields,
+            kind: "roc",
+            showAuc: true,
+            showDiagonalRef: true,
+        };
+        expect(chartSpecSchema.safeParse(legacy).success).toBe(false);
+    });
+
+    it("rejects legacy kind `forest` on ChartSpec", () => {
+        const legacy: unknown = {
+            ...baseFields,
+            kind: "forest",
+            showPooled: true,
+            showHeterogeneity: false,
+            nullValue: 1,
+        };
+        expect(chartSpecSchema.safeParse(legacy).success).toBe(false);
     });
 });
 
