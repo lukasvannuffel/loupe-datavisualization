@@ -3,11 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
+import type { Mapping } from "@/app/providers";
 import { useAppState } from "@/app/providers";
+import { MappingResetDialog } from "@/components/pages/upload/MappingResetDialog";
+import { WorksheetSelector } from "@/components/pages/upload/WorksheetSelector";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { SEMANTIC_TAG_LABEL } from "@/lib/parser/inference.types";
 import { inferColumnTypes } from "@/lib/parser/inferColumnTypes";
 import { useFileParser } from "@/lib/parser/useFileParser";
+
 import { PrivacyDiagram } from "./PrivacyDiagram";
 
 const PLACEHOLDERS: readonly string[] = [
@@ -19,10 +23,17 @@ const PLACEHOLDERS: readonly string[] = [
 
 const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
+const SHEET_PICKER_HEADING_ID = "upload-sheet-picker-heading";
+
+const hasMappingAssignments = (mapping: Mapping): boolean => {
+    return Object.values(mapping).some((column) => column !== undefined && column !== "");
+};
+
 const formatBytes = (bytes: number): string => {
     if (bytes < 1024) {
         return `${bytes} B`;
     }
+
     if (bytes < 1024 * 1024) {
         return `${(bytes / 1024).toFixed(1)} KB`;
     }
@@ -34,11 +45,24 @@ export const Upload = (): JSX.Element => {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const tryAgainRef = useRef<HTMLButtonElement | null>(null);
-    const { parse, parseSheet, reset, state } = useFileParser();
-    const { setDataset, clearDataset, setMapping } = useAppState();
+    const lastParsedSheetRef = useRef<string | undefined>(undefined);
+
+    const {
+        canReturnToSheetPicker,
+        parse,
+        parseSheet,
+        reset,
+        returnToSheetSelection,
+        state,
+    } = useFileParser();
+
+    const { mapping, setDataset, clearDataset, setMapping } = useAppState();
 
     const [dragOver, setDragOver] = useState<boolean>(false);
     const [phIndex, setPhIndex] = useState<number>(0);
+    const [selectedSheet, setSelectedSheet] = useState<string>("");
+    const [mappingResetOpen, setMappingResetOpen] = useState<boolean>(false);
+    const [pendingSheetName, setPendingSheetName] = useState<string | null>(null);
 
     type UploadPhase = "choose_sheet" | "empty" | "error" | "scanning" | "uploaded";
     const phaseOf = (status: typeof state.status): UploadPhase => {
@@ -55,6 +79,7 @@ export const Upload = (): JSX.Element => {
                 return "error";
         }
     };
+
     const phase: UploadPhase = phaseOf(state.status);
 
     useEffect(() => {
@@ -62,9 +87,9 @@ export const Upload = (): JSX.Element => {
             return;
         }
 
-        const t = setInterval(() => setPhIndex((i) => (i + 1) % PLACEHOLDERS.length), 3500);
+        const timerId = window.setInterval(() => setPhIndex((index) => (index + 1) % PLACEHOLDERS.length), 3500);
 
-        return () => clearInterval(t);
+        return () => window.clearInterval(timerId);
     }, [phase]);
 
     useEffect(() => {
@@ -72,6 +97,38 @@ export const Upload = (): JSX.Element => {
             tryAgainRef.current?.focus();
         }
     }, [phase]);
+
+    useEffect(() => {
+        if (state.status !== "success") {
+            return;
+        }
+
+        const sheet = state.result.sheetName;
+
+        if (sheet !== undefined) {
+            lastParsedSheetRef.current = sheet;
+        }
+    }, [state]);
+
+    const sheetSelectionSyncKey =
+        state.status === "needs_sheet_selection"
+            ? state.sheets.map((sheetMeta) => `${sheetMeta.name}:${sheetMeta.rowCount}`).join("|")
+            : "";
+
+    /* eslint-disable react-hooks/exhaustive-deps -- `sheetSelectionSyncKey` encodes `state.sheets` */
+    useEffect(() => {
+        if (state.status !== "needs_sheet_selection") {
+            return;
+        }
+
+        const names = state.sheets.map((sheetMeta) => sheetMeta.name);
+        const preferred = lastParsedSheetRef.current;
+        const pick =
+            preferred !== undefined && names.includes(preferred) ? preferred : (names[0] ?? "");
+
+        setSelectedSheet(pick);
+    }, [state.status, sheetSelectionSyncKey]);
+    /* eslint-enable react-hooks/exhaustive-deps */
 
     const handleFile = (file: File | undefined): void => {
         if (file === undefined) {
@@ -87,7 +144,7 @@ export const Upload = (): JSX.Element => {
         handleFile(e.dataTransfer.files?.[0]);
     };
 
-    const onContinue = (): void => {
+    const onContinueToMap = (): void => {
         router.push("/upload/map");
     };
 
@@ -102,7 +159,7 @@ export const Upload = (): JSX.Element => {
         if (inferences === null) {
             return;
         }
-        // Intent intentionally preserved across uploads: same-study workflow is the common case.
+
         setDataset(inferences);
         setMapping({});
     }, [inferences, setDataset, setMapping]);
@@ -111,6 +168,45 @@ export const Upload = (): JSX.Element => {
         reset();
         clearDataset();
         setMapping({});
+    };
+
+    const requestSheetChange = (next: string): void => {
+        if (next === selectedSheet) {
+            return;
+        }
+
+        if (!hasMappingAssignments(mapping)) {
+            setSelectedSheet(next);
+
+            return;
+        }
+
+        setPendingSheetName(next);
+        setMappingResetOpen(true);
+    };
+
+    const onConfirmMappingReset = (): void => {
+        setMapping({});
+
+        if (pendingSheetName !== null) {
+            setSelectedSheet(pendingSheetName);
+        }
+
+        setPendingSheetName(null);
+        setMappingResetOpen(false);
+    };
+
+    const onCancelMappingReset = (): void => {
+        setPendingSheetName(null);
+        setMappingResetOpen(false);
+    };
+
+    const onContinueSheet = (): void => {
+        if (selectedSheet === "") {
+            return;
+        }
+
+        void parseSheet(selectedSheet);
     };
 
     const dropzonePromptTitle = (): string => {
@@ -129,11 +225,13 @@ export const Upload = (): JSX.Element => {
             case "scanning":
                 return "Parsing rows locally — none will leave the page.";
             case "choose_sheet":
-                return "Listed counts come from each sheet's used range — pick one to load.";
+                return "Pick a sheet and continue — nothing leaves your device.";
             default:
                 return "Or click anywhere in this zone to choose a file.";
         }
     };
+
+    const sheetPickerActive = phase === "choose_sheet" && state.status === "needs_sheet_selection";
 
     return (
         <div className="upload-page page-enter">
@@ -155,7 +253,7 @@ export const Upload = (): JSX.Element => {
                             (phase === "choose_sheet" ? "is-active " : "")
                         }
                         role="button"
-                        tabIndex={phase === "empty" || phase === "choose_sheet" ? 0 : -1}
+                        tabIndex={phase === "empty" ? 0 : -1}
                         aria-label="Choose a CSV or Excel file"
                         aria-busy={phase === "scanning"}
                         onDragOver={(e) => {
@@ -164,14 +262,16 @@ export const Upload = (): JSX.Element => {
                         }}
                         onDragLeave={() => setDragOver(false)}
                         onDrop={onDrop}
-                        onClick={() =>
-                            (phase === "empty" || phase === "choose_sheet") &&
-                            fileInputRef.current?.click()
-                        }
+                        onClick={() => {
+                            if (phase === "empty") {
+                                fileInputRef.current?.click();
+                            }
+                        }}
                         onKeyDown={(e) => {
-                            if (phase !== "empty" && phase !== "choose_sheet") {
+                            if (phase !== "empty") {
                                 return;
                             }
+
                             if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
                                 fileInputRef.current?.click();
@@ -194,27 +294,44 @@ export const Upload = (): JSX.Element => {
                                 <p className="dropzone-prompt-serif">{dropzonePromptTitle()}</p>
                                 <p className="dropzone-prompt-sub">{dropzonePromptSub()}</p>
                                 <div className="dropzone-formats">.CSV · .XLSX · UP TO 50 MB</div>
-                                {phase === "choose_sheet" && state.status === "needs_sheet_selection" && (
-                                    <ul className="sheet-pick-list">
-                                        {state.sheets.map((sheet) => (
-                                            <li key={sheet.name}>
-                                                <button
-                                                    type="button"
-                                                    className="btn btn--ghost btn--sm"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        void parseSheet(sheet.name);
-                                                    }}
-                                                >
-                                                    {sheet.name}
-                                                    <span className="muted mono">
-                                                        {" "}
-                                                        · {sheet.rowCount.toLocaleString()} rows (range)
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                {sheetPickerActive && (
+                                    <div
+                                        className="sheet-picker-shell"
+                                        onClick={(event) => event.stopPropagation()}
+                                        onKeyDown={(event) => event.stopPropagation()}
+                                    >
+                                        <h4 className="sheet-picker-title" id={SHEET_PICKER_HEADING_ID}>
+                                            Worksheet
+                                        </h4>
+                                        <WorksheetSelector
+                                            ariaLabelledBy={SHEET_PICKER_HEADING_ID}
+                                            sheets={state.sheets}
+                                            value={selectedSheet}
+                                            onChange={requestSheetChange}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn--primary btn--lg sheet-continue"
+                                            aria-label="Continue with selected worksheet"
+                                            disabled={selectedSheet === ""}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onContinueSheet();
+                                            }}
+                                        >
+                                            Continue
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn--ghost btn--sm sheet-repick-file"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                fileInputRef.current?.click();
+                                            }}
+                                        >
+                                            Choose a different file
+                                        </button>
+                                    </div>
                                 )}
                                 {phase === "empty" && (
                                     <div className="dropzone-rotator muted" key={phIndex}>
@@ -234,11 +351,24 @@ export const Upload = (): JSX.Element => {
                                         <div className="serif dropzone-uploaded-name">{result.fileName}</div>
                                         <div className="muted dropzone-uploaded-meta">
                                             <span className="mono">
-                                                {result.rowCount.toLocaleString()} rows · {result.headers.length} columns · {formatBytes(result.sizeBytes)}
+                                                {result.rowCount.toLocaleString()} rows · {result.headers.length} columns ·{" "}
+                                                {formatBytes(result.sizeBytes)}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="dropzone-uploaded-actions">
+                                        {canReturnToSheetPicker && (
+                                            <button
+                                                type="button"
+                                                className="btn btn--ghost btn--sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    void returnToSheetSelection();
+                                                }}
+                                            >
+                                                Change worksheet
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             className="btn btn--ghost btn--sm"
@@ -339,16 +469,18 @@ export const Upload = (): JSX.Element => {
                         <span className="muted intent-meta-note">
                             Step 2 maps these columns to chart roles and asks what you found.
                         </span>
-                        <button
-                            type="button"
-                            className="btn btn--primary btn--lg"
-                            onClick={onContinue}
-                        >
+                        <button type="button" className="btn btn--primary btn--lg" onClick={onContinueToMap}>
                             Continue to mapping <span className="arrow">→</span>
                         </button>
                     </div>
                 )}
             </div>
+
+            <MappingResetDialog
+                open={mappingResetOpen}
+                onCancel={onCancelMappingReset}
+                onConfirm={onConfirmMappingReset}
+            />
         </div>
     );
 };

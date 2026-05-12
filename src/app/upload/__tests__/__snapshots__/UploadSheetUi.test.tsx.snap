@@ -1,0 +1,57 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Upload sheet UI > matches mobile snapshot for sheet picker layout 1`] = `
+<div
+  class="sheet-picker-shell"
+>
+  <h4
+    class="sheet-picker-title"
+    id="upload-sheet-picker-heading"
+  >
+    Worksheet
+  </h4>
+  <div
+    aria-labelledby="upload-sheet-picker-heading"
+    class="sheet-segment-group"
+    role="radiogroup"
+  >
+    <button
+      aria-checked="true"
+      class="sheet-segment is-selected"
+      role="radio"
+      type="button"
+    >
+      <span
+        class="sheet-segment-label"
+      >
+        Alpha · 100 rows
+      </span>
+    </button>
+    <button
+      aria-checked="false"
+      class="sheet-segment "
+      role="radio"
+      type="button"
+    >
+      <span
+        class="sheet-segment-label"
+      >
+        Beta · 200 rows
+      </span>
+    </button>
+  </div>
+  <button
+    aria-label="Continue with selected worksheet"
+    class="btn btn--primary btn--lg sheet-continue"
+    type="button"
+  >
+    Continue
+  </button>
+  <button
+    class="btn btn--ghost btn--sm sheet-repick-file"
+    type="button"
+  >
+    Choose a different file
+  </button>
+</div>
+`;

@@ -73,3 +73,20 @@ const write = (fileName, workbook) => {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["q"], [2]]), "DataB");
     write("mixed-empty-valid.xlsx", workbook);
 }
+
+{
+    const workbook = XLSX.utils.book_new();
+
+    for (let i = 1; i <= 5; i++) {
+        XLSX.utils.book_append_sheet(
+            workbook,
+            XLSX.utils.aoa_to_sheet([
+                ["id", "v"],
+                [String(i), String(i * 10)],
+            ]),
+            `S${i}`,
+        );
+    }
+
+    write("five-sheets.xlsx", workbook);
+}

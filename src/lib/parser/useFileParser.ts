@@ -230,16 +230,20 @@ const runXlsxInWorkerSheet = (file: File, sheetName: string, signal: AbortSignal
 };
 
 export type UseFileParser = {
+    canReturnToSheetPicker: boolean;
     parse: (file: File) => Promise<void>;
     parseSheet: (sheetName: string) => Promise<void>;
     reset: () => void;
+    returnToSheetSelection: () => Promise<void>;
     state: ParseState;
 };
 
 export const useFileParser = (): UseFileParser => {
     const [state, setState] = useState<ParseState>({ status: "idle" });
+    const [canReturnToSheetPicker, setCanReturnToSheetPicker] = useState<boolean>(false);
     const abortRef = useRef<AbortController | null>(null);
     const pendingRef = useRef<PendingXlsx | null>(null);
+    const multiSheetFileRef = useRef<File | null>(null);
     const tokenRef = useRef<number>(0);
 
     const cancel = useCallback((): void => {
@@ -251,12 +255,16 @@ export const useFileParser = (): UseFileParser => {
     const reset = useCallback((): void => {
         cancel();
         pendingRef.current = null;
+        multiSheetFileRef.current = null;
+        setCanReturnToSheetPicker(false);
         setState({ status: "idle" });
     }, [cancel]);
 
     const parse = useCallback(async (file: File): Promise<void> => {
         cancel();
         pendingRef.current = null;
+        multiSheetFileRef.current = null;
+        setCanReturnToSheetPicker(false);
         const token = tokenRef.current;
         const controller = new AbortController();
         abortRef.current = controller;
@@ -296,6 +304,8 @@ export const useFileParser = (): UseFileParser => {
             if (extension === ".csv") {
                 const result = await parseCsv(file);
 
+                multiSheetFileRef.current = null;
+                setCanReturnToSheetPicker(false);
                 commit({ status: "success", result });
 
                 return;
@@ -309,11 +319,15 @@ export const useFileParser = (): UseFileParser => {
                 }
 
                 if (pass.kind === "parsed") {
+                    multiSheetFileRef.current = null;
+                    setCanReturnToSheetPicker(false);
                     commit({ status: "success", result: pass.result });
 
                     return;
                 }
 
+                multiSheetFileRef.current = file;
+                setCanReturnToSheetPicker(true);
                 pendingRef.current = { file };
                 commit({
                     status: "needs_sheet_selection",
@@ -333,11 +347,15 @@ export const useFileParser = (): UseFileParser => {
             }
 
             if (pass.kind === "parsed") {
+                multiSheetFileRef.current = null;
+                setCanReturnToSheetPicker(false);
                 commit({ status: "success", result: pass.result });
 
                 return;
             }
 
+            multiSheetFileRef.current = file;
+            setCanReturnToSheetPicker(true);
             pendingRef.current = {
                 file,
                 workbook: pass.workbook,
@@ -401,7 +419,66 @@ export const useFileParser = (): UseFileParser => {
             }
 
             pendingRef.current = null;
+            setCanReturnToSheetPicker(true);
             commit({ status: "success", result });
+        } catch (error) {
+            commit({ status: "error", error: toParseError(error) });
+        }
+    }, [cancel]);
+
+    const returnToSheetSelection = useCallback(async (): Promise<void> => {
+        const file = multiSheetFileRef.current;
+
+        if (file === null) {
+            return;
+        }
+
+        cancel();
+
+        const token = tokenRef.current;
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const { signal } = controller;
+
+        const isCurrent = (): boolean => token === tokenRef.current && !signal.aborted;
+
+        const commit = (next: ParseState): void => {
+            if (isCurrent()) {
+                setState(next);
+            }
+        };
+
+        commit({ status: "parsing" });
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = readXlsxWorkbook(buffer);
+            const metas = sheetMetasFromWorkbook(workbook);
+
+            if (everySheetEmpty(metas)) {
+                throw new EmptyWorkbookError();
+            }
+
+            if (!isCurrent()) {
+                return;
+            }
+
+            if (file.size > WORKER_THRESHOLD_BYTES) {
+                pendingRef.current = { file };
+            } else {
+                pendingRef.current = {
+                    file,
+                    workbook,
+                };
+            }
+
+            setCanReturnToSheetPicker(true);
+            commit({
+                status: "needs_sheet_selection",
+                sheets: metas,
+                fileName: file.name,
+                sizeBytes: file.size,
+            });
         } catch (error) {
             commit({ status: "error", error: toParseError(error) });
         }
@@ -411,5 +488,12 @@ export const useFileParser = (): UseFileParser => {
         return cancel;
     }, [cancel]);
 
-    return { parse, parseSheet, reset, state };
+    return {
+        canReturnToSheetPicker,
+        parse,
+        parseSheet,
+        reset,
+        returnToSheetSelection,
+        state,
+    };
 };
