@@ -54,17 +54,17 @@
 Definieer het centrale `ChartSpec` type-systeem dat de hele applicatie zal gebruiken voor visuele configuratie. Dit is de fundering — alles wat hierna komt (renderer, save-format, AI-response, export) hangt hiervan af. Zorg dat het schema uitbreidbaar is zonder breaking changes (denk aan V2 met log-rank/Cox).
 
 **Actie-items**
-- [ ] `src/lib/chartSpec/types.ts` aanmaken met base `ChartSpec` discriminated union
-- [ ] Sub-types definiëren: `KMSpec`, `BarErrorSpec`, `RocSpec`, `ForestSpec`
-- [ ] `PlotData` types per chart-type (geaggregeerde waarden, geen rauwe rijen)
-- [ ] `Receipt` type met velden: `intent`, `recommendation`, `alternatives`, `transformations`, `tests` (open array voor V2)
-- [ ] Zod schemas voor runtime validation
-- [ ] Unit test: ChartSpec serialiseert en deserialiseert zonder verlies
+- [x] `src/lib/chartSpec/types.ts` aanmaken met base `ChartSpec` discriminated union
+- [x] Sub-types definiëren: `KMSpec`, `BarErrorSpec`, `RocSpec`, `ForestSpec`
+- [x] `PlotData` types per chart-type (geaggregeerde waarden, geen rauwe rijen)
+- [x] `Receipt` type met velden: `intent`, `recommendation`, `alternatives`, `transformations`, `tests` (open array voor V2)
+- [x] Zod schemas voor runtime validation
+- [x] Unit test: ChartSpec serialiseert en deserialiseert zonder verlies
 
 **Acceptance criteria**
-- [ ] Alle 4 chart types hebben volledig getypeerde Spec + PlotData
-- [ ] `pnpm tsc --noEmit` slaagt zonder errors
-- [ ] Zod schema rejecteert invalid input met duidelijke errors
+- [x] Alle 4 chart types hebben volledig getypeerde Spec + PlotData
+- [x] `pnpm tsc --noEmit` slaagt zonder errors
+- [x] Zod schema rejecteert invalid input met duidelijke errors
 
 ---
 
@@ -79,19 +79,19 @@ Definieer het centrale `ChartSpec` type-systeem dat de hele applicatie zal gebru
 Wire de bestaande dropzone in `/upload` aan een echte client-side parser. Dit is je privacy-pillar in de praktijk — geen enkele rij data mag de browser verlaten. PapaParse voor CSV, SheetJS voor XLSX.
 
 **Actie-items**
-- [ ] `papaparse` en `xlsx` (SheetJS) installeren
-- [ ] Hook `useFileParser` in `src/lib/parser/useFileParser.ts`
-- [ ] CSV-parsing met PapaParse (header detection, type inference disabled — komt in LOUPE-03)
-- [ ] XLSX-parsing met SheetJS (eerste sheet, header row)
-- [ ] File size guard (max 50MB conform design system)
-- [ ] Error states: corrupt file, encoding issues, geen kolommen
-- [ ] Geheugen-veilig: parse in worker als file > 5MB
+- [x] `papaparse` en `xlsx` (SheetJS) installeren
+- [x] Hook `useFileParser` in `src/lib/parser/useFileParser.ts`
+- [x] CSV-parsing met PapaParse (header detection, type inference disabled — komt in LOUPE-03)
+- [x] XLSX-parsing met SheetJS (eerste sheet, header row)
+- [x] File size guard (max 50MB conform design system)
+- [x] Error states: corrupt file, encoding issues, geen kolommen
+- [x] Geheugen-veilig: parse in worker als file > 5MB
 
 **Acceptance criteria**
-- [ ] CSV met 10k rijen parseert zonder UI-block
-- [ ] XLSX met dezelfde data geeft identieke kolommen
-- [ ] File > 50MB toont expliciete fout, geen crash
-- [ ] Network tab toont GEEN POST request — privacy intact
+- [x] CSV met 10k rijen parseert zonder UI-block
+- [x] XLSX met dezelfde data geeft identieke kolommen
+- [x] File > 50MB toont expliciete fout, geen crash
+- [x] Network tab toont GEEN POST request — privacy intact
 
 ---
 
@@ -106,18 +106,18 @@ Wire de bestaande dropzone in `/upload` aan een echte client-side parser. Dit is
 Detecteer per kolom welk type het is — numeriek, categorisch, datum, binair, time-to-event. Deze inferentie is wat je AI later helpt om realistische chart-aanbevelingen te doen. Geef per kolom ook een confidence-score zodat de UI dubbelzinnige kolommen kan markeren.
 
 **Actie-items**
-- [ ] `src/lib/parser/inferColumnTypes.ts` — pure functie, makkelijk te testen
-- [ ] Detector voor: `numeric`, `integer`, `categorical`, `binary`, `date`, `datetime`, `time-to-event`
-- [ ] Heuristieken: kolomnaam ("time", "event", "survival") + waarden-patroon
-- [ ] Confidence score 0-1 per detectie
-- [ ] Sample size: detect op eerste 1000 rijen voor performance
-- [ ] Display in `/upload` UI: badge per kolom met type + confidence
-- [ ] Unit tests met fixtures voor de 7 types
+- [x] `src/lib/parser/inferColumnTypes.ts` — pure functie, makkelijk te testen
+- [x] Detector voor: `numeric`, `integer`, `categorical`, `binary`, `date`, `datetime`, `time-to-event`
+- [x] Heuristieken: kolomnaam ("time", "event", "survival") + waarden-patroon
+- [x] Confidence score 0-1 per detectie
+- [x] Sample size: detect op eerste 1000 rijen voor performance
+- [x] Display in `/upload` UI: badge per kolom met type + confidence
+- [x] Unit tests met fixtures voor de 7 types
 
 **Acceptance criteria**
-- [ ] Een testfile met patient-data toont: `id` (categorical), `time_to_event_months` (numeric → time-to-event), `event_observed` (binary), `treatment_arm` (categorical)
-- [ ] Kolom met < 50% confidence krijgt visuele indicator dat user moet bevestigen
-- [ ] False positives onder 10% op de testset
+- [x] Een testfile met patient-data toont: `id` (categorical), `time_to_event_months` (numeric → time-to-event), `event_observed` (binary), `treatment_arm` (categorical)
+- [x] Kolom met < 50% confidence krijgt visuele indicator dat user moet bevestigen
+- [x] False positives onder 10% op de testset
 
 ---
 
@@ -132,18 +132,18 @@ Detecteer per kolom welk type het is — numeriek, categorisch, datum, binair, t
 Hook `/upload/map` aan echte data. Per chart type heeft elke "role" specifieke type-eisen (KM time-as moet numeriek zijn, event-status moet binair). Valideer dit en blokkeer doorgang als mapping incompleet/onjuist is.
 
 **Actie-items**
-- [ ] `ROLE_REQUIREMENTS` map per chart type (welke roles, welke types geaccepteerd)
-- [ ] Auto-mapping op basis van kolomnamen + types ("time" → KM time-as)
-- [ ] UI: dropdowns per role met enkel compatibele kolommen
-- [ ] Validatie: required roles ingevuld + geen dubbele assignments
-- [ ] State management via bestaande `useAppState` provider
-- [ ] "Continue to recommendation" knop disabled tot mapping geldig
-- [ ] Heldere error-messages bij type-mismatch
+- [x] `ROLE_REQUIREMENTS` map per chart type (welke roles, welke types geaccepteerd)
+- [x] Auto-mapping op basis van kolomnamen + types ("time" → KM time-as)
+- [x] UI: dropdowns per role met enkel compatibele kolommen
+- [x] Validatie: required roles ingevuld + geen dubbele assignments
+- [x] State management via bestaande `useAppState` provider
+- [x] "Continue to recommendation" knop disabled tot mapping geldig
+- [x] Heldere error-messages bij type-mismatch
 
 **Acceptance criteria**
-- [ ] Bij KM-flow: gebruiker krijgt automatisch suggestie voor time + event kolom
-- [ ] User kan suggestie overriden, dropdown toont alleen geldige opties
-- [ ] Met incomplete mapping is "Continue" disabled — geen runtime crash mogelijk
+- [x] Bij KM-flow: gebruiker krijgt automatisch suggestie voor time + event kolom
+- [x] User kan suggestie overriden, dropdown toont alleen geldige opties
+- [x] Met incomplete mapping is "Continue" disabled — geen runtime crash mogelijk
 
 ---
 

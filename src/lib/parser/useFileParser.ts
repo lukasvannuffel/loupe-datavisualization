@@ -2,16 +2,33 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { makeParseError, toParseError } from "./errors";
+import { EmptyWorkbookError, makeParseError, toParseError } from "./errors";
 import { parseCsv } from "./parseCsv";
-import { parseXlsxBuffer } from "./parseXlsx";
+import {
+    everySheetEmpty,
+    parseWorkbookToResult,
+    parseXlsxBuffer,
+    readXlsxWorkbook,
+    sheetMetasFromWorkbook,
+    type XlsxWorkbook,
+} from "./parseXlsx";
 import {
     MAX_FILE_BYTES,
     WORKER_THRESHOLD_BYTES,
     type ParseResult,
     type ParseState,
+    type SheetMeta,
     type WorkerResponse,
 } from "./types";
+
+type PendingXlsx = {
+    file: File;
+    workbook?: XlsxWorkbook;
+};
+
+type XlsxFirstPass =
+    | { kind: "parsed"; result: ParseResult }
+    | { kind: "needs_sheet"; sheets: readonly SheetMeta[]; workbook?: XlsxWorkbook };
 
 const extensionOf = (fileName: string): string => {
     const dot = fileName.lastIndexOf(".");
@@ -19,35 +36,59 @@ const extensionOf = (fileName: string): string => {
     return dot === -1 ? "" : fileName.slice(dot).toLowerCase();
 };
 
-const parseXlsxOnMainThread = async (file: File): Promise<ParseResult> => {
-    return parseXlsxBuffer(await file.arrayBuffer(), file.name);
-};
+const parseXlsxFirstPassMain = (buffer: ArrayBuffer, file: File): XlsxFirstPass => {
+    const workbook = readXlsxWorkbook(buffer);
+    const metas = sheetMetasFromWorkbook(workbook);
 
-const parseXlsxInWorker = (file: File, signal: AbortSignal): Promise<ParseResult> => {
-    if (typeof Worker === "undefined") {
-        return parseXlsxOnMainThread(file);
+    if (workbook.SheetNames.length === 1) {
+        return {
+            kind: "parsed",
+            result: parseWorkbookToResult(workbook, file.name, buffer.byteLength),
+        };
     }
 
-    return new Promise<ParseResult>((resolve, reject) => {
+    if (everySheetEmpty(metas)) {
+        throw new EmptyWorkbookError();
+    }
+
+    return {
+        kind: "needs_sheet",
+        sheets: metas,
+        workbook,
+    };
+};
+
+const parseXlsxFirstPassFromFile = async (file: File): Promise<XlsxFirstPass> => {
+    const buffer = await file.arrayBuffer();
+
+    return parseXlsxFirstPassMain(buffer, file);
+};
+
+const runXlsxInWorkerFirstPass = (file: File, signal: AbortSignal): Promise<XlsxFirstPass> => {
+    if (typeof Worker === "undefined") {
+        return parseXlsxFirstPassFromFile(file);
+    }
+
+    return new Promise<XlsxFirstPass>((resolve, reject) => {
         let worker: Worker;
+
         try {
             worker = new Worker(new URL("./xlsx.worker.ts", import.meta.url), {
                 type: "module",
             });
         } catch {
-            // Module-worker construction can fail on older runtimes or on a
-            // bundler URL drift. Falling back to the main thread is correct
-            // because every file here is < MAX_FILE_BYTES and parses safely.
-            parseXlsxOnMainThread(file).then(resolve, reject);
+            parseXlsxFirstPassFromFile(file).then(resolve, reject);
 
             return;
         }
 
         let settled = false;
+
         const settle = (cb: () => void): void => {
             if (settled) {
                 return;
             }
+
             settled = true;
             signal.removeEventListener("abort", onAbort);
             cb();
@@ -63,15 +104,27 @@ const parseXlsxInWorker = (file: File, signal: AbortSignal): Promise<ParseResult
 
             return;
         }
+
         signal.addEventListener("abort", onAbort, { once: true });
 
         worker.addEventListener("message", (event: MessageEvent<WorkerResponse>) => {
             settle(() => {
                 if (event.data.ok) {
-                    resolve(event.data.result);
-                } else {
-                    reject(event.data.error);
+                    if (event.data.kind === "parsed") {
+                        resolve({ kind: "parsed", result: event.data.result });
+
+                        return;
+                    }
+
+                    resolve({
+                        kind: "needs_sheet",
+                        sheets: event.data.sheets,
+                    });
+
+                    return;
                 }
+
+                reject(event.data.error);
             });
         });
 
@@ -84,6 +137,7 @@ const parseXlsxInWorker = (file: File, signal: AbortSignal): Promise<ParseResult
                 if (settled) {
                     return;
                 }
+
                 worker.postMessage({ buffer, fileName: file.name }, [buffer]);
             })
             .catch((error: unknown) => {
@@ -92,15 +146,100 @@ const parseXlsxInWorker = (file: File, signal: AbortSignal): Promise<ParseResult
     });
 };
 
+const parseXlsxSheetFromFileMain = async (file: File, sheetName: string): Promise<ParseResult> => {
+    return parseXlsxBuffer(await file.arrayBuffer(), file.name, { sheet: sheetName });
+};
+
+const runXlsxInWorkerSheet = (file: File, sheetName: string, signal: AbortSignal): Promise<ParseResult> => {
+    if (typeof Worker === "undefined") {
+        return parseXlsxSheetFromFileMain(file, sheetName);
+    }
+
+    return new Promise<ParseResult>((resolve, reject) => {
+        let worker: Worker;
+
+        try {
+            worker = new Worker(new URL("./xlsx.worker.ts", import.meta.url), {
+                type: "module",
+            });
+        } catch {
+            parseXlsxSheetFromFileMain(file, sheetName).then(resolve, reject);
+
+            return;
+        }
+
+        let settled = false;
+
+        const settle = (cb: () => void): void => {
+            if (settled) {
+                return;
+            }
+
+            settled = true;
+            signal.removeEventListener("abort", onAbort);
+            cb();
+            worker.terminate();
+        };
+
+        const onAbort = (): void => {
+            settle(() => reject(makeParseError("ABORTED")));
+        };
+
+        if (signal.aborted) {
+            settle(() => reject(makeParseError("ABORTED")));
+
+            return;
+        }
+
+        signal.addEventListener("abort", onAbort, { once: true });
+
+        worker.addEventListener("message", (event: MessageEvent<WorkerResponse>) => {
+            settle(() => {
+                if (event.data.ok && event.data.kind === "parsed") {
+                    resolve(event.data.result);
+
+                    return;
+                }
+
+                if (!event.data.ok) {
+                    reject(event.data.error);
+
+                    return;
+                }
+
+                reject(makeParseError("CORRUPT"));
+            });
+        });
+
+        worker.addEventListener("error", (event) => {
+            settle(() => reject(toParseError(event.message ?? event)));
+        });
+
+        file.arrayBuffer()
+            .then((buffer) => {
+                if (settled) {
+                    return;
+                }
+
+                worker.postMessage({ buffer, fileName: file.name, sheetName }, [buffer]);
+            })
+            .catch((error: unknown) => {
+                settle(() => reject(toParseError(error)));
+            });
+    });
+};
+
 export type UseFileParser = {
-    state: ParseState;
     parse: (file: File) => Promise<void>;
+    parseSheet: (sheetName: string) => Promise<void>;
     reset: () => void;
+    state: ParseState;
 };
 
 export const useFileParser = (): UseFileParser => {
     const [state, setState] = useState<ParseState>({ status: "idle" });
     const abortRef = useRef<AbortController | null>(null);
+    const pendingRef = useRef<PendingXlsx | null>(null);
     const tokenRef = useRef<number>(0);
 
     const cancel = useCallback((): void => {
@@ -111,26 +250,28 @@ export const useFileParser = (): UseFileParser => {
 
     const reset = useCallback((): void => {
         cancel();
+        pendingRef.current = null;
         setState({ status: "idle" });
     }, [cancel]);
 
     const parse = useCallback(async (file: File): Promise<void> => {
         cancel();
+        pendingRef.current = null;
         const token = tokenRef.current;
         const controller = new AbortController();
         abortRef.current = controller;
         const { signal } = controller;
+
         const isCurrent = (): boolean => token === tokenRef.current && !signal.aborted;
+
         const commit = (next: ParseState): void => {
             if (isCurrent()) {
                 setState(next);
             }
         };
 
-        // Extension check first — a folder dropped on Chrome surfaces a 0-byte
-        // File with an empty name; reordering keeps that case under
-        // UNSUPPORTED_FORMAT instead of misleading the user with FILE_EMPTY.
         const extension = extensionOf(file.name);
+
         if (extension !== ".csv" && extension !== ".xlsx") {
             commit({ status: "error", error: makeParseError("UNSUPPORTED_FORMAT") });
 
@@ -142,6 +283,7 @@ export const useFileParser = (): UseFileParser => {
 
             return;
         }
+
         if (file.size > MAX_FILE_BYTES) {
             commit({ status: "error", error: makeParseError("FILE_TOO_LARGE") });
 
@@ -151,15 +293,114 @@ export const useFileParser = (): UseFileParser => {
         commit({ status: "parsing" });
 
         try {
-            let result: ParseResult;
             if (extension === ".csv") {
-                result = await parseCsv(file);
-            } else if (file.size > WORKER_THRESHOLD_BYTES) {
-                result = await parseXlsxInWorker(file, signal);
-            } else {
-                result = parseXlsxBuffer(await file.arrayBuffer(), file.name);
+                const result = await parseCsv(file);
+
+                commit({ status: "success", result });
+
+                return;
             }
 
+            if (file.size > WORKER_THRESHOLD_BYTES) {
+                const pass = await runXlsxInWorkerFirstPass(file, signal);
+
+                if (!isCurrent()) {
+                    return;
+                }
+
+                if (pass.kind === "parsed") {
+                    commit({ status: "success", result: pass.result });
+
+                    return;
+                }
+
+                pendingRef.current = { file };
+                commit({
+                    status: "needs_sheet_selection",
+                    sheets: pass.sheets,
+                    fileName: file.name,
+                    sizeBytes: file.size,
+                });
+
+                return;
+            }
+
+            const buffer = await file.arrayBuffer();
+            const pass = parseXlsxFirstPassMain(buffer, file);
+
+            if (!isCurrent()) {
+                return;
+            }
+
+            if (pass.kind === "parsed") {
+                commit({ status: "success", result: pass.result });
+
+                return;
+            }
+
+            pendingRef.current = {
+                file,
+                workbook: pass.workbook,
+            };
+
+            commit({
+                status: "needs_sheet_selection",
+                sheets: pass.sheets,
+                fileName: file.name,
+                sizeBytes: file.size,
+            });
+        } catch (error) {
+            commit({ status: "error", error: toParseError(error) });
+        }
+    }, [cancel]);
+
+    const parseSheet = useCallback(async (sheetName: string): Promise<void> => {
+        const pending = pendingRef.current;
+
+        if (pending === null) {
+            return;
+        }
+
+        cancel();
+
+        const token = tokenRef.current;
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const { signal } = controller;
+
+        const isCurrent = (): boolean => token === tokenRef.current && !signal.aborted;
+
+        const commit = (next: ParseState): void => {
+            if (isCurrent()) {
+                setState(next);
+            }
+        };
+
+        commit({ status: "parsing" });
+
+        try {
+            let result: ParseResult;
+
+            if (pending.workbook !== undefined) {
+                result = parseWorkbookToResult(
+                    pending.workbook,
+                    pending.file.name,
+                    pending.file.size,
+                    sheetName,
+                );
+            } else if (pending.file.size > WORKER_THRESHOLD_BYTES) {
+                result = await runXlsxInWorkerSheet(pending.file, sheetName, signal);
+            } else {
+                result = parseXlsxBuffer(await pending.file.arrayBuffer(), pending.file.name, {
+                    sheet: sheetName,
+                });
+            }
+
+            if (!isCurrent()) {
+                return;
+            }
+
+            pendingRef.current = null;
             commit({ status: "success", result });
         } catch (error) {
             commit({ status: "error", error: toParseError(error) });
@@ -170,5 +411,5 @@ export const useFileParser = (): UseFileParser => {
         return cancel;
     }, [cancel]);
 
-    return { state, parse, reset };
+    return { parse, parseSheet, reset, state };
 };

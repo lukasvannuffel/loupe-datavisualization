@@ -34,19 +34,21 @@ export const Upload = (): JSX.Element => {
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const tryAgainRef = useRef<HTMLButtonElement | null>(null);
-    const { state, parse, reset } = useFileParser();
+    const { parse, parseSheet, reset, state } = useFileParser();
     const { setDataset, clearDataset, setMapping } = useAppState();
 
     const [dragOver, setDragOver] = useState<boolean>(false);
     const [phIndex, setPhIndex] = useState<number>(0);
 
-    type UploadPhase = "empty" | "scanning" | "uploaded" | "error";
+    type UploadPhase = "choose_sheet" | "empty" | "error" | "scanning" | "uploaded";
     const phaseOf = (status: typeof state.status): UploadPhase => {
         switch (status) {
             case "idle":
                 return "empty";
             case "parsing":
                 return "scanning";
+            case "needs_sheet_selection":
+                return "choose_sheet";
             case "success":
                 return "uploaded";
             case "error":
@@ -111,6 +113,28 @@ export const Upload = (): JSX.Element => {
         setMapping({});
     };
 
+    const dropzonePromptTitle = (): string => {
+        switch (phase) {
+            case "scanning":
+                return "Reading on your device…";
+            case "choose_sheet":
+                return "Choose a worksheet.";
+            default:
+                return "Drop a CSV or Excel file.";
+        }
+    };
+
+    const dropzonePromptSub = (): string => {
+        switch (phase) {
+            case "scanning":
+                return "Parsing rows locally — none will leave the page.";
+            case "choose_sheet":
+                return "Listed counts come from each sheet's used range — pick one to load.";
+            default:
+                return "Or click anywhere in this zone to choose a file.";
+        }
+    };
+
     return (
         <div className="upload-page page-enter">
             <div className="container">
@@ -127,10 +151,11 @@ export const Upload = (): JSX.Element => {
                         className={
                             "dropzone " +
                             (dragOver || phase === "scanning" ? "is-active " : "") +
-                            (phase === "uploaded" ? "is-uploaded " : "")
+                            (phase === "uploaded" ? "is-uploaded " : "") +
+                            (phase === "choose_sheet" ? "is-active " : "")
                         }
                         role="button"
-                        tabIndex={phase === "empty" ? 0 : -1}
+                        tabIndex={phase === "empty" || phase === "choose_sheet" ? 0 : -1}
                         aria-label="Choose a CSV or Excel file"
                         aria-busy={phase === "scanning"}
                         onDragOver={(e) => {
@@ -139,9 +164,12 @@ export const Upload = (): JSX.Element => {
                         }}
                         onDragLeave={() => setDragOver(false)}
                         onDrop={onDrop}
-                        onClick={() => phase === "empty" && fileInputRef.current?.click()}
+                        onClick={() =>
+                            (phase === "empty" || phase === "choose_sheet") &&
+                            fileInputRef.current?.click()
+                        }
                         onKeyDown={(e) => {
-                            if (phase !== "empty") {
+                            if (phase !== "empty" && phase !== "choose_sheet") {
                                 return;
                             }
                             if (e.key === "Enter" || e.key === " ") {
@@ -163,17 +191,31 @@ export const Upload = (): JSX.Element => {
                         <div className="dropzone-loupe" />
                         {phase !== "uploaded" && (
                             <div>
-                                <p className="dropzone-prompt-serif">
-                                    {phase === "scanning"
-                                        ? "Reading on your device…"
-                                        : "Drop a CSV or Excel file."}
-                                </p>
-                                <p className="dropzone-prompt-sub">
-                                    {phase === "scanning"
-                                        ? "Parsing rows locally — none will leave the page."
-                                        : "Or click anywhere in this zone to choose a file."}
-                                </p>
+                                <p className="dropzone-prompt-serif">{dropzonePromptTitle()}</p>
+                                <p className="dropzone-prompt-sub">{dropzonePromptSub()}</p>
                                 <div className="dropzone-formats">.CSV · .XLSX · UP TO 50 MB</div>
+                                {phase === "choose_sheet" && state.status === "needs_sheet_selection" && (
+                                    <ul className="sheet-pick-list">
+                                        {state.sheets.map((sheet) => (
+                                            <li key={sheet.name}>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn--ghost btn--sm"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        void parseSheet(sheet.name);
+                                                    }}
+                                                >
+                                                    {sheet.name}
+                                                    <span className="muted mono">
+                                                        {" "}
+                                                        · {sheet.rowCount.toLocaleString()} rows (range)
+                                                    </span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                                 {phase === "empty" && (
                                     <div className="dropzone-rotator muted" key={phIndex}>
                                         {PLACEHOLDERS[phIndex]}
