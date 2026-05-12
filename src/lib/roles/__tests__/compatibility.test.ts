@@ -34,13 +34,14 @@ describe("getCompatibility", () => {
             event: "e",
             group: "g",
             outcome: "o",
-            predictor: "p",
+            x: "xv",
+            y: "yv",
         };
         const result = getCompatibility(mapping);
         expect(result.km.compatible).toBe(true);
         expect(result.barError.compatible).toBe(true);
-        expect(result.roc.compatible).toBe(true);
-        expect(result.forest.compatible).toBe(true);
+        expect(result.box.compatible).toBe(true);
+        expect(result.xy.compatible).toBe(true);
     });
 
     it("an empty mapping marks every chart incompatible with the right missing-role labels", () => {
@@ -49,10 +50,10 @@ describe("getCompatibility", () => {
         expect(result.km.missingLabels).toEqual(["Time variable", "Event indicator"]);
         expect(result.barError.missingRoles).toEqual(["group", "outcome"]);
         expect(result.barError.missingLabels).toEqual(["Group / arm", "Outcome"]);
-        expect(result.roc.missingRoles).toEqual(["predictor", "outcome"]);
-        expect(result.roc.missingLabels).toEqual(["Predictor", "Outcome"]);
-        expect(result.forest.missingRoles).toEqual(["group", "outcome"]);
-        expect(result.forest.missingLabels).toEqual(["Group / arm", "Outcome"]);
+        expect(result.box.missingRoles).toEqual(["group", "outcome"]);
+        expect(result.box.missingLabels).toEqual(["Group / arm", "Outcome"]);
+        expect(result.xy.missingRoles).toEqual(["x", "y"]);
+        expect(result.xy.missingLabels).toEqual(["X axis", "Y axis"]);
     });
 
     it("treats `ignore`-mapped columns as unassigned (does not count toward satisfying a required role)", () => {

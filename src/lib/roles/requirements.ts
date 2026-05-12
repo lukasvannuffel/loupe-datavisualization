@@ -18,7 +18,7 @@ export const ROLE_TYPE_COMPATIBILITY: Readonly<Record<ColumnRole, readonly Prima
     ignore: [],
 };
 
-export type ChartIntent = "km" | "bar-error" | "roc" | "forest" | "any";
+export type ChartIntent = "km" | "bar-error" | "box" | "xy" | "any";
 
 /** Which roles are required (vs optional) per chart intent. V1 intents only. */
 export const ROLE_REQUIREMENTS_BY_INTENT: Readonly<
@@ -32,13 +32,13 @@ export const ROLE_REQUIREMENTS_BY_INTENT: Readonly<
         required: ["group", "outcome"],
         optional: ["id"],
     },
-    roc: {
-        required: ["predictor", "outcome"],
-        optional: ["group", "id"],
-    },
-    forest: {
+    box: {
         required: ["group", "outcome"],
-        optional: ["predictor", "id"],
+        optional: ["id"],
+    },
+    xy: {
+        required: ["x", "y"],
+        optional: ["group", "id"],
     },
     any: {
         required: [],

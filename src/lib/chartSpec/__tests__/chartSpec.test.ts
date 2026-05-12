@@ -7,15 +7,15 @@ import {
     manualSelectionNoteFor,
     type BarErrorPlotData,
     type BarErrorSpec,
+    type BoxPlotData,
+    type BoxSpec,
     type ChartSpec,
-    type ForestPlotData,
-    type ForestSpec,
     type KMPlotData,
     type KMSpec,
     type PlotData,
     type Receipt,
-    type RocPlotData,
-    type RocSpec,
+    type XYPlotData,
+    type XYSpec,
 } from "../types";
 
 const ISO_NOW = "2026-05-06T12:34:56.000Z";
@@ -52,19 +52,38 @@ const barErrorSpec: BarErrorSpec = {
     ],
 };
 
-const rocSpec: RocSpec = {
+const boxSpec: BoxSpec = {
     ...baseFields,
-    kind: "roc",
-    showAuc: true,
-    showDiagonalRef: true,
+    kind: "box",
+    showOutliers: true,
+    showMeanMarker: true,
+    notched: false,
 };
 
-const forestSpec: ForestSpec = {
+const xySpecLine: XYSpec = {
     ...baseFields,
-    kind: "forest",
-    showPooled: true,
-    showHeterogeneity: false,
-    nullValue: 1,
+    kind: "xy",
+    mode: "line",
+    showRegression: true,
+    showErrorBands: true,
+};
+
+const xySpecScatter: XYSpec = {
+    ...baseFields,
+    id: "spec-xy-scatter",
+    kind: "xy",
+    mode: "scatter",
+    showRegression: true,
+    showErrorBands: false,
+};
+
+const xySpecBoth: XYSpec = {
+    ...baseFields,
+    id: "spec-xy-both",
+    kind: "xy",
+    mode: "both",
+    showRegression: false,
+    showErrorBands: true,
 };
 
 const kmPlotData: KMPlotData = {
@@ -90,28 +109,30 @@ const barErrorPlotData: BarErrorPlotData = {
     ],
 };
 
-const rocPlotData: RocPlotData = {
-    kind: "roc",
-    curves: [
+const boxPlotData: BoxPlotData = {
+    kind: "box",
+    groups: [
         {
-            label: "Model A",
-            points: [
-                { fpr: 0, tpr: 0 },
-                { fpr: 0.2, tpr: 0.78, threshold: 0.5 },
-                { fpr: 1, tpr: 1 },
-            ],
-            auc: 0.86,
+            label: "A",
+            min: 0,
+            q1: 1,
+            median: 2,
+            q3: 3,
+            max: 4,
+            outliers: [],
+            n: 10,
         },
     ],
 };
 
-const forestPlotData: ForestPlotData = {
-    kind: "forest",
-    subgroups: [
-        { label: "Age < 65", estimate: 0.78, ciLow: 0.62, ciHigh: 0.97, n: 240 },
-        { label: "Age >= 65", estimate: 0.91, ciLow: 0.74, ciHigh: 1.12, n: 220 },
+const xyPlotData: XYPlotData = {
+    kind: "xy",
+    series: [
+        {
+            label: "Series A",
+            points: [{ x: 0, y: 1 }],
+        },
     ],
-    pooled: { estimate: 0.84, ciLow: 0.74, ciHigh: 0.96 },
 };
 
 const receipt: Receipt = {
@@ -155,11 +176,22 @@ describe("chartSpecSchema round-trip", () => {
     it.each<[string, ChartSpec]>([
         ["km", kmSpec],
         ["barError", barErrorSpec],
-        ["roc", rocSpec],
-        ["forest", forestSpec],
+        ["box", boxSpec],
     ])("preserves %s spec across JSON round-trip", (_kind, fixture) => {
         const parsed = chartSpecSchema.parse(roundTrip(fixture));
         expect(parsed).toEqual(fixture);
+    });
+
+    it("preserves xy spec (line mode) across JSON round-trip", () => {
+        expect(chartSpecSchema.parse(roundTrip(xySpecLine))).toEqual(xySpecLine);
+    });
+
+    it("preserves xy spec (scatter mode) across JSON round-trip", () => {
+        expect(chartSpecSchema.parse(roundTrip(xySpecScatter))).toEqual(xySpecScatter);
+    });
+
+    it("preserves xy spec (both mode) across JSON round-trip", () => {
+        expect(chartSpecSchema.parse(roundTrip(xySpecBoth))).toEqual(xySpecBoth);
     });
 });
 
@@ -167,8 +199,8 @@ describe("plotDataSchema round-trip", () => {
     it.each<[string, PlotData]>([
         ["km", kmPlotData],
         ["barError", barErrorPlotData],
-        ["roc", rocPlotData],
-        ["forest", forestPlotData],
+        ["box", boxPlotData],
+        ["xy", xyPlotData],
     ])("preserves %s plot data across JSON round-trip", (_kind, fixture) => {
         const parsed = plotDataSchema.parse(roundTrip(fixture));
         expect(parsed).toEqual(fixture);
@@ -274,33 +306,32 @@ describe("schema rejection — exact paths", () => {
         }
     });
 
-    it("rejects a forest row where ciLow > ciHigh — proves the .refine fired (not a different error)", () => {
+    it("rejects an unknown key nested on a box group (strict object)", () => {
         const broken: unknown = {
-            kind: "forest",
-            subgroups: [{ label: "x", estimate: 1, ciLow: 2, ciHigh: 0.5, n: 10 }],
+            kind: "box",
+            groups: [
+                {
+                    label: "A",
+                    min: 0,
+                    q1: 1,
+                    median: 2,
+                    q3: 3,
+                    max: 4,
+                    outliers: [],
+                    n: 10,
+                    patientId: "p1",
+                },
+            ],
         };
         const result = plotDataSchema.safeParse(broken);
         expect(result.success).toBe(false);
 
         if (!result.success) {
-            const refineIssue = result.error.issues.find(
-                (i) => i.path.join(".") === "subgroups.0.ciLow",
-            );
-            expect(refineIssue).toBeDefined();
-            expect(refineIssue?.message).toMatch(/ciLow/);
-        }
-    });
-
-    it("rejects an ROC point with fpr outside [0,1] at exactly the fpr path", () => {
-        const broken: unknown = {
-            kind: "roc",
-            curves: [{ label: "x", points: [{ fpr: 1.5, tpr: 0.5 }], auc: 0.8 }],
-        };
-        const result = plotDataSchema.safeParse(broken);
-        expect(result.success).toBe(false);
-
-        if (!result.success) {
-            expect(exactPaths(result.error.issues)).toContain("curves.0.points.0.fpr");
+            expect(exactPaths(result.error.issues)).toContain("groups.0");
+            const unrecognized = result.error.issues.find((i) => i.code === "unrecognized_keys");
+            expect(
+                unrecognized && "keys" in unrecognized && unrecognized.keys,
+            ).toContain("patientId");
         }
     });
 });
@@ -332,11 +363,21 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
         }
     });
 
-    it("plotDataSchema rejects an extra `patientId` on a forest row", () => {
+    it("plotDataSchema rejects an extra `patientId` on a box group", () => {
         const smuggled = {
-            kind: "forest",
-            subgroups: [
-                { label: "x", estimate: 1, ciLow: 0.9, ciHigh: 1.1, n: 10, patientId: "p1" },
+            kind: "box",
+            groups: [
+                {
+                    label: "x",
+                    min: 0,
+                    q1: 1,
+                    median: 2,
+                    q3: 3,
+                    max: 4,
+                    outliers: [],
+                    n: 10,
+                    patientId: "p1",
+                },
             ],
         };
         const result = plotDataSchema.safeParse(smuggled);
@@ -383,29 +424,29 @@ describe("schema ↔ type symmetry — per variant", () => {
     type InferredReceipt = z.infer<typeof receiptSchema>;
     type InferredKM = Extract<InferredChartSpec, { kind: "km" }>;
     type InferredBarError = Extract<InferredChartSpec, { kind: "barError" }>;
-    type InferredRoc = Extract<InferredChartSpec, { kind: "roc" }>;
-    type InferredForest = Extract<InferredChartSpec, { kind: "forest" }>;
+    type InferredBox = Extract<InferredChartSpec, { kind: "box" }>;
+    type InferredXy = Extract<InferredChartSpec, { kind: "xy" }>;
     type InferredKMPlot = Extract<InferredPlotData, { kind: "km" }>;
     type InferredBarErrorPlot = Extract<InferredPlotData, { kind: "barError" }>;
-    type InferredRocPlot = Extract<InferredPlotData, { kind: "roc" }>;
-    type InferredForestPlot = Extract<InferredPlotData, { kind: "forest" }>;
+    type InferredBoxPlot = Extract<InferredPlotData, { kind: "box" }>;
+    type InferredXyPlot = Extract<InferredPlotData, { kind: "xy" }>;
 
     it("ChartSpec variants are bidirectionally assignable per kind", () => {
         expectTypeOf<InferredKM>().toExtend<KMSpec>();
         expectTypeOf<KMSpec>().toExtend<InferredKM>();
         expectTypeOf<InferredBarError>().toExtend<BarErrorSpec>();
         expectTypeOf<BarErrorSpec>().toExtend<InferredBarError>();
-        expectTypeOf<InferredRoc>().toExtend<RocSpec>();
-        expectTypeOf<RocSpec>().toExtend<InferredRoc>();
-        expectTypeOf<InferredForest>().toExtend<ForestSpec>();
-        expectTypeOf<ForestSpec>().toExtend<InferredForest>();
+        expectTypeOf<InferredBox>().toExtend<BoxSpec>();
+        expectTypeOf<BoxSpec>().toExtend<InferredBox>();
+        expectTypeOf<InferredXy>().toExtend<XYSpec>();
+        expectTypeOf<XYSpec>().toExtend<InferredXy>();
     });
 
     it("ChartSpec variant keys match exactly (catches optional-field drift)", () => {
         expectTypeOf<keyof InferredKM>().toEqualTypeOf<keyof KMSpec>();
         expectTypeOf<keyof InferredBarError>().toEqualTypeOf<keyof BarErrorSpec>();
-        expectTypeOf<keyof InferredRoc>().toEqualTypeOf<keyof RocSpec>();
-        expectTypeOf<keyof InferredForest>().toEqualTypeOf<keyof ForestSpec>();
+        expectTypeOf<keyof InferredBox>().toEqualTypeOf<keyof BoxSpec>();
+        expectTypeOf<keyof InferredXy>().toEqualTypeOf<keyof XYSpec>();
     });
 
     it("PlotData variants are bidirectionally assignable per kind", () => {
@@ -413,17 +454,17 @@ describe("schema ↔ type symmetry — per variant", () => {
         expectTypeOf<KMPlotData>().toExtend<InferredKMPlot>();
         expectTypeOf<InferredBarErrorPlot>().toExtend<BarErrorPlotData>();
         expectTypeOf<BarErrorPlotData>().toExtend<InferredBarErrorPlot>();
-        expectTypeOf<InferredRocPlot>().toExtend<RocPlotData>();
-        expectTypeOf<RocPlotData>().toExtend<InferredRocPlot>();
-        expectTypeOf<InferredForestPlot>().toExtend<ForestPlotData>();
-        expectTypeOf<ForestPlotData>().toExtend<InferredForestPlot>();
+        expectTypeOf<InferredBoxPlot>().toExtend<BoxPlotData>();
+        expectTypeOf<BoxPlotData>().toExtend<InferredBoxPlot>();
+        expectTypeOf<InferredXyPlot>().toExtend<XYPlotData>();
+        expectTypeOf<XYPlotData>().toExtend<InferredXyPlot>();
     });
 
     it("PlotData variant keys match exactly", () => {
         expectTypeOf<keyof InferredKMPlot>().toEqualTypeOf<keyof KMPlotData>();
         expectTypeOf<keyof InferredBarErrorPlot>().toEqualTypeOf<keyof BarErrorPlotData>();
-        expectTypeOf<keyof InferredRocPlot>().toEqualTypeOf<keyof RocPlotData>();
-        expectTypeOf<keyof InferredForestPlot>().toEqualTypeOf<keyof ForestPlotData>();
+        expectTypeOf<keyof InferredBoxPlot>().toEqualTypeOf<keyof BoxPlotData>();
+        expectTypeOf<keyof InferredXyPlot>().toEqualTypeOf<keyof XYPlotData>();
     });
 
     it("Receipt and its nested blocks match by keys (catches optional-field drift)", () => {
@@ -457,7 +498,16 @@ type _DeepKeys<T> = T extends readonly (infer U)[]
       ? keyof T | { [K in keyof T]: _DeepKeys<T[K]> }[keyof T]
       : never;
 
-type _ForbiddenPlotDataKey = "row" | "rows" | "patient" | "patientId" | "subjectId" | "raw";
+type _ForbiddenPlotDataKey =
+    | "row"
+    | "rows"
+    | "patient"
+    | "patients"
+    | "patientId"
+    | "subjectId"
+    | "subjects"
+    | "records"
+    | "raw";
 
 type _PrivacyGuardPasses<T> = (_ForbiddenPlotDataKey & _DeepKeys<T>) extends never
     ? true

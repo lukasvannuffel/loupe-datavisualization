@@ -258,6 +258,18 @@ const SLUG_DEFAULTS: Record<ChartSlug, SlugDefaults> = {
         method: "Linear regression",
         rationale: "Two continuous variables; correlation summarized with a fitted line.",
     },
+    xy: {
+        title: "Outcome trajectories by treatment arm.",
+        caption:
+            "Lines connect visit means; optional scatter shows subject-level points when aggregated. Mixed-model time × arm p = 0.034.",
+        xLabel: "VISIT (WEEKS)",
+        yLabel: "LAB VALUE",
+        legendA: "Arm A",
+        legendB: "Arm B",
+        metaLine: "n = 284 · visits = 5 · arms = 2",
+        method: "Mixed-effects · linear regression overlay",
+        rationale: "Unified XY layer for trajectories or correlation; toggle line, scatter, or both.",
+    },
     histogram: {
         title: "Age-at-diagnosis distribution.",
         caption: "Bin width chosen by Freedman–Diaconis. n = 610.",
