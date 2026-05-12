@@ -13,6 +13,11 @@ export const brandRows = (
     return rows as PrivateRows;
 };
 
+export type SheetMeta = {
+    readonly name: string;
+    readonly rowCount: number;
+};
+
 export type ParseResult = {
     headers: readonly string[];
     rows: PrivateRows;
@@ -20,11 +25,14 @@ export type ParseResult = {
     fileName: string;
     sizeBytes: number;
     sourceFormat: SourceFormat;
+    /** Present for `.xlsx` when the active worksheet is known. */
+    sheetName?: string;
 };
 
 export type ParseErrorCode =
     | "FILE_TOO_LARGE"
     | "FILE_EMPTY"
+    | "EMPTY_WORKBOOK"
     | "NO_COLUMNS"
     | "UNSUPPORTED_FORMAT"
     | "ENCODING_UNSUPPORTED"
@@ -40,14 +48,28 @@ export type ParseError = {
 export type ParseState =
     | { status: "idle" }
     | { status: "parsing"; progress?: number }
+    | {
+          status: "needs_sheet_selection";
+          sheets: readonly SheetMeta[];
+          fileName: string;
+          sizeBytes: number;
+      }
     | { status: "success"; result: ParseResult }
     | { status: "error"; error: ParseError };
 
 export type WorkerRequest = {
     buffer: ArrayBuffer;
     fileName: string;
+    sheetName?: string;
 };
 
 export type WorkerResponse =
-    | { ok: true; result: ParseResult }
+    | { ok: true; kind: "parsed"; result: ParseResult }
+    | {
+          ok: true;
+          kind: "needs_sheet";
+          sheets: readonly SheetMeta[];
+          fileName: string;
+          sizeBytes: number;
+      }
     | { ok: false; error: ParseError };

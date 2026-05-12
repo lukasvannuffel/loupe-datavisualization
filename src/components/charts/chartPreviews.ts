@@ -51,6 +51,7 @@ export const CHART_PREVIEWS: Record<ChartSlug, ComponentType<ChartPreviewProps>>
     stackedBar100: StackedBar100,
     line: Line,
     scatter: Scatter,
+    xy: Line,
     histogram: Histogram,
     pie: Pie,
     donut: Donut,

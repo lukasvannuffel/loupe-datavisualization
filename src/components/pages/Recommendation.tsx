@@ -356,6 +356,23 @@ const RECOMMEND_COPY: Record<ChartSlug, RationaleCopy> = {
         transformVerb: "becomes a",
         transformChart: "scatter plot.",
     },
+    xy: {
+        chartName: "XY plot",
+        headline: "An XY plot fits trajectories or correlations in one unified layer.",
+        becauseTitle: "Because",
+        because:
+            "Your mapping pairs an X and Y axis — line connects ordered points, scatter exposes spread, and both can combine when the finding needs both.",
+        handlesTitle: "It adapts to the question",
+        handles:
+            "Regression and error bands are optional overlays; switch modes without changing the underlying aggregated series.",
+        altSlug: "line",
+        altName: "Line chart",
+        altReason: "Better when only the connecting trend matters and scatter would distract.",
+        testsTitle: "Tests we ran on your data",
+        tests: ["Mixed-model time × arm: p = 0.034", "Regression slope CI overlaid when enabled"],
+        transformVerb: "becomes an",
+        transformChart: "XY plot.",
+    },
     histogram: {
         chartName: "Histogram",
         headline: "A histogram exposes the shape of a single continuous variable.",
@@ -479,7 +496,8 @@ const RECOMMEND_COPY: Record<ChartSlug, RationaleCopy> = {
 
 export const Recommendation = (): JSX.Element => {
     const router = useRouter();
-    const { intent, chartSlug, setChartSlug } = useAppState();
+    const { hydrated, intent, chartSlug, setChartSlug, selectionMode, setSelectionMode } =
+        useAppState();
 
     const activeSlug: ChartSlug = chartSlug ?? "km";
     const copy = RECOMMEND_COPY[activeSlug];
@@ -490,6 +508,15 @@ export const Recommendation = (): JSX.Element => {
     const words = text.split(/(\s+)/);
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (!hydrated) {
+            return;
+        }
+        if (selectionMode !== "ai") {
+            router.replace("/recommend/choose");
+        }
+    }, [hydrated, selectionMode, router]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setPhase(1), 1100);
@@ -507,6 +534,11 @@ export const Recommendation = (): JSX.Element => {
 
     const onUseAlt = (): void => {
         setChartSlug(copy.altSlug);
+    };
+
+    const onSwitchToManual = (): void => {
+        setSelectionMode("manual");
+        router.push("/recommend/manual");
     };
 
     return (
@@ -623,6 +655,14 @@ export const Recommendation = (): JSX.Element => {
                         <span className="mono">cfg · 4f7a · 2 changes</span>
                     </div>
                     <div className="rec-bottombar-actions">
+                        <button
+                            type="button"
+                            className="btn btn--quiet btn--sm"
+                            data-testid="switch-to-manual"
+                            onClick={onSwitchToManual}
+                        >
+                            Pick a chart myself
+                        </button>
                         <button
                             type="button"
                             className="btn btn--quiet btn--sm"

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
+import { MANUAL_SELECTION_NOTE } from "./types";
+
 const nonEmpty = (): z.ZodString => z.string().min(1);
+
+const selectionModeSchema = z.enum(["ai", "manual"]);
 
 const chartSlugSchema = z.enum([
     "km",
@@ -21,6 +25,7 @@ const chartSlugSchema = z.enum([
     "stackedBar100",
     "line",
     "scatter",
+    "xy",
     "histogram",
     "pie",
     "donut",
@@ -86,34 +91,34 @@ const barErrorSpecSchema = z
     })
     .strict();
 
-const rocSpecSchema = z
+const boxSpecSchema = z
     .object({
         ...baseSpecShape,
-        kind: z.literal("roc"),
-        showAuc: z.boolean(),
-        showDiagonalRef: z.boolean(),
+        kind: z.literal("box"),
+        showOutliers: z.boolean(),
+        showMeanMarker: z.boolean(),
+        notched: z.boolean(),
     })
     .strict();
 
-const forestSpecSchema = z
+const xySpecSchema = z
     .object({
         ...baseSpecShape,
-        kind: z.literal("forest"),
-        showPooled: z.boolean(),
-        showHeterogeneity: z.boolean(),
-        nullValue: z.number(),
+        kind: z.literal("xy"),
+        mode: z.enum(["line", "scatter", "both"]),
+        showRegression: z.boolean(),
+        showErrorBands: z.boolean(),
     })
     .strict();
 
 export const chartSpecSchema = z.discriminatedUnion("kind", [
     kmSpecSchema,
     barErrorSpecSchema,
-    rocSpecSchema,
-    forestSpecSchema,
+    boxSpecSchema,
+    xySpecSchema,
 ]);
 
 const survivalUnit = z.number().min(0).max(1);
-const probabilityUnit = z.number().min(0).max(1);
 
 const kmPointSchema = z
     .object({
@@ -164,64 +169,63 @@ const barErrorPlotDataSchema = z
     })
     .strict();
 
-const rocPointSchema = z
-    .object({
-        fpr: probabilityUnit,
-        tpr: probabilityUnit,
-        threshold: z.number().optional(),
-    })
-    .strict();
-
-const rocCurveSchema = z
+const boxGroupSchema = z
     .object({
         label: nonEmpty(),
-        points: z.array(rocPointSchema).readonly(),
-        auc: z.number(),
-    })
-    .strict();
-
-const rocPlotDataSchema = z
-    .object({
-        kind: z.literal("roc"),
-        curves: z.array(rocCurveSchema).readonly(),
-    })
-    .strict();
-
-const forestRowSchema = z
-    .object({
-        label: nonEmpty(),
-        estimate: z.number(),
-        ciLow: z.number(),
-        ciHigh: z.number(),
+        min: z.number(),
+        q1: z.number(),
+        median: z.number(),
+        q3: z.number(),
+        max: z.number(),
+        outliers: z.array(z.number()).readonly(),
         n: z.number(),
     })
-    .strict()
-    .refine(
-        (row) => row.ciLow <= row.estimate && row.estimate <= row.ciHigh,
-        { path: ["ciLow"], message: "ciLow <= estimate <= ciHigh required" },
-    );
+    .strict();
 
-const forestPooledSchema = z
+const boxPlotDataSchema = z
     .object({
-        estimate: z.number(),
-        ciLow: z.number(),
-        ciHigh: z.number(),
+        kind: z.literal("box"),
+        groups: z.array(boxGroupSchema).readonly(),
     })
     .strict();
 
-const forestPlotDataSchema = z
+const xyPointSchema = z
     .object({
-        kind: z.literal("forest"),
-        subgroups: z.array(forestRowSchema).readonly(),
-        pooled: forestPooledSchema.optional(),
+        x: z.number(),
+        y: z.number(),
+        errorLow: z.number().optional(),
+        errorHigh: z.number().optional(),
+    })
+    .strict();
+
+const xyRegressionSchema = z
+    .object({
+        slope: z.number(),
+        intercept: z.number(),
+        r2: z.number(),
+    })
+    .strict();
+
+const xySeriesSchema = z
+    .object({
+        label: nonEmpty(),
+        points: z.array(xyPointSchema).readonly(),
+        regression: xyRegressionSchema.optional(),
+    })
+    .strict();
+
+const xyPlotDataSchema = z
+    .object({
+        kind: z.literal("xy"),
+        series: z.array(xySeriesSchema).readonly(),
     })
     .strict();
 
 export const plotDataSchema = z.discriminatedUnion("kind", [
     kmPlotDataSchema,
     barErrorPlotDataSchema,
-    rocPlotDataSchema,
-    forestPlotDataSchema,
+    boxPlotDataSchema,
+    xyPlotDataSchema,
 ]);
 
 const recommendationBlockSchema = z
@@ -264,10 +268,23 @@ const statTestSchema = z
 export const receiptSchema = z
     .object({
         intent: nonEmpty(),
+        selectionMode: selectionModeSchema,
+        manualSelectionNote: z.literal(MANUAL_SELECTION_NOTE).optional(),
         recommendation: recommendationBlockSchema,
         alternatives: z.array(alternativeBlockSchema).readonly(),
         transformations: z.array(transformationBlockSchema).readonly(),
         testsTitle: nonEmpty(),
         tests: z.array(statTestSchema).readonly(),
     })
-    .strict();
+    .strict()
+    .refine(
+        (r) =>
+            r.selectionMode === "manual"
+                ? r.manualSelectionNote === MANUAL_SELECTION_NOTE
+                : r.manualSelectionNote === undefined,
+        {
+            path: ["manualSelectionNote"],
+            message:
+                "manualSelectionNote must equal the canonical note iff selectionMode === 'manual'",
+        },
+    );
