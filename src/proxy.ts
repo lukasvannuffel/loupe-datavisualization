@@ -1,4 +1,4 @@
-import { type NextRequest, type NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { buildSecurityHeaders } from "@/lib/security-headers";
 import { updateSession } from "@/utils/supabase/middleware";
@@ -6,15 +6,25 @@ import { updateSession } from "@/utils/supabase/middleware";
 const NONCE_REQUEST_HEADER = "x-nonce";
 const CSP_HEADER = "Content-Security-Policy";
 
-export const proxy = async (request: NextRequest): Promise<NextResponse> => {
-    const { nonce, csp } = buildSecurityHeaders();
+const isProduction = process.env.NODE_ENV === "production";
 
+export const proxy = async (request: NextRequest): Promise<NextResponse> => {
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.set(NONCE_REQUEST_HEADER, nonce);
-    requestHeaders.set(CSP_HEADER, csp);
+    let responseCsp: string | undefined;
+
+    if (isProduction) {
+        const { nonce, csp } = buildSecurityHeaders();
+
+        requestHeaders.set(NONCE_REQUEST_HEADER, nonce);
+        requestHeaders.set(CSP_HEADER, csp);
+        responseCsp = csp;
+    }
 
     const response = await updateSession(request, requestHeaders);
-    response.headers.set(CSP_HEADER, csp);
+
+    if (responseCsp !== undefined) {
+        response.headers.set(CSP_HEADER, responseCsp);
+    }
 
     return response;
 };
