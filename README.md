@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Setup
+
+AI integration: see [`docs/AI_GATEWAY_SETUP.md`](docs/AI_GATEWAY_SETUP.md).
+
 ## Getting Started
 
 First, run the development server:
