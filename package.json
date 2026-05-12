@@ -9,11 +9,13 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:ai": "tsx scripts/smoke-ai.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.3",
+    "ai": "^6.0.177",
     "botid": "^1.5.11",
     "next": "16.2.6",
     "papaparse": "^5.5.3",
@@ -33,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "happy-dom": "^20.9.0",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.5"
   }

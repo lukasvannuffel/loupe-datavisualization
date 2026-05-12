@@ -135,6 +135,76 @@ const xyPlotData: XYPlotData = {
     ],
 };
 
+const boxPlotDataWithOutliers: BoxPlotData = {
+    kind: "box",
+    groups: [
+        {
+            label: "A",
+            max: 5,
+            min: 0,
+            n: 10,
+            outliers: [4.5, 4.9],
+            q1: 1,
+            q3: 3,
+            median: 2,
+        },
+    ],
+};
+
+const boxPlotDataEmptyOutliers: BoxPlotData = {
+    kind: "box",
+    groups: [
+        {
+            label: "B",
+            max: 5,
+            min: 1,
+            n: 5,
+            outliers: [],
+            q1: 2,
+            q3: 4,
+            median: 3,
+        },
+    ],
+};
+
+const xyPlotDataLine: XYPlotData = {
+    kind: "xy",
+    series: [
+        {
+            label: "Arm A",
+            points: [
+                { x: 0, y: 1 },
+                { x: 1, y: 2 },
+            ],
+        },
+        {
+            label: "Arm B",
+            points: [
+                { x: 0, y: 2 },
+                { x: 1, y: 3 },
+            ],
+        },
+    ],
+};
+
+const xyPlotDataScatterRegression: XYPlotData = {
+    kind: "xy",
+    series: [
+        {
+            label: "Obs",
+            points: [
+                { x: 1, y: 4 },
+                { x: 2, y: 7 },
+            ],
+            regression: {
+                intercept: 0.41,
+                r2: 0.972,
+                slope: 3.42,
+            },
+        },
+    ],
+};
+
 const receipt: Receipt = {
     intent: "Compare 5-year survival between treatment arms",
     selectionMode: "ai",
@@ -424,7 +494,7 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
                 (i) => i.code === "unrecognized_keys",
             ) as { code: "unrecognized_keys"; keys: string[] } | undefined;
             expect(unrecognized).toBeDefined();
-            expect(unrecognized?.keys).toContain("patients");
+            expect(unrecognized?.keys).toContain("patientId");
         }
     });
 
