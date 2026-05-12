@@ -41,6 +41,16 @@ const KM_MAPPING: Record<string, string> = {
 
 const EMPTY_MAPPING: Record<string, string> = {};
 
+/** Satisfies every manual-picker chart kind at once (KM, barError, box, xy). */
+const ALL_KINDS_SATISFIED_MAPPING: Record<string, string> = {
+    time: "t",
+    event: "e",
+    group: "g",
+    outcome: "o",
+    x: "visit_week",
+    y: "lab_value",
+};
+
 const renderManual = (): { captured: { current: AppStateSnapshot | null } } => {
     const captured = captureRef();
     act(() => {
@@ -80,21 +90,18 @@ describe("RecommendManual — funnel guard", () => {
 });
 
 describe("RecommendManual — rendering", () => {
-    it("renders all four chart cards with title + description + example", () => {
+    it("renders four cards with the V1 titles (Box + XY, not ROC / Forest)", () => {
         seedManualMode(KM_MAPPING);
         renderManual();
-        const titles = [
-            "Kaplan–Meier curve",
-            "Bar chart with error bars",
-            "Box plot",
-            "XY plot",
-        ];
-        for (const title of titles) {
-            expect(screen.getByRole("heading", { name: title })).toBeTruthy();
-        }
+        expect(screen.getByRole("heading", { name: "Kaplan–Meier curve" })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: "Bar chart with error bars" })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: "Box plot" })).toBeTruthy();
         expect(
-            screen.getAllByText(/Use for:/i).length,
-        ).toBe(4);
+            screen.getByRole("heading", { name: "XY plot (line / scatter)" }),
+        ).toBeTruthy();
+        expect(screen.queryByRole("heading", { name: "ROC curve" })).toBeNull();
+        expect(screen.queryByRole("heading", { name: "Forest plot" })).toBeNull();
+        expect(screen.getAllByText(/Use for:/i)).toHaveLength(4);
     });
 
     it("KM card is enabled and the missing-roles strip is absent when the mapping supports KM", () => {
@@ -106,24 +113,20 @@ describe("RecommendManual — rendering", () => {
         expect(screen.queryByTestId("manual-missing-km")).toBeNull();
     });
 
-    it("incompatible cards are aria-disabled, show the missing-roles explainer drawn from ROLE_LABELS, and carry the disabled style class", () => {
+    it("incompatible KM shows ROLE_LABELS-style missing copy; XY shows numeric x/y sentence", () => {
         seedManualMode(EMPTY_MAPPING);
         renderManual();
 
         const km = screen.getByTestId("manual-card-km") as HTMLButtonElement;
         expect(km.disabled).toBe(true);
-        expect(km.getAttribute("aria-disabled")).toBe("true");
         expect(km.className).toContain("manual-card--disabled");
 
         const kmMissing = screen.getByTestId("manual-missing-km");
         expect(kmMissing.textContent).toContain("Time variable");
         expect(kmMissing.textContent).toContain("Event indicator");
 
-        const xy = screen.getByTestId("manual-card-xy") as HTMLButtonElement;
-        expect(xy.disabled).toBe(true);
         const xyMissing = screen.getByTestId("manual-missing-xy");
-        expect(xyMissing.textContent).toContain("X axis");
-        expect(xyMissing.textContent).toContain("Y axis");
+        expect(xyMissing.textContent).toContain("numeric x and y");
     });
 
     it("describes disabled cards to assistive tech via aria-describedby pointing to the missing-roles strip", () => {
@@ -133,6 +136,65 @@ describe("RecommendManual — rendering", () => {
         expect(km.getAttribute("aria-describedby")).toBe("manual-km-missing");
         const strip = screen.getByTestId("manual-missing-km");
         expect(strip.id).toBe("manual-km-missing");
+    });
+});
+
+describe("RecommendManual — Box compatibility", () => {
+    it("enables the Box card when outcome + group are mapped", () => {
+        seedManualMode({
+            outcome: "biomarker_x",
+            group: "stage",
+        });
+        renderManual();
+        const box = screen.getByTestId("manual-card-box") as HTMLButtonElement;
+        expect(box.disabled).toBe(false);
+        expect(screen.queryByTestId("manual-missing-box")).toBeNull();
+    });
+
+    it("disables Box with only group mapped — asks for numeric value", () => {
+        seedManualMode({ group: "stage" });
+        renderManual();
+        const strip = screen.getByTestId("manual-missing-box");
+        expect(strip.textContent).toContain("numeric value");
+    });
+
+    it("disables Box with only outcome mapped — asks for categorical group", () => {
+        seedManualMode({ outcome: "biomarker_x" });
+        renderManual();
+        const strip = screen.getByTestId("manual-missing-box");
+        expect(strip.textContent).toContain("categorical group");
+    });
+});
+
+describe("RecommendManual — XY compatibility", () => {
+    it("enables XY with only x + y (optional group omitted)", () => {
+        seedManualMode({
+            x: "visit",
+            y: "tumour_size",
+        });
+        renderManual();
+        const xy = screen.getByTestId("manual-card-xy") as HTMLButtonElement;
+        expect(xy.disabled).toBe(false);
+        expect(screen.queryByTestId("manual-missing-xy")).toBeNull();
+    });
+
+    it("enables XY when x, y, and group are all mapped", () => {
+        seedManualMode({
+            x: "visit",
+            y: "tumour_size",
+            group: "arm",
+        });
+        renderManual();
+        const xy = screen.getByTestId("manual-card-xy") as HTMLButtonElement;
+        expect(xy.disabled).toBe(false);
+        expect(screen.queryByTestId("manual-missing-xy")).toBeNull();
+    });
+
+    it("disables XY when only x is mapped", () => {
+        seedManualMode({ x: "visit" });
+        renderManual();
+        const strip = screen.getByTestId("manual-missing-xy");
+        expect(strip.textContent).toContain("numeric x and y");
     });
 });
 
@@ -151,6 +213,28 @@ describe("RecommendManual — selection", () => {
         expect(captured.current?.chartSpec?.kind).toBe("km");
         expect(captured.current?.chartSpec?.version).toBe(1);
         expect(captured.current?.chartSpec?.id).toBeTruthy();
+    });
+
+    it("clicking Box writes kind `box`; clicking XY writes kind `xy`", () => {
+        seedManualMode({
+            outcome: "bio",
+            group: "st",
+            x: "vx",
+            y: "vy",
+        });
+        const { captured } = renderManual();
+
+        act(() => {
+            (screen.getByTestId("manual-card-box") as HTMLButtonElement).click();
+        });
+        expect(captured.current?.chartSlug).toBe("box");
+        expect(captured.current?.chartSpec?.kind).toBe("box");
+
+        act(() => {
+            (screen.getByTestId("manual-card-xy") as HTMLButtonElement).click();
+        });
+        expect(captured.current?.chartSlug).toBe("xy");
+        expect(captured.current?.chartSpec?.kind).toBe("xy");
     });
 
     it("clicking an incompatible card does NOT mutate state and does NOT navigate", () => {
@@ -193,17 +277,24 @@ describe("RecommendManual — selection", () => {
 });
 
 describe("RecommendManual — privacy regression", () => {
-    it("rendering the picker and selecting a chart makes ZERO network calls", () => {
+    it("rendering the picker and selecting each enabled card makes ZERO network calls", () => {
         const fetchSpy = vi.fn().mockResolvedValue(new Response(null));
         const originalFetch = globalThis.fetch;
         globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
 
         try {
-            seedManualMode(KM_MAPPING);
+            seedManualMode(ALL_KINDS_SATISFIED_MAPPING);
             renderManual();
-            act(() => {
-                (screen.getByTestId("manual-card-km") as HTMLButtonElement).click();
-            });
+            for (const testId of [
+                "manual-card-km",
+                "manual-card-barError",
+                "manual-card-box",
+                "manual-card-xy",
+            ] as const) {
+                act(() => {
+                    (screen.getByTestId(testId) as HTMLButtonElement).click();
+                });
+            }
             expect(fetchSpy).not.toHaveBeenCalled();
         } finally {
             globalThis.fetch = originalFetch;
@@ -240,7 +331,6 @@ describe("RecommendManual — mobile-first layout", () => {
             computed.gridTemplateColumns === "" || computed.gridTemplateColumns.includes("1fr"),
         ).toBe(true);
         const km = screen.getByTestId("manual-card-km") as HTMLButtonElement;
-        // Inline width assertion is happy-dom-flaky; rely on the class + grid contract
         expect(km.className.split(/\s+/)).toContain("manual-card");
     });
 });

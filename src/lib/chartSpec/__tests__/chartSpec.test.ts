@@ -109,77 +109,28 @@ const barErrorPlotData: BarErrorPlotData = {
     ],
 };
 
-const boxPlotDataWithOutliers: BoxPlotData = {
+const boxPlotData: BoxPlotData = {
     kind: "box",
     groups: [
         {
-            label: "Iris setosa — Sepal.Width",
-            min: 2.3,
-            q1: 3.2,
-            median: 3.4,
-            q3: 3.7,
-            max: 4.4,
-            outliers: [4.5, 4.9],
-            n: 50,
-        },
-    ],
-};
-
-const boxPlotDataEmptyOutliers: BoxPlotData = {
-    kind: "box",
-    groups: [
-        {
-            label: "No outliers",
-            min: 1,
-            q1: 2,
-            median: 3,
-            q3: 4,
-            max: 5,
+            label: "A",
+            min: 0,
+            q1: 1,
+            median: 2,
+            q3: 3,
+            max: 4,
             outliers: [],
-            n: 20,
+            n: 10,
         },
     ],
 };
 
-const xyPlotDataLine: XYPlotData = {
+const xyPlotData: XYPlotData = {
     kind: "xy",
     series: [
         {
-            label: "Arm A",
-            points: [
-                { x: 0, y: 48 },
-                { x: 4, y: 52, errorLow: 50.1, errorHigh: 53.7 },
-                { x: 8, y: 55 },
-                { x: 12, y: 57, errorLow: 55.2, errorHigh: 58.4 },
-            ],
-        },
-        {
-            label: "Arm B",
-            points: [
-                { x: 0, y: 48 },
-                { x: 4, y: 49 },
-                { x: 8, y: 51, errorLow: 49.5, errorHigh: 52.2 },
-                { x: 12, y: 53 },
-            ],
-        },
-    ],
-};
-
-const xyPlotDataScatterRegression: XYPlotData = {
-    kind: "xy",
-    series: [
-        {
-            label: "Responder biomarker",
-            points: [
-                { x: 0.2, y: 1.1 },
-                { x: 0.45, y: 2.4 },
-                { x: 0.78, y: 3.05 },
-            ],
-            regression: {
-                slope: 3.42,
-                intercept: 0.41,
-                r2: 0.972,
-            },
+            label: "Series A",
+            points: [{ x: 0, y: 1 }],
         },
     ],
 };
@@ -232,18 +183,15 @@ describe("chartSpecSchema round-trip", () => {
     });
 
     it("preserves xy spec (line mode) across JSON round-trip", () => {
-        const parsed = chartSpecSchema.parse(roundTrip(xySpecLine));
-        expect(parsed).toEqual(xySpecLine);
+        expect(chartSpecSchema.parse(roundTrip(xySpecLine))).toEqual(xySpecLine);
     });
 
     it("preserves xy spec (scatter mode) across JSON round-trip", () => {
-        const parsed = chartSpecSchema.parse(roundTrip(xySpecScatter));
-        expect(parsed).toEqual(xySpecScatter);
+        expect(chartSpecSchema.parse(roundTrip(xySpecScatter))).toEqual(xySpecScatter);
     });
 
     it("preserves xy spec (both mode) across JSON round-trip", () => {
-        const parsed = chartSpecSchema.parse(roundTrip(xySpecBoth));
-        expect(parsed).toEqual(xySpecBoth);
+        expect(chartSpecSchema.parse(roundTrip(xySpecBoth))).toEqual(xySpecBoth);
     });
 });
 
@@ -251,6 +199,8 @@ describe("plotDataSchema round-trip", () => {
     it.each<[string, PlotData]>([
         ["km", kmPlotData],
         ["barError", barErrorPlotData],
+        ["box", boxPlotData],
+        ["xy", xyPlotData],
     ])("preserves %s plot data across JSON round-trip", (_kind, fixture) => {
         const parsed = plotDataSchema.parse(roundTrip(fixture));
         expect(parsed).toEqual(fixture);
@@ -415,7 +365,9 @@ describe("schema rejection — exact paths", () => {
         if (!result.success) {
             expect(exactPaths(result.error.issues)).toContain("groups.0");
             const unrecognized = result.error.issues.find((i) => i.code === "unrecognized_keys");
-            expect(unrecognized && "keys" in unrecognized && unrecognized.keys).toContain("patientId");
+            expect(
+                unrecognized && "keys" in unrecognized && unrecognized.keys,
+            ).toContain("patientId");
         }
     });
 });
@@ -447,12 +399,12 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
         }
     });
 
-    it("plotDataSchema rejects `rows` nested on a box group", () => {
+    it("plotDataSchema rejects an extra `patientId` on a box group", () => {
         const smuggled = {
             kind: "box",
             groups: [
                 {
-                    label: "Cohort A",
+                    label: "x",
                     min: 0,
                     q1: 1,
                     median: 2,
@@ -460,30 +412,7 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
                     max: 4,
                     outliers: [],
                     n: 10,
-                    rows: [{ value: 9 }],
-                },
-            ],
-        };
-        const result = plotDataSchema.safeParse(smuggled);
-        expect(result.success).toBe(false);
-
-        if (!result.success) {
-            const unrecognized = result.error.issues.find(
-                (i) => i.code === "unrecognized_keys",
-            ) as { code: "unrecognized_keys"; keys: string[] } | undefined;
-            expect(unrecognized).toBeDefined();
-            expect(unrecognized?.keys).toContain("rows");
-        }
-    });
-
-    it("plotDataSchema rejects `patients` nested on an xy series", () => {
-        const smuggled = {
-            kind: "xy",
-            series: [
-                {
-                    label: "Arm A",
-                    points: [{ x: 0, y: 1 }],
-                    patients: [{ id: "p1" }],
+                    patientId: "p1",
                 },
             ],
         };

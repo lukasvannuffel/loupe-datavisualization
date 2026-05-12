@@ -48,15 +48,16 @@ const CHART_OPTIONS: readonly ChartOption[] = [
         kind: "box",
         title: "Box plot",
         description:
-            "Median, quartiles, and whiskers with optional outliers and notched boxes.",
-        example: "Use for: comparing a numeric outcome’s distribution across cohorts.",
+            "Distributional comparison of a continuous variable across two or more groups.",
+        example: "Use for: comparing biomarker concentrations across disease stages.",
     },
     {
         kind: "xy",
-        title: "XY plot",
+        title: "XY plot (line / scatter)",
         description:
-            "Lines and/or points over a shared axis, with optional regression and error bands.",
-        example: "Use for: trajectories over time or dose-response relationships.",
+            "Continuous trend over time or correlation between two continuous variables.",
+        example:
+            "Use for: tracking tumour diameter per visit, or testing baseline biomarker against response.",
     },
 ];
 
@@ -69,6 +70,35 @@ const formatMissing = (compat: ChartCompatibility): string => {
     }
 
     return `Needs columns mapped to ${compat.missingLabels.join(" and ")}.`;
+};
+
+const formatManualPickerMissing = (kind: SpecKind, compat: ChartCompatibility): string => {
+    if (compat.missingRoles.length === 0) {
+        return "";
+    }
+
+    if (kind === "box") {
+        const missOutcome = compat.missingRoles.includes("outcome");
+        const missGroup = compat.missingRoles.includes("group");
+
+        if (missOutcome && missGroup) {
+            return "Needs a numeric value column and a categorical group.";
+        }
+
+        if (missOutcome && !missGroup) {
+            return "Needs a numeric value column.";
+        }
+
+        if (!missOutcome && missGroup) {
+            return "Needs a categorical group column.";
+        }
+    }
+
+    if (kind === "xy") {
+        return "Needs numeric x and y columns.";
+    }
+
+    return formatMissing(compat);
 };
 
 export const RecommendManual = (): JSX.Element => {
@@ -142,7 +172,7 @@ export const RecommendManual = (): JSX.Element => {
                 >
                     {CHART_OPTIONS.map((option) => {
                         const compat = compatibility[option.kind];
-                        const disabledCopy = formatMissing(compat);
+                        const disabledCopy = formatManualPickerMissing(option.kind, compat);
                         const isDisabled = !compat.compatible;
 
                         return (
