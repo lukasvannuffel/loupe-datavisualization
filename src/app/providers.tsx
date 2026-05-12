@@ -18,6 +18,9 @@ import type { ColumnInference } from "@/lib/parser/inference.types";
 const INTENT_KEY = "loupe.intent";
 const DATASET_KEY = "loupe.dataset";
 const MAPPING_KEY = "loupe.mapping";
+const SELECTION_MODE_KEY = "loupe.selectionMode";
+
+export type SelectionMode = "ai" | "manual";
 
 export type ColumnRole =
     | "time"
@@ -43,6 +46,8 @@ type AppState = {
     readonly clearDataset: () => void;
     readonly chartSlug: ChartSlug | null;
     readonly setChartSlug: (next: ChartSlug | null) => void;
+    readonly selectionMode: SelectionMode | null;
+    readonly setSelectionMode: (next: SelectionMode | null) => void;
 };
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -90,11 +95,14 @@ const hydrateDataset = (
 const isMapping = (v: unknown): v is Mapping =>
     v !== null && typeof v === "object" && !Array.isArray(v);
 
+const isSelectionMode = (v: unknown): v is SelectionMode => v === "ai" || v === "manual";
+
 export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Element => {
     const [intent, setIntentState] = useState<string>("");
     const [mapping, setMappingState] = useState<Mapping>({});
     const [dataset, setDatasetState] = useState<readonly ColumnInference[] | null>(null);
-    const [chartSlug, setChartSlug] = useState<ChartSlug | null>(null);
+    const [chartSlug, setChartSlugState] = useState<ChartSlug | null>(null);
+    const [selectionMode, setSelectionModeState] = useState<SelectionMode | null>(null);
     const [hydrated, setHydrated] = useState<boolean>(false);
     const didHydrate = useRef<boolean>(false);
 
@@ -117,6 +125,10 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         const storedMapping = safeParse(store.getItem(MAPPING_KEY), isMapping);
         if (storedMapping !== null) {
             setMappingState(storedMapping);
+        }
+        const storedSelectionMode = store.getItem(SELECTION_MODE_KEY);
+        if (isSelectionMode(storedSelectionMode)) {
+            setSelectionModeState(storedSelectionMode);
         }
         setHydrated(true);
     }, []);
@@ -149,6 +161,30 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         }
     }, []);
 
+    const setChartSlug = useCallback((next: ChartSlug | null): void => {
+        setChartSlugState(next);
+    }, []);
+
+    /**
+     * Switching the selection mode resets `chartSlug` only — `mapping` and `intent`
+     * are intentionally preserved so a user can round-trip AI ↔ Manual without
+     * losing the work they already did in /upload/map. A stale chart slug from a
+     * previous mode would leak across boundaries, so we drop it on every write.
+     */
+    const setSelectionMode = useCallback((next: SelectionMode | null): void => {
+        setSelectionModeState(next);
+        setChartSlugState(null);
+        if (typeof window === "undefined") {
+            return;
+        }
+        if (next === null) {
+            window.sessionStorage.removeItem(SELECTION_MODE_KEY);
+
+            return;
+        }
+        window.sessionStorage.setItem(SELECTION_MODE_KEY, next);
+    }, []);
+
     const value = useMemo<AppState>(
         () => ({
             hydrated,
@@ -161,6 +197,8 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             clearDataset,
             chartSlug,
             setChartSlug,
+            selectionMode,
+            setSelectionMode,
         }),
         [
             hydrated,
@@ -172,6 +210,9 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             setDataset,
             clearDataset,
             chartSlug,
+            setChartSlug,
+            selectionMode,
+            setSelectionMode,
         ],
     );
 

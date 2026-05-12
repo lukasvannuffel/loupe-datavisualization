@@ -3,7 +3,7 @@
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { AppStateProvider, useAppState } from "@/app/providers";
+import { AppStateProvider, useAppState, type SelectionMode } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
 
 const VALID: ColumnInference = {
@@ -74,5 +74,48 @@ describe("AppStateProvider hydration", () => {
         );
         act(() => {});
         expect(container.textContent).toContain("ok");
+    });
+});
+
+describe("AppStateProvider selectionMode", () => {
+    it("hydrates a valid persisted selectionMode", () => {
+        window.sessionStorage.setItem("loupe.selectionMode", "manual");
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        expect(result.current.selectionMode).toBe("manual");
+    });
+
+    it("ignores a tampered selectionMode (drops silently, defaults to null)", () => {
+        window.sessionStorage.setItem("loupe.selectionMode", "not-a-mode");
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        expect(result.current.selectionMode).toBeNull();
+    });
+
+    it("persists setSelectionMode writes to sessionStorage", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.setSelectionMode("ai"));
+        expect(window.sessionStorage.getItem("loupe.selectionMode")).toBe("ai");
+        act(() => result.current.setSelectionMode("manual"));
+        expect(window.sessionStorage.getItem("loupe.selectionMode")).toBe("manual");
+    });
+
+    it("clears the sessionStorage entry on setSelectionMode(null)", () => {
+        window.sessionStorage.setItem("loupe.selectionMode", "ai");
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.setSelectionMode(null));
+        expect(window.sessionStorage.getItem("loupe.selectionMode")).toBeNull();
+    });
+
+    it("setSelectionMode resets chartSlug to null but preserves intent + mapping", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.setIntent("Compare survival"));
+        act(() => result.current.setMapping({ time: "t", event: "e" }));
+        act(() => result.current.setChartSlug("km"));
+        expect(result.current.chartSlug).toBe("km");
+
+        act(() => result.current.setSelectionMode("manual" satisfies SelectionMode));
+
+        expect(result.current.chartSlug).toBeNull();
+        expect(result.current.intent).toBe("Compare survival");
+        expect(result.current.mapping).toEqual({ time: "t", event: "e" });
     });
 });

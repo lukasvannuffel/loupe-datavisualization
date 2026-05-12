@@ -221,9 +221,40 @@ export type StatTest = {
     notes?: string;
 };
 
-/** Reproducibility record bound to a chart: intent, recommendation, alternatives, transformations, tests. */
+/**
+ * How the user arrived at the chosen chart type:
+ * - `ai` — the chart was suggested by the AI recommender.
+ * - `manual` — the user picked the chart type themselves (no AI request was made).
+ */
+export type SelectionMode = "ai" | "manual";
+
+/** Exact, immutable receipt note appended whenever the user picks the chart manually. */
+export const MANUAL_SELECTION_NOTE =
+    "User selected chart type manually (no AI recommendation requested)" as const;
+
+/**
+ * Returns the canonical manual-selection note for `manual` mode, and `undefined`
+ * for `ai`. Use this when composing a `Receipt` so the invariant enforced by
+ * `receiptSchema` is always upheld at the type level.
+ */
+export const manualSelectionNoteFor = (
+    mode: SelectionMode,
+): typeof MANUAL_SELECTION_NOTE | undefined =>
+    mode === "manual" ? MANUAL_SELECTION_NOTE : undefined;
+
+/**
+ * Reproducibility record bound to a chart: how it was selected, the intent that
+ * drove it, recommendation copy, alternatives, transformations, and tests.
+ *
+ * `selectionMode` is required (additive but non-breaking — every receipt now
+ * carries provenance). When `selectionMode === 'manual'`, `manualSelectionNote`
+ * is populated with the exact `MANUAL_SELECTION_NOTE` string; for `ai` it is
+ * intentionally omitted.
+ */
 export type Receipt = {
     intent: string;
+    selectionMode: SelectionMode;
+    manualSelectionNote?: typeof MANUAL_SELECTION_NOTE;
     recommendation: RecommendationBlock;
     alternatives: readonly AlternativeBlock[];
     transformations: readonly TransformationBlock[];
