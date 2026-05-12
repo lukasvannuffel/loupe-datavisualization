@@ -66,11 +66,11 @@ Server actions that mutate auth state (`src/app/auth/actions.ts`, `src/app/accou
 
 This is the load-bearing model of the product. **Read it before changing anything related to charts, exports, or persistence.**
 
-- `types.ts` — TypeScript types for `ChartSpec` (the discriminated union of `KMSpec | BarErrorSpec | RocSpec | ForestSpec` — V1 ships with these four), `PlotData` (the matching aggregated input data), `Receipt` (reproducibility record), and `ChartSlug` (the full 25-entry slug list the renderer dispatches on).
+- `types.ts` — TypeScript types for `ChartSpec` (the discriminated union of `KMSpec | BarErrorSpec | BoxSpec | XYSpec` — V1 ships with these four), `PlotData` (the matching aggregated input data), `Receipt` (reproducibility record), and `ChartSlug` (the full slug list the renderer dispatches on).
 - `schemas.ts` — Zod v4 schemas (`chartSpecSchema`, `plotDataSchema`, `receiptSchema`) using `.strict()` on every object. Use these as the single source of truth for validation at any boundary (file import, API, persisted state). Keep them in lockstep with `types.ts`.
 - `index.ts` — the public re-export surface. Always import via `@/lib/chartSpec`, never reach into `./types` or `./schemas` from outside the folder.
 
-**Privacy invariant on `PlotData`:** every variant is aggregated (per-group / per-category / per-curve / per-subgroup). There are no per-patient rows. The `ForestPlotData` field is intentionally named `subgroups` rather than `rows` so privacy guards that flag the substring `rows` continue to hold. **Don't add raw row-level data to `PlotData`.**
+**Privacy invariant on `PlotData`:** every variant is aggregated (per-group / per-category / per-series). There are no per-patient rows. Zod `.strict()` rejects unknown keys at every level (including names like `rows`, `patients`, `records`). **`BoxGroup.outliers`** holds numeric outlier values from the aggregate, not patient identifiers. **Don't add raw row-level data to `PlotData`.**
 
 ### Browser-only file parser: `src/lib/parser/`
 

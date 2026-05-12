@@ -83,7 +83,12 @@ describe("RecommendManual — rendering", () => {
     it("renders all four chart cards with title + description + example", () => {
         seedManualMode(KM_MAPPING);
         renderManual();
-        const titles = ["Kaplan–Meier curve", "Bar chart with error bars", "ROC curve", "Forest plot"];
+        const titles = [
+            "Kaplan–Meier curve",
+            "Bar chart with error bars",
+            "Box plot",
+            "XY plot",
+        ];
         for (const title of titles) {
             expect(screen.getByRole("heading", { name: title })).toBeTruthy();
         }
@@ -114,11 +119,11 @@ describe("RecommendManual — rendering", () => {
         expect(kmMissing.textContent).toContain("Time variable");
         expect(kmMissing.textContent).toContain("Event indicator");
 
-        const roc = screen.getByTestId("manual-card-roc") as HTMLButtonElement;
-        expect(roc.disabled).toBe(true);
-        const rocMissing = screen.getByTestId("manual-missing-roc");
-        expect(rocMissing.textContent).toContain("Predictor");
-        expect(rocMissing.textContent).toContain("Outcome");
+        const xy = screen.getByTestId("manual-card-xy") as HTMLButtonElement;
+        expect(xy.disabled).toBe(true);
+        const xyMissing = screen.getByTestId("manual-missing-xy");
+        expect(xyMissing.textContent).toContain("X axis");
+        expect(xyMissing.textContent).toContain("Y axis");
     });
 
     it("describes disabled cards to assistive tech via aria-describedby pointing to the missing-roles strip", () => {

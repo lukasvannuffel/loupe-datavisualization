@@ -1,11 +1,11 @@
 import type {
     BarErrorSpec,
     BaseSpec,
+    BoxSpec,
     ChartSpec,
-    ForestSpec,
     KMSpec,
-    RocSpec,
     SpecKind,
+    XYSpec,
 } from "./types";
 
 const DEFAULT_PALETTE_ID = "monochrome";
@@ -31,8 +31,8 @@ const baseFor = (title: string): Omit<BaseSpec, "id" | "createdAt"> => ({
 const TITLES: Readonly<Record<SpecKind, string>> = {
     km: "Survival by group",
     barError: "Group means with error bars",
-    roc: "Diagnostic performance",
-    forest: "Subgroup effects",
+    box: "Distribution by group",
+    xy: "X–Y relationship",
 };
 
 const buildKm = (id: string, createdAt: string): KMSpec => ({
@@ -56,30 +56,31 @@ const buildBarError = (id: string, createdAt: string): BarErrorSpec => ({
     annotations: [],
 });
 
-const buildRoc = (id: string, createdAt: string): RocSpec => ({
-    ...baseFor(TITLES.roc),
+const buildBox = (id: string, createdAt: string): BoxSpec => ({
+    ...baseFor(TITLES.box),
     id,
     createdAt,
-    kind: "roc",
-    showAuc: true,
-    showDiagonalRef: true,
+    kind: "box",
+    showOutliers: true,
+    showMeanMarker: false,
+    notched: false,
 });
 
-const buildForest = (id: string, createdAt: string): ForestSpec => ({
-    ...baseFor(TITLES.forest),
+const buildXy = (id: string, createdAt: string): XYSpec => ({
+    ...baseFor(TITLES.xy),
     id,
     createdAt,
-    kind: "forest",
-    showPooled: true,
-    showHeterogeneity: true,
-    nullValue: 1,
+    kind: "xy",
+    mode: "line",
+    showRegression: false,
+    showErrorBands: false,
 });
 
 const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => ChartSpec>> = {
     km: buildKm,
     barError: buildBarError,
-    roc: buildRoc,
-    forest: buildForest,
+    box: buildBox,
+    xy: buildXy,
 };
 
 /**

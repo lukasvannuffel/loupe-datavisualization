@@ -45,18 +45,18 @@ const CHART_OPTIONS: readonly ChartOption[] = [
         example: "Use for: comparing an outcome across a few named cohorts.",
     },
     {
-        kind: "roc",
-        title: "ROC curve",
+        kind: "box",
+        title: "Box plot",
         description:
-            "Sensitivity vs specificity across every threshold, with AUC and reference line.",
-        example: "Use for: diagnostic-test performance and biomarker discrimination.",
+            "Median, quartiles, and whiskers with optional outliers and notched boxes.",
+        example: "Use for: comparing a numeric outcome’s distribution across cohorts.",
     },
     {
-        kind: "forest",
-        title: "Forest plot",
+        kind: "xy",
+        title: "XY plot",
         description:
-            "Stacked subgroup effect estimates with confidence intervals and an optional pooled summary.",
-        example: "Use for: pre-specified subgroup analyses and meta-analyses.",
+            "Lines and/or points over a shared axis, with optional regression and error bands.",
+        example: "Use for: trajectories over time or dose-response relationships.",
     },
 ];
 
