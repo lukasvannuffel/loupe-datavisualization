@@ -4,7 +4,7 @@ import { createDefaultChartSpec } from "../factory";
 import { chartSpecSchema } from "../schemas";
 import type { SpecKind } from "../types";
 
-const ALL_KINDS: readonly SpecKind[] = ["km", "barError", "roc", "forest"];
+const ALL_KINDS: readonly SpecKind[] = ["km", "barError", "box", "xy"];
 
 describe("createDefaultChartSpec", () => {
     it.each(ALL_KINDS)(
@@ -27,8 +27,8 @@ describe("createDefaultChartSpec", () => {
     });
 
     it("generates a non-empty unique id when unseeded", () => {
-        const a = createDefaultChartSpec("roc");
-        const b = createDefaultChartSpec("roc");
+        const a = createDefaultChartSpec("xy");
+        const b = createDefaultChartSpec("xy");
         expect(a.id).not.toBe("");
         expect(a.id).not.toBe(b.id);
     });
@@ -36,8 +36,8 @@ describe("createDefaultChartSpec", () => {
     it("sets sensible kind-specific defaults", () => {
         const km = createDefaultChartSpec("km");
         const bar = createDefaultChartSpec("barError");
-        const roc = createDefaultChartSpec("roc");
-        const forest = createDefaultChartSpec("forest");
+        const box = createDefaultChartSpec("box");
+        const xy = createDefaultChartSpec("xy");
 
         if (km.kind === "km") {
             expect(km.timeUnit).toBe("months");
@@ -47,13 +47,13 @@ describe("createDefaultChartSpec", () => {
             expect(bar.errorBarType).toBe("ci95");
             expect(bar.annotations).toEqual([]);
         }
-        if (roc.kind === "roc") {
-            expect(roc.showAuc).toBe(true);
-            expect(roc.showDiagonalRef).toBe(true);
+        if (box.kind === "box") {
+            expect(box.showOutliers).toBe(true);
+            expect(box.notched).toBe(false);
         }
-        if (forest.kind === "forest") {
-            expect(forest.nullValue).toBe(1);
-            expect(forest.showPooled).toBe(true);
+        if (xy.kind === "xy") {
+            expect(xy.mode).toBe("line");
+            expect(xy.showRegression).toBe(false);
         }
     });
 });

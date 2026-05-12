@@ -13,8 +13,8 @@ import { ROLE_REQUIREMENTS_BY_INTENT, type ChartIntent } from "./requirements";
 export const SPEC_KIND_TO_INTENT: Readonly<Record<SpecKind, ChartIntent>> = {
     km: "km",
     barError: "bar-error",
-    roc: "roc",
-    forest: "forest",
+    box: "box",
+    xy: "xy",
 };
 
 export type ChartCompatibility = {

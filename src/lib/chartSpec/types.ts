@@ -18,6 +18,7 @@ export type ChartSlug =
     | "stackedBar100"
     | "line"
     | "scatter"
+    | "xy"
     | "histogram"
     | "pie"
     | "donut"
@@ -43,7 +44,7 @@ export type StatAnnotation =
       };
 
 /** Discriminator subset: the four chart types V1 ships with full Spec + PlotData. */
-export type SpecKind = Extract<ChartSlug, "km" | "barError" | "roc" | "forest">;
+export type SpecKind = Extract<ChartSlug, "km" | "barError" | "box" | "xy">;
 
 /** Frame, typography, palette and stroke options shared by every Spec. */
 export type BaseSpec = {
@@ -78,23 +79,24 @@ export type BarErrorSpec = BaseSpec & {
     annotations: readonly StatAnnotation[];
 };
 
-/** Receiver-operating characteristic: area-under-curve readout + diagonal reference. */
-export type RocSpec = BaseSpec & {
-    kind: "roc";
-    showAuc: boolean;
-    showDiagonalRef: boolean;
+/** Box plot configuration: outliers, mean diamond, notched boxes. */
+export type BoxSpec = BaseSpec & {
+    kind: "box";
+    showOutliers: boolean;
+    showMeanMarker: boolean;
+    notched: boolean;
 };
 
-/** Forest plot of pre-specified subgroup effects: pooled summary, heterogeneity, null-effect line. */
-export type ForestSpec = BaseSpec & {
-    kind: "forest";
-    showPooled: boolean;
-    showHeterogeneity: boolean;
-    nullValue: number;
+/** XY plot (line / scatter / both): regression overlay and error bands. */
+export type XYSpec = BaseSpec & {
+    kind: "xy";
+    mode: "line" | "scatter" | "both";
+    showRegression: boolean;
+    showErrorBands: boolean;
 };
 
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
-export type ChartSpec = KMSpec | BarErrorSpec | RocSpec | ForestSpec;
+export type ChartSpec = KMSpec | BarErrorSpec | BoxSpec | XYSpec;
 
 /** Single step on a Kaplan–Meier curve at one event/censoring time. Aggregated, never per-patient. */
 export type KMPoint = {
@@ -139,54 +141,51 @@ export type BarErrorPlotData = {
     categories: readonly BarErrorCategory[];
 };
 
-/** Single ROC operating point: false-positive rate, true-positive rate, optional decision threshold. */
-export type RocPoint = {
-    fpr: number;
-    tpr: number;
-    threshold?: number;
-};
-
-/** One ROC curve: label + sweep of operating points + computed AUC. */
-export type RocCurve = {
+/** One aggregated box-and-whisker group: five-number summary, optional outlier values, and sample size. */
+export type BoxGroup = {
     label: string;
-    points: readonly RocPoint[];
-    auc: number;
-};
-
-/** ROC aggregates: one or more pre-computed curves. No per-patient rows. */
-export type RocPlotData = {
-    kind: "roc";
-    curves: readonly RocCurve[];
-};
-
-/** One forest row: subgroup label, point estimate with confidence interval, group size. */
-export type ForestRow = {
-    label: string;
-    estimate: number;
-    ciLow: number;
-    ciHigh: number;
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+    outliers: readonly number[];
     n: number;
 };
 
-/** Optional pooled summary across forest rows (e.g. random-effects estimate). */
-export type ForestPooled = {
-    estimate: number;
-    ciLow: number;
-    ciHigh: number;
+/** Box plot aggregates: per-group summaries. No per-patient rows. */
+export type BoxPlotData = {
+    kind: "box";
+    groups: readonly BoxGroup[];
 };
 
-/**
- * Forest aggregates: per-subgroup effect estimates + optional pooled summary. No per-patient rows.
- * Field is named `subgroups` (not `rows`) so the privacy guard, which forbids `rows` as a hint of per-patient data, holds.
- */
-export type ForestPlotData = {
-    kind: "forest";
-    subgroups: readonly ForestRow[];
-    pooled?: ForestPooled;
+/** One XY observation (aggregated point); optional asymmetric error band bounds. */
+export type XYPoint = {
+    x: number;
+    y: number;
+    errorLow?: number;
+    errorHigh?: number;
+};
+
+/** One XY series: label, points, optional precomputed regression coefficients. */
+export type XYSeries = {
+    label: string;
+    points: readonly XYPoint[];
+    regression?: {
+        slope: number;
+        intercept: number;
+        r2: number;
+    };
+};
+
+/** XY aggregates: one or more series (line and/or scatter). No per-patient rows. */
+export type XYPlotData = {
+    kind: "xy";
+    series: readonly XYSeries[];
 };
 
 /** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
-export type PlotData = KMPlotData | BarErrorPlotData | RocPlotData | ForestPlotData;
+export type PlotData = KMPlotData | BarErrorPlotData | BoxPlotData | XYPlotData;
 
 /** Headline + reasoning shown to the user when a chart type is recommended. */
 export type RecommendationBlock = {

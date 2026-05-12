@@ -356,6 +356,23 @@ const RECOMMEND_COPY: Record<ChartSlug, RationaleCopy> = {
         transformVerb: "becomes a",
         transformChart: "scatter plot.",
     },
+    xy: {
+        chartName: "XY plot",
+        headline: "An XY plot fits trajectories or correlations in one unified layer.",
+        becauseTitle: "Because",
+        because:
+            "Your mapping pairs an X and Y axis — line connects ordered points, scatter exposes spread, and both can combine when the finding needs both.",
+        handlesTitle: "It adapts to the question",
+        handles:
+            "Regression and error bands are optional overlays; switch modes without changing the underlying aggregated series.",
+        altSlug: "line",
+        altName: "Line chart",
+        altReason: "Better when only the connecting trend matters and scatter would distract.",
+        testsTitle: "Tests we ran on your data",
+        tests: ["Mixed-model time × arm: p = 0.034", "Regression slope CI overlaid when enabled"],
+        transformVerb: "becomes an",
+        transformChart: "XY plot.",
+    },
     histogram: {
         chartName: "Histogram",
         headline: "A histogram exposes the shape of a single continuous variable.",
