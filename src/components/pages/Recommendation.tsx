@@ -479,7 +479,8 @@ const RECOMMEND_COPY: Record<ChartSlug, RationaleCopy> = {
 
 export const Recommendation = (): JSX.Element => {
     const router = useRouter();
-    const { intent, chartSlug, setChartSlug } = useAppState();
+    const { hydrated, intent, chartSlug, setChartSlug, selectionMode, setSelectionMode } =
+        useAppState();
 
     const activeSlug: ChartSlug = chartSlug ?? "km";
     const copy = RECOMMEND_COPY[activeSlug];
@@ -490,6 +491,15 @@ export const Recommendation = (): JSX.Element => {
     const words = text.split(/(\s+)/);
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (!hydrated) {
+            return;
+        }
+        if (selectionMode !== "ai") {
+            router.replace("/recommend/choose");
+        }
+    }, [hydrated, selectionMode, router]);
 
     useEffect(() => {
         const t1 = setTimeout(() => setPhase(1), 1100);
@@ -507,6 +517,11 @@ export const Recommendation = (): JSX.Element => {
 
     const onUseAlt = (): void => {
         setChartSlug(copy.altSlug);
+    };
+
+    const onSwitchToManual = (): void => {
+        setSelectionMode("manual");
+        router.push("/recommend/manual");
     };
 
     return (
@@ -623,6 +638,14 @@ export const Recommendation = (): JSX.Element => {
                         <span className="mono">cfg · 4f7a · 2 changes</span>
                     </div>
                     <div className="rec-bottombar-actions">
+                        <button
+                            type="button"
+                            className="btn btn--quiet btn--sm"
+                            data-testid="switch-to-manual"
+                            onClick={onSwitchToManual}
+                        >
+                            Pick a chart myself
+                        </button>
                         <button
                             type="button"
                             className="btn btn--quiet btn--sm"

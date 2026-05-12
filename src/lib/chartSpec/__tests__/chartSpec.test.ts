@@ -2,18 +2,20 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type { z } from "zod";
 
 import { chartSpecSchema, plotDataSchema, receiptSchema } from "../schemas";
-import type {
-    BarErrorPlotData,
-    BarErrorSpec,
-    ChartSpec,
-    ForestPlotData,
-    ForestSpec,
-    KMPlotData,
-    KMSpec,
-    PlotData,
-    Receipt,
-    RocPlotData,
-    RocSpec,
+import {
+    MANUAL_SELECTION_NOTE,
+    manualSelectionNoteFor,
+    type BarErrorPlotData,
+    type BarErrorSpec,
+    type ChartSpec,
+    type ForestPlotData,
+    type ForestSpec,
+    type KMPlotData,
+    type KMSpec,
+    type PlotData,
+    type Receipt,
+    type RocPlotData,
+    type RocSpec,
 } from "../types";
 
 const ISO_NOW = "2026-05-06T12:34:56.000Z";
@@ -114,6 +116,7 @@ const forestPlotData: ForestPlotData = {
 
 const receipt: Receipt = {
     intent: "Compare 5-year survival between treatment arms",
+    selectionMode: "ai",
     recommendation: {
         chartName: "Kaplan-Meier curve",
         headline: "Kaplan-Meier was the right shape for this finding.",
@@ -178,6 +181,41 @@ describe("receiptSchema round-trip", () => {
         expect(parsed).toEqual(receipt);
         expect(parsed.alternatives.length).toBeGreaterThanOrEqual(2);
         expect(parsed.tests.some((t) => t.ci95 !== undefined && t.statistic !== undefined)).toBe(true);
+    });
+});
+
+describe("Receipt.selectionMode", () => {
+    it("a manual receipt serializes the explicit note string", () => {
+        const manualReceipt: Receipt = {
+            ...receipt,
+            selectionMode: "manual",
+            manualSelectionNote: manualSelectionNoteFor("manual"),
+        };
+        const parsed = receiptSchema.parse(roundTrip(manualReceipt));
+        expect(parsed.selectionMode).toBe("manual");
+        expect(parsed.manualSelectionNote).toBe(MANUAL_SELECTION_NOTE);
+        expect(MANUAL_SELECTION_NOTE).toBe(
+            "User selected chart type manually (no AI recommendation requested)",
+        );
+    });
+
+    it("an AI receipt does NOT include the manual-selection note", () => {
+        const parsed = receiptSchema.parse(roundTrip(receipt));
+        expect(parsed.selectionMode).toBe("ai");
+        expect(parsed.manualSelectionNote).toBeUndefined();
+        expect(manualSelectionNoteFor("ai")).toBeUndefined();
+    });
+
+    it("rejects a manual receipt missing the note", () => {
+        const broken: unknown = { ...receipt, selectionMode: "manual" };
+        const result = receiptSchema.safeParse(broken);
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects an AI receipt that smuggles a manual note", () => {
+        const broken: unknown = { ...receipt, manualSelectionNote: MANUAL_SELECTION_NOTE };
+        const result = receiptSchema.safeParse(broken);
+        expect(result.success).toBe(false);
     });
 });
 

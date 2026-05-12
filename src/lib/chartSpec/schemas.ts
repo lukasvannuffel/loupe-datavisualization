@@ -1,6 +1,10 @@
 import { z } from "zod";
 
+import { MANUAL_SELECTION_NOTE } from "./types";
+
 const nonEmpty = (): z.ZodString => z.string().min(1);
+
+const selectionModeSchema = z.enum(["ai", "manual"]);
 
 const chartSlugSchema = z.enum([
     "km",
@@ -264,10 +268,23 @@ const statTestSchema = z
 export const receiptSchema = z
     .object({
         intent: nonEmpty(),
+        selectionMode: selectionModeSchema,
+        manualSelectionNote: z.literal(MANUAL_SELECTION_NOTE).optional(),
         recommendation: recommendationBlockSchema,
         alternatives: z.array(alternativeBlockSchema).readonly(),
         transformations: z.array(transformationBlockSchema).readonly(),
         testsTitle: nonEmpty(),
         tests: z.array(statTestSchema).readonly(),
     })
-    .strict();
+    .strict()
+    .refine(
+        (r) =>
+            r.selectionMode === "manual"
+                ? r.manualSelectionNote === MANUAL_SELECTION_NOTE
+                : r.manualSelectionNote === undefined,
+        {
+            path: ["manualSelectionNote"],
+            message:
+                "manualSelectionNote must equal the canonical note iff selectionMode === 'manual'",
+        },
+    );

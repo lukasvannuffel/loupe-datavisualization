@@ -22,9 +22,12 @@ export type {
     RocPlotData,
     RocPoint,
     RocSpec,
+    SelectionMode,
     SpecKind,
     StatAnnotation,
     StatTest,
     TransformationBlock,
 } from "./types";
+export { MANUAL_SELECTION_NOTE, manualSelectionNoteFor } from "./types";
 export { chartSpecSchema, plotDataSchema, receiptSchema } from "./schemas";
+export { createDefaultChartSpec } from "./factory";

@@ -124,14 +124,14 @@ describe("UploadMap", () => {
         expect(continueButton().disabled).toBe(true);
     });
 
-    it("Continue enables with valid mapping + non-empty intent, navigates to /recommend", () => {
+    it("Continue enables with valid mapping + non-empty intent, navigates to /recommend/choose", () => {
         seedDataset(KM_DATASET);
         renderPage();
         const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
         fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
         expect(continueButton().disabled).toBe(false);
         act(() => continueButton().click());
-        expect(push).toHaveBeenCalledWith("/recommend");
+        expect(push).toHaveBeenCalledWith("/recommend/choose");
     });
 
     it("validation strip text mirrors validateMapping output", () => {

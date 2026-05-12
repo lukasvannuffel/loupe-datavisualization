@@ -61,6 +61,6 @@ export const useUploadMap = (): UploadMapApi => {
             setMapping({});
             router.push("/upload");
         },
-        onContinue: () => router.push("/recommend"),
+        onContinue: () => router.push("/recommend/choose"),
     };
 };
