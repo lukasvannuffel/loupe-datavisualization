@@ -57,7 +57,7 @@ const boxSpec: BoxSpec = {
     kind: "box",
     showOutliers: true,
     showMeanMarker: true,
-    notched: false,
+    groupOrder: "alphabetical",
 };
 
 const xySpecLine: XYSpec = {
@@ -65,7 +65,8 @@ const xySpecLine: XYSpec = {
     kind: "xy",
     mode: "line",
     showRegression: true,
-    showErrorBands: true,
+    regressionType: "linear",
+    showCorrelation: false,
 };
 
 const xySpecScatter: XYSpec = {
@@ -74,16 +75,16 @@ const xySpecScatter: XYSpec = {
     kind: "xy",
     mode: "scatter",
     showRegression: true,
-    showErrorBands: false,
+    showCorrelation: false,
 };
 
-const xySpecBoth: XYSpec = {
+const xySpecScatterLine: XYSpec = {
     ...baseFields,
-    id: "spec-xy-both",
+    id: "spec-xy-scatter-line",
     kind: "xy",
-    mode: "both",
+    mode: "scatterLine",
     showRegression: false,
-    showErrorBands: true,
+    showCorrelation: true,
 };
 
 const kmPlotData: KMPlotData = {
@@ -196,13 +197,12 @@ const xyPlotDataScatterRegression: XYPlotData = {
                 { x: 1, y: 4 },
                 { x: 2, y: 7 },
             ],
-            regression: {
-                intercept: 0.41,
-                r2: 0.972,
-                slope: 3.42,
-            },
         },
     ],
+    regression: {
+        intercept: 0.41,
+        slope: 3.42,
+    },
 };
 
 const receipt: Receipt = {
@@ -260,8 +260,8 @@ describe("chartSpecSchema round-trip", () => {
         expect(chartSpecSchema.parse(roundTrip(xySpecScatter))).toEqual(xySpecScatter);
     });
 
-    it("preserves xy spec (both mode) across JSON round-trip", () => {
-        expect(chartSpecSchema.parse(roundTrip(xySpecBoth))).toEqual(xySpecBoth);
+    it("preserves xy spec (scatterLine mode) across JSON round-trip", () => {
+        expect(chartSpecSchema.parse(roundTrip(xySpecScatterLine))).toEqual(xySpecScatterLine);
     });
 });
 
@@ -289,19 +289,18 @@ describe("plotDataSchema round-trip", () => {
         expect(parsed).toEqual(boxPlotDataEmptyOutliers);
     });
 
-    it("preserves xy plot data (line-style multi-series + error bands)", () => {
+    it("preserves xy plot data (line-style multi-series)", () => {
         const parsed = plotDataSchema.parse(roundTrip(xyPlotDataLine));
         expect(parsed).toEqual(xyPlotDataLine);
     });
 
-    it("preserves xy plot data (scatter + regression)", () => {
+    it("preserves xy plot data (scatter + regression at plot level)", () => {
         const parsed = plotDataSchema.parse(roundTrip(xyPlotDataScatterRegression));
         expect(parsed).toEqual(xyPlotDataScatterRegression);
         if (parsed.kind === "xy") {
-            expect(parsed.series[0]?.regression).toEqual({
+            expect(parsed.regression).toEqual({
                 slope: 3.42,
                 intercept: 0.41,
-                r2: 0.972,
             });
         }
     });
@@ -409,6 +408,39 @@ describe("schema rejection — exact paths", () => {
 
         if (!result.success) {
             expect(exactPaths(result.error.issues)).toContain("paletteId");
+        }
+    });
+
+    it("rejects box PlotData when q1 > q3 (five-number summary order)", () => {
+        const broken: unknown = {
+            kind: "box",
+            groups: [
+                {
+                    label: "A",
+                    min: 0,
+                    q1: 5,
+                    median: 3,
+                    q3: 2,
+                    max: 10,
+                    outliers: [],
+                    n: 10,
+                },
+            ],
+        };
+        const result = plotDataSchema.safeParse(broken);
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects xy PlotData when a series has empty points", () => {
+        const broken: unknown = {
+            kind: "xy",
+            series: [{ label: "Empty", points: [] }],
+        };
+        const result = plotDataSchema.safeParse(broken);
+        expect(result.success).toBe(false);
+
+        if (!result.success) {
+            expect(exactPaths(result.error.issues)).toContain("series.0.points");
         }
     });
 

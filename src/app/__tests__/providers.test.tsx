@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppStateProvider, useAppState, type SelectionMode } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import type { Receipt } from "@/lib/chartSpec/types";
 
 const VALID: ColumnInference = {
     name: "age",
@@ -117,5 +118,39 @@ describe("AppStateProvider selectionMode", () => {
         expect(result.current.chartSlug).toBeNull();
         expect(result.current.intent).toBe("Compare survival");
         expect(result.current.mapping).toEqual({ time: "t", event: "e" });
+    });
+});
+
+describe("AppStateProvider receipt + chartKind", () => {
+    const SAMPLE_RECEIPT: Receipt = {
+        alternatives: [],
+        intent: "Compare arms",
+        recommendation: {
+            because: "Because.",
+            becauseTitle: "Because",
+            chartName: "Kaplan–Meier curve",
+            handles: "Handles.",
+            handlesTitle: "Handles",
+            headline: "Headline.",
+        },
+        selectionMode: "ai",
+        tests: [],
+        testsTitle: "Tests",
+        transformations: [],
+    };
+
+    it("hydrates receipt + chartKind from sessionStorage", () => {
+        window.sessionStorage.setItem("loupe.receipt", JSON.stringify(SAMPLE_RECEIPT));
+        window.sessionStorage.setItem("loupe.chartKind", JSON.stringify("km"));
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        expect(result.current.receipt).toEqual(SAMPLE_RECEIPT);
+        expect(result.current.chartKind).toBe("km");
+    });
+
+    it("drops a malformed receipt entry", () => {
+        window.sessionStorage.setItem("loupe.receipt", "{}");
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        expect(result.current.receipt).toBeNull();
+        expect(window.sessionStorage.getItem("loupe.receipt")).toBeNull();
     });
 });

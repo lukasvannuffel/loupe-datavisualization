@@ -1,10 +1,10 @@
-import { Recommendation } from "@/components/pages/Recommendation";
+import { RecommendGate } from "@/components/pages/RecommendGate";
 import { requireUser } from "@/utils/supabase/server";
 
 const RecommendPage = async (): Promise<JSX.Element> => {
     await requireUser();
 
-    return <Recommendation />;
+    return <RecommendGate />;
 };
 
 export default RecommendPage;

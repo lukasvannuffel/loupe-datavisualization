@@ -1,6 +1,5 @@
 import type { ColumnInference } from "@/lib/parser/inference.types";
-import type { ColumnRole } from "@/app/providers";
-import type { Mapping } from "@/app/providers";
+import type { ColumnRole, Mapping } from "@/lib/roles/types";
 
 /**
  * Anchored regex for ID-like column names. Accepts: `id`, `subject`, `patient_id`,
