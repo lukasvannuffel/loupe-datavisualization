@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Mapping } from "@/app/providers";
+import type { Mapping } from "@/lib/roles/types";
 
 import { getCompatibility } from "../compatibility";
 

@@ -1,5 +1,5 @@
 import type { PrimaryType } from "@/lib/parser/inference.types";
-import type { ColumnRole } from "@/app/providers";
+import type { ColumnRole } from "@/lib/roles/types";
 
 /**
  * Which primary types are acceptable for each chart role.

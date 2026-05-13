@@ -25,9 +25,8 @@ type ChartOption = {
 };
 
 /**
- * V1 catalog. Copy lifted from the approved AI rationales in
- * `Recommendation.tsx`'s `RECOMMEND_COPY` so the manual picker speaks in the
- * same clinical voice as the AI flow.
+ * V1 catalog. Copy matches the approved AI rationale tone used on `/recommend`
+ * when a real `Receipt` is shown.
  */
 const CHART_OPTIONS: readonly ChartOption[] = [
     {

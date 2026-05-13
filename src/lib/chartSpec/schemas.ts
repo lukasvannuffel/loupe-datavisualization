@@ -6,7 +6,7 @@ const nonEmpty = (): z.ZodString => z.string().min(1);
 
 const selectionModeSchema = z.enum(["ai", "manual"]);
 
-const chartSlugSchema = z.enum([
+export const chartSlugSchema = z.enum([
     "km",
     "forest",
     "box",

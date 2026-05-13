@@ -1,5 +1,5 @@
 import type { SpecKind } from "@/lib/chartSpec/types";
-import type { ColumnRole, Mapping } from "@/app/providers";
+import type { ColumnRole, Mapping } from "@/lib/roles/types";
 
 import { ROLE_LABELS } from "./describe";
 import { ROLE_REQUIREMENTS_BY_INTENT, type ChartIntent } from "./requirements";
