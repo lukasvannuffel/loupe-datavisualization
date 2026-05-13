@@ -1514,6 +1514,17 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     padding-bottom: 20px;
     margin-bottom: 24px;
 }
+.rec-intent-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.rec-cache-badge {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+}
 .rec-intent {
     font-family: var(--serif);
     font-size: clamp(20px, 5vw, 30px);
@@ -1606,6 +1617,10 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     display: grid;
     place-items: center;
 }
+.rec-chart-reveal {
+    opacity: 0;
+    animation: fadeIn 520ms var(--ease) both;
+}
 .rec-chart-hint {
     margin-top: 12px;
     font-size: 12px;
@@ -1620,6 +1635,16 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     height: 8px;
     margin-right: 6px;
     vertical-align: middle;
+}
+
+.rec-why-stage {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 480ms var(--ease), transform 480ms var(--ease);
+}
+.rec-why-stage.is-visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .rec-why h4 {
@@ -4357,4 +4382,9 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     display: inline-flex;
     align-items: center;
     gap: 8px;
+}
+.map-continue-loading .ring-loader {
+    border: 1px solid var(--amber-soft);
+    border-top-color: var(--amber);
+    mix-blend-mode: multiply;
 }

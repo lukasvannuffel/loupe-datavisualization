@@ -156,13 +156,17 @@ export const Upload = (): JSX.Element => {
     );
 
     useEffect(() => {
-        if (inferences === null) {
+        if (inferences === null || result === null) {
             return;
         }
 
-        setDataset(inferences);
+        setDataset(inferences, {
+            fileName: result.fileName,
+            rowCount: result.rowCount,
+            sheetName: result.sheetName,
+        });
         setMapping({});
-    }, [inferences, setDataset, setMapping]);
+    }, [inferences, result, setDataset, setMapping]);
 
     const onReplace = (): void => {
         reset();

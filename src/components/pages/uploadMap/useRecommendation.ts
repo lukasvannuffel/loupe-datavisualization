@@ -1,75 +1,54 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { recommendChart } from "@/lib/ai/recommendChart";
 import type { RecommendPayload, RecommendResult } from "@/lib/ai/recommendChart.types";
+import { getCacheEntry, setCacheEntry } from "@/lib/ai/recommendCache/cache";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
-
-export type RecommendationOnSuccess = (
-    payload: {
-        readonly receipt: Receipt;
-        readonly chartKind: ChartSpec["kind"];
-    },
-    resetRecommendation: () => void,
-) => void;
 
 export type RecommendationState =
     | { status: "idle" }
-    | { status: "loading" }
-    | { status: "success"; receipt: Receipt; chartKind: ChartSpec["kind"] }
-    | {
-          status: "error";
-          code: Extract<RecommendResult, { ok: false }>["code"];
-          message: string;
-      };
+    | { status: "loading"; fromCache: false }
+    | { status: "success"; receipt: Receipt; chartKind: ChartSpec["kind"]; fromCache: boolean }
+    | { status: "error"; code: Extract<RecommendResult, { ok: false }>["code"]; message: string };
 
-type UseRecommendationOptions = {
-    readonly onSuccess?: RecommendationOnSuccess;
+type Options = {
+    readonly onSuccess?: (receipt: Receipt, chartKind: ChartSpec["kind"], fromCache: boolean) => void;
 };
 
 export const useRecommendation = (
-    options?: UseRecommendationOptions,
-): {
-    readonly reset: () => void;
-    readonly run: (payload: RecommendPayload) => Promise<void>;
-    readonly state: RecommendationState;
-} => {
-    const optionsRef = useRef(options);
-
-    useEffect(() => {
-        optionsRef.current = options;
-    }, [options]);
-
+    options?: Options,
+): { readonly reset: () => void; readonly run: (payload: RecommendPayload) => Promise<void>; readonly state: RecommendationState } => {
     const [state, setState] = useState<RecommendationState>({ status: "idle" });
 
-    const reset = useCallback((): void => {
-        setState({ status: "idle" });
-    }, []);
-
-    const run = useCallback(async (payload: RecommendPayload): Promise<void> => {
-        setState({ status: "loading" });
+    const run = async (payload: RecommendPayload): Promise<void> => {
+        setState({ fromCache: false, status: "loading" });
+        const cached = await getCacheEntry(payload);
+        if (cached.ok) {
+            setState({
+                chartKind: cached.entry.chartKind,
+                fromCache: true,
+                receipt: cached.entry.receipt,
+                status: "success",
+            });
+            options?.onSuccess?.(cached.entry.receipt, cached.entry.chartKind, true);
+            return;
+        }
         const result: RecommendResult = await recommendChart(payload);
-
         if (result.ok) {
-            optionsRef.current?.onSuccess?.(
-                {
-                    chartKind: result.chartType,
-                    receipt: result.receipt,
-                },
-                reset,
-            );
+            await setCacheEntry(payload, result.receipt, result.chartType, result.costEstimateEur);
             setState({
                 chartKind: result.chartType,
+                fromCache: false,
                 receipt: result.receipt,
                 status: "success",
             });
-
+            options?.onSuccess?.(result.receipt, result.chartType, false);
             return;
         }
-
         setState({ code: result.code, message: result.message, status: "error" });
-    }, [reset]);
+    };
 
-    return { reset, run, state };
+    return { reset: () => setState({ status: "idle" }), run, state };
 };

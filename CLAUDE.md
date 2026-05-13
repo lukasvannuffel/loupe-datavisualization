@@ -27,16 +27,24 @@ Run a single test file: `npx vitest run src/lib/parser/__tests__/parseCsv.test.t
 ### Multi-step wizard flow
 
 ```
-/upload  →  /upload/map  →  /recommend (AI) or /recommend/manual  →  /recommend/choose  →  /export
+/upload  →  /upload/map  →  /recommend/choose  →  /recommend (AI) or /recommend/manual  →  /export
 ```
 
-Global wizard state (intent, dataset, column mapping, chart slug, chart spec, selection mode) lives in `AppStateProvider` (`src/app/providers.tsx`), persisted to `sessionStorage`. All reads and writes go through this context — never reach into sessionStorage directly.
+Global wizard state (intent, dataset, column mapping, chart slug, chart spec, selection mode, receipt) lives in `AppStateProvider` (`src/app/providers.tsx`), persisted to `sessionStorage`. All reads and writes go through this context — never reach into sessionStorage directly.
+
+On hydration, `AppStateProvider` validates each stored value against its Zod schema and silently drops malformed entries. Components that depend on wizard state should gate on `hydrated === true` before rendering to avoid stale-state flicker.
+
+Switching `selectionMode` (AI ↔ manual) resets `chartSlug` and `chartSpec` but intentionally preserves `mapping` and `intent`, so users can round-trip without redoing their column mapping.
 
 ### Auth
 
-Supabase SSR via `@supabase/ssr`. Middleware at `src/utils/supabase/middleware.ts` protects these prefixes: `/upload`, `/recommend`, `/export`, `/dashboard`, `/library`, `/project`, `/account`. Unauthenticated requests redirect to `/auth`; authenticated users at `/auth` redirect to `/dashboard`.
+Supabase SSR via `@supabase/ssr`. The actual Next.js middleware lives at `src/proxy.ts` (not `src/middleware.ts`). It handles auth session refresh, CSP header injection (production only), and delegates to `src/utils/supabase/middleware.ts` for route protection.
+
+Protected prefixes: `/upload`, `/recommend`, `/export`, `/dashboard`, `/library`, `/project`, `/account`. Unauthenticated requests redirect to `/auth`; authenticated users at `/auth` redirect to `/dashboard`.
 
 Server-side auth checks use `requireUser()` from `src/utils/supabase/server.ts`. Pages are thin — they call `requireUser()` and return the page component.
+
+`src/instrumentation-client.ts` enables Vercel BotID bot protection on `POST /auth` and `POST /account`.
 
 ### AI integration
 
@@ -44,9 +52,18 @@ Server-side auth checks use `requireUser()` from `src/utils/supabase/server.ts`.
 
 Never import provider-specific packages like `@ai-sdk/anthropic` — all AI calls go through the gateway.
 
+`src/lib/ai/recommendChart.ts` is a `"use server"` Server Action called directly from the `useRecommendation` hook (`src/components/pages/uploadMap/useRecommendation.ts`) on the client. It runs `generateObject` with a strict Zod output schema and returns a typed `RecommendResult` — either a `Receipt` + `chartType` on success, or an error code.
+
+### Privacy invariant
+
+Patient-level data must never reach the server. This is enforced at two layers:
+
+1. **Parser**: `PrivateRows` is a branded type — raw data rows cannot leave `src/lib/parser/` without explicit `brandRows()`. Files >5 MB are offloaded to a WebWorker (`xlsx.worker.ts`).
+2. **AI payload guard**: `payloadSchema` in `src/lib/ai/recommendChart.schemas.ts` uses a deep `superRefine` that rejects any payload containing keys named `rows`, `data`, `values`, `sample`, etc. A PHI column-name detector (`src/lib/ai/phi/detect.ts`) runs client-side before the payload is assembled; matched headers must be renamed before proceeding.
+
 ### Chart system
 
-**V1 has 4 full-spec chart types**: `km` (Kaplan–Meier), `barError` (bar with error bars), `box` (box plot), `xy` (line/scatter). Every other `ChartSlug` is a preview-only type.
+`ChartSlug` (`src/lib/chartSpec/types.ts`) is the wide union of all 25+ chart types. `SpecKind` is the 4-type V1 subset with full Spec + PlotData: `km` (Kaplan–Meier), `barError` (bar with error bars), `box` (box plot), `xy` (line/scatter). All other slugs have a preview React component but no ChartSpec or PlotData — they are UI-only placeholders.
 
 - Types and discriminated unions: `src/lib/chartSpec/types.ts`
 - Zod schemas: `src/lib/chartSpec/schemas.ts`
@@ -58,12 +75,6 @@ Never import provider-specific packages like `@ai-sdk/anthropic` — all AI call
 ### Column roles
 
 `src/lib/roles/` — typed roles (`time`, `event`, `group`, `outcome`, `predictor`, `x`, `y`, `id`, `ignore`) with compatibility rules per chart intent (`km`, `bar-error`, `box`, `xy`, `any`). `autoMapColumns` heuristically assigns roles based on column names and inferred types.
-
-### File parser
-
-`src/lib/parser/` — parses CSV (PapaParse) and XLSX (xlsx library). Files >5 MB are offloaded to a WebWorker (`xlsx.worker.ts`). Multi-sheet XLSX triggers a sheet-selection UI before parsing.
-
-`PrivateRows` is a branded type — raw data rows cannot escape the parser without explicit `brandRows()`. This enforces the privacy invariant that patient-level data stays client-side and never reaches the server.
 
 ### Component organization
 
@@ -89,4 +100,3 @@ Never import provider-specific packages like `@ai-sdk/anthropic` — all AI call
 ### Testing
 
 Vitest + `@testing-library/react` + happy-dom. Tests live in `__tests__/` subfolders next to the code they test. The vitest config aliases `@` → `src/`.
-

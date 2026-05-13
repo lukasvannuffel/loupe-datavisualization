@@ -9,7 +9,7 @@ import { Recommendation } from "./Recommendation";
 
 export const RecommendGate = (): JSX.Element | null => {
     const router = useRouter();
-    const { chartKind, hydrated, receipt } = useAppState();
+    const { chartKind, hydrated, lastRecommendationFromCache, receipt } = useAppState();
 
     useEffect(() => {
         if (!hydrated) {
@@ -24,5 +24,5 @@ export const RecommendGate = (): JSX.Element | null => {
         return null;
     }
 
-    return <Recommendation chartKind={chartKind} receipt={receipt} />;
+    return <Recommendation chartKind={chartKind} fromCache={lastRecommendationFromCache} receipt={receipt} />;
 };

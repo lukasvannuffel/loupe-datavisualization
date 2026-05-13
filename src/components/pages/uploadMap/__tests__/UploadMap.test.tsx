@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppStateProvider } from "@/app/providers";
@@ -93,6 +93,7 @@ const continueButton = (): HTMLButtonElement =>
     screen.getByRole("button", { name: /Get recommendation/ }) as HTMLButtonElement;
 
 beforeEach(() => {
+    vi.useRealTimers();
     push.mockClear();
     replace.mockClear();
     recommendChartMock.mockReset();
@@ -165,7 +166,9 @@ describe("UploadMap", () => {
         await act(async () => {
             continueButton().click();
         });
-        expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        });
 
         const mappingRaw = window.sessionStorage.getItem("loupe.mapping");
         expect(mappingRaw).not.toBeNull();
@@ -185,6 +188,76 @@ describe("UploadMap", () => {
         expect(push).toHaveBeenCalledWith("/recommend");
         expect(window.sessionStorage.getItem("loupe.receipt")).not.toBeNull();
         expect(window.sessionStorage.getItem("loupe.chartKind")).toBe(JSON.stringify("km"));
+    });
+
+    it("second identical recommendation skips the server action (session cache hit)", async () => {
+        seedDataset(KM_DATASET);
+        renderPage();
+        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
+        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        });
+        push.mockClear();
+        await waitFor(() => {
+            expect(continueButton().textContent).toMatch(/Get recommendation/);
+        });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        });
+        expect(push.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    it("changes intent hash so the server action runs again", async () => {
+        seedDataset(KM_DATASET);
+        renderPage();
+        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
+        fireEvent.change(textarea, { target: { value: "First intent" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        });
+        await waitFor(() => {
+            expect(continueButton().textContent).toMatch(/Get recommendation/);
+        });
+        fireEvent.change(textarea, { target: { value: "Second intent" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it("changes a mapping value so the server action runs again", async () => {
+        seedDataset(KM_DATASET);
+        renderPage();
+        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
+        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        });
+        await waitFor(() => {
+            expect(continueButton().textContent).toMatch(/Get recommendation/);
+        });
+        fireEvent.change(getSelect("age_at_baseline"), { target: { value: "time" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(recommendChartMock).toHaveBeenCalledTimes(2);
+        });
     });
 
     it("PHI rename updates dataset column names and follows mapping roles", async () => {
@@ -298,7 +371,9 @@ describe("UploadMap", () => {
         await act(async () => {
             continueButton().click();
         });
-        expect(screen.getByText(/Couldn.*generate a recommendation/i)).not.toBeNull();
+        await waitFor(() => {
+            expect(screen.getByText(/Couldn.*generate a recommendation/i)).not.toBeNull();
+        });
         await act(async () => {
             recommendChartMock.mockResolvedValueOnce({
                 chartType: "km",
@@ -308,10 +383,12 @@ describe("UploadMap", () => {
             });
             fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
         });
-        expect(recommendChartMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+        await waitFor(() => {
+            expect(recommendChartMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+        });
     });
 
-    it("Pick chart manually navigates to /library", async () => {
+    it("Pick chart manually sets manual mode and navigates to /recommend/manual", async () => {
         seedDataset(KM_DATASET);
         recommendChartMock.mockResolvedValueOnce({
             code: "UPSTREAM_FAILURE",
@@ -324,10 +401,16 @@ describe("UploadMap", () => {
         await act(async () => {
             continueButton().click();
         });
+        await waitFor(() => {
+            expect(screen.getByText(/Couldn.*generate a recommendation/i)).toBeTruthy();
+        });
         await act(async () => {
             fireEvent.click(screen.getByRole("button", { name: /Pick chart manually/i }));
         });
-        expect(push).toHaveBeenCalledWith("/library");
+        await waitFor(() => {
+            expect(push).toHaveBeenCalledWith("/recommend/manual");
+        });
+        expect(window.sessionStorage.getItem("loupe.selectionMode")).toBe("manual");
     });
 
     it("validation strip text mirrors validateMapping output", () => {
