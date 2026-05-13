@@ -79,20 +79,21 @@ export type BarErrorSpec = BaseSpec & {
     annotations: readonly StatAnnotation[];
 };
 
-/** Box plot configuration: outliers, mean diamond, notched boxes. */
+/** Box plot configuration: outliers, mean marker, group ordering. */
 export type BoxSpec = BaseSpec & {
-    kind: "box";
-    showOutliers: boolean;
-    showMeanMarker: boolean;
-    notched: boolean;
+    readonly kind: "box";
+    readonly showOutliers: boolean;
+    readonly showMeanMarker: boolean;
+    readonly groupOrder: "alphabetical" | "byMedian" | "manual";
 };
 
-/** XY plot (line / scatter / both): regression overlay and error bands. */
+/** XY plot: scatter, line, or combined; regression and correlation toggles. */
 export type XYSpec = BaseSpec & {
-    kind: "xy";
-    mode: "line" | "scatter" | "both";
-    showRegression: boolean;
-    showErrorBands: boolean;
+    readonly kind: "xy";
+    readonly mode: "scatter" | "line" | "scatterLine";
+    readonly showRegression: boolean;
+    readonly regressionType?: "linear" | "loess";
+    readonly showCorrelation: boolean;
 };
 
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
@@ -141,7 +142,7 @@ export type BarErrorPlotData = {
     categories: readonly BarErrorCategory[];
 };
 
-/** One aggregated box-and-whisker group: five-number summary, optional outlier values, and sample size. */
+/** One aggregated box-and-whisker group: five-number summary, optional mean, outlier values, and sample size. */
 export type BoxGroup = {
     label: string;
     min: number;
@@ -150,6 +151,7 @@ export type BoxGroup = {
     q3: number;
     max: number;
     outliers: readonly number[];
+    mean?: number;
     n: number;
 };
 
@@ -159,29 +161,27 @@ export type BoxPlotData = {
     groups: readonly BoxGroup[];
 };
 
-/** One XY observation (aggregated point); optional asymmetric error band bounds. */
+/** One XY observation (aggregated point). */
 export type XYPoint = {
     x: number;
     y: number;
-    errorLow?: number;
-    errorHigh?: number;
 };
 
-/** One XY series: label, points, optional precomputed regression coefficients. */
+/** One XY series: label and points only (regression lives on `XYPlotData` when precomputed). */
 export type XYSeries = {
     label: string;
     points: readonly XYPoint[];
-    regression?: {
-        slope: number;
-        intercept: number;
-        r2: number;
-    };
 };
 
-/** XY aggregates: one or more series (line and/or scatter). No per-patient rows. */
+/** XY aggregates: one or more series; optional global regression line and correlation. No per-patient rows. */
 export type XYPlotData = {
     kind: "xy";
     series: readonly XYSeries[];
+    regression?: {
+        slope: number;
+        intercept: number;
+    };
+    correlation?: number;
 };
 
 /** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
