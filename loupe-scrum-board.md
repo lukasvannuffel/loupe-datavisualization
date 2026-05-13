@@ -221,17 +221,17 @@ Niet elke medische professional wil door een AI-aanbeveling heen. Een onderzoeke
 Setup van de AI-laag. Vercel AI Gateway zit voor je Anthropic-calls — dit geeft je rate limiting, observability, en optie om later van model te wisselen zonder code-changes. Alle env vars moet je toevoegen aan Vercel én lokaal.
 
 **Actie-items**
-- [ ] `ai` SDK + `@ai-sdk/anthropic` installeren
-- [ ] Vercel AI Gateway configureren in dashboard
-- [ ] Env vars toevoegen: `AI_GATEWAY_API_KEY`, `ANTHROPIC_MODEL` (claude-sonnet-4)
-- [ ] Test endpoint `/api/ai/ping` om verbinding te valideren
-- [ ] Setup-stap in README documenteren
-- [ ] AI Gateway logging dashboard verifiëren
+- [x] `ai` SDK + `@ai-sdk/anthropic` installeren
+- [x] Vercel AI Gateway configureren in dashboard
+- [x] Env vars toevoegen: `AI_GATEWAY_API_KEY`, `ANTHROPIC_MODEL` (claude-sonnet-4)
+- [x] Test endpoint `/api/ai/ping` om verbinding te valideren
+- [x] Setup-stap in README documenteren
+- [x] AI Gateway logging dashboard verifiëren
 
 **Acceptance criteria**
-- [ ] `curl /api/ai/ping` geeft een geldige Claude response
-- [ ] Calls verschijnen in Vercel AI Gateway dashboard
-- [ ] Geen API keys gecommit naar repo
+- [x] `curl /api/ai/ping` geeft een geldige Claude response
+- [x] Calls verschijnen in Vercel AI Gateway dashboard
+- [x] Geen API keys gecommit naar repo
 
 ---
 
@@ -246,29 +246,29 @@ Setup van de AI-laag. Vercel AI Gateway zit voor je Anthropic-calls — dit geef
 Het hart van je product. De prompt neemt de kolom-schema (geen waarden!) + intent in plain language, en moet teruggeven: aanbevolen chart_type, redenering, 1-2 alternatieven met motivatie, en welke transformaties op de data nodig zijn. **Privacy-kritisch:** stuur NOOIT rijen mee. Voeg een transparency preview toe vóór de eerste AI-call — gebruikers moeten exact kunnen zien wat hun browser verlaat. Dit is verifieerbare privacy, geen marketing-claim.
 
 **Actie-items**
-- [ ] `src/lib/ai/recommendChart.ts` — server action met streaming response
-- [ ] Prompt template in `src/lib/ai/prompts/recommend.ts` — system + user
-- [ ] Zod schema voor structured output (`generateObject` van AI SDK)
-- [ ] Response velden: `chartType`, `confidence`, `reasoning`, `alternatives[]`, `transformations[]`
-- [ ] **Whitelist:** `chartType` MUST be one of `"km" | "barError" | "box" | "xy"` — geen ROC, Forest, Violin, of Bland–Altman
-- [ ] Per chart-type explicit "when to use" guidance in system prompt
-- [ ] Privacy-assert: payload mag enkel kolomnamen + types + intent bevatten — log error in dev als gebroken
-- [ ] **Transparency preview:** uitklapbaar paneel vóór "Get recommendation" knop dat JSON-payload toont (kolomnamen + types + intent)
-- [ ] **Disclosure tekst:** "Geen waarden of rijen verlaten je browser. Wel: kolomnamen, types, en je intent."
-- [ ] **PHI-warning:** als kolomnaam matched op regex (`name`, `dob`, `initials`, `mrn`, `patient_id`, etc.), toon inline warning met rename-optie vóór call
-- [ ] Token-count logging voor budget tracking
-- [ ] Fallback bij AI-failure: verwijs naar manual picker (LOUPE-04b) én `/library`
+- [x] `src/lib/ai/recommendChart.ts` — server action met streaming response
+- [x] Prompt template in `src/lib/ai/prompts/recommend.ts` — system + user
+- [x] Zod schema voor structured output (`generateObject` van AI SDK)
+- [x] Response velden: `chartType`, `confidence`, `reasoning`, `alternatives[]`, `transformations[]`
+- [x] **Whitelist:** `chartType` MUST be one of `"km" | "barError" | "box" | "xy"` — geen ROC, Forest, Violin, of Bland–Altman
+- [x] Per chart-type explicit "when to use" guidance in system prompt
+- [x] Privacy-assert: payload mag enkel kolomnamen + types + intent bevatten — log error in dev als gebroken
+- [x] **Transparency preview:** uitklapbaar paneel vóór "Get recommendation" knop dat JSON-payload toont (kolomnamen + types + intent)
+- [x] **Disclosure tekst:** "Geen waarden of rijen verlaten je browser. Wel: kolomnamen, types, en je intent."
+- [x] **PHI-warning:** als kolomnaam matched op regex (`name`, `dob`, `initials`, `mrn`, `patient_id`, etc.), toon inline warning met rename-optie vóór call
+- [x] Token-count logging voor budget tracking
+- [x] Fallback bij AI-failure: verwijs naar manual picker (LOUPE-04b) én `/library`
 
 **Acceptance criteria**
-- [ ] Test-call met "Compare 5-year survival between treatment arms" → returns `chartType: "km"` met geldige reasoning
-- [ ] Test-call met "comparison of biomarker distributions across stages" → returns `chartType: "box"`
-- [ ] Test-call met "tumor size over treatment cycles" → returns `chartType: "xy"` mode line
-- [ ] AI-response met `chartType` buiten de 4 toegestane → Zod-validatie faalt expliciet
-- [ ] Test-call met conflicterende intent → returns alternatives met scherpe motivatie
-- [ ] Privacy-assert in test: gemockte payload met data-rijen triggert error
-- [ ] Per call < 0.05 EUR (voor budget van 50 EUR over project)
-- [ ] Transparency preview toont identieke JSON aan wat daadwerkelijk over de draad gaat (verifieerbaar in Network tab)
-- [ ] PHI-verdachte kolomnaam triggert duidelijke warning vóór call kan starten
+- [x] Test-call met "Compare 5-year survival between treatment arms" → returns `chartType: "km"` met geldige reasoning
+- [x] Test-call met "comparison of biomarker distributions across stages" → returns `chartType: "box"`
+- [x] Test-call met "tumor size over treatment cycles" → returns `chartType: "xy"` mode line
+- [x] AI-response met `chartType` buiten de 4 toegestane → Zod-validatie faalt expliciet
+- [x] Test-call met conflicterende intent → returns alternatives met scherpe motivatie
+- [x] Privacy-assert in test: gemockte payload met data-rijen triggert error
+- [x] Per call < 0.05 EUR (voor budget van 50 EUR over project)
+- [x] Transparency preview toont identieke JSON aan wat daadwerkelijk over de draad gaat (verifieerbaar in Network tab)
+- [x] PHI-verdachte kolomnaam triggert duidelijke warning vóór call kan starten
 
 ---
 
