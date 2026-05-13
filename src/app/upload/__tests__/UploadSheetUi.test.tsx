@@ -86,7 +86,7 @@ describe("Upload sheet UI", () => {
         expect(radios.length).toBe(3);
         expect(radios[0]?.getAttribute("aria-checked")).toBe("true");
         expect(radios[1]?.getAttribute("aria-checked")).toBe("false");
-        expect(within(group).getByRole("radio", { name: /Sheet1 · 1,247 rows/ })).not.toBeNull();
+        expect(within(group).getByRole("radio", { name: /Sheet1 · 1[.,]247 rows/ })).not.toBeNull();
     });
 
     it("calls parseSheet with the selected sheet when Continue is pressed", async () => {

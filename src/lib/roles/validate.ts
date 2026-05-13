@@ -1,5 +1,5 @@
 import type { ColumnInference } from "@/lib/parser/inference.types";
-import type { ColumnRole, Mapping } from "@/app/providers";
+import type { ColumnRole, Mapping } from "@/lib/roles/types";
 
 import { ROLE_LABELS } from "./describe";
 import { ROLE_TYPE_COMPATIBILITY } from "./requirements";

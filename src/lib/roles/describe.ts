@@ -1,4 +1,4 @@
-import type { ColumnRole } from "@/app/providers";
+import type { ColumnRole } from "@/lib/roles/types";
 
 /** Human-facing label per role. Used in the role-select dropdown and the validation strip. */
 export const ROLE_LABELS: Readonly<Record<ColumnRole, string>> = {

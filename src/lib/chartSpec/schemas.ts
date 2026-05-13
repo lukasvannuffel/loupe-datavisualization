@@ -6,7 +6,7 @@ const nonEmpty = (): z.ZodString => z.string().min(1);
 
 const selectionModeSchema = z.enum(["ai", "manual"]);
 
-const chartSlugSchema = z.enum([
+export const chartSlugSchema = z.enum([
     "km",
     "forest",
     "box",
@@ -97,7 +97,7 @@ const boxSpecSchema = z
         kind: z.literal("box"),
         showOutliers: z.boolean(),
         showMeanMarker: z.boolean(),
-        notched: z.boolean(),
+        groupOrder: z.enum(["alphabetical", "byMedian", "manual"]),
     })
     .strict();
 
@@ -105,9 +105,10 @@ const xySpecSchema = z
     .object({
         ...baseSpecShape,
         kind: z.literal("xy"),
-        mode: z.enum(["line", "scatter", "both"]),
+        mode: z.enum(["scatter", "line", "scatterLine"]),
         showRegression: z.boolean(),
-        showErrorBands: z.boolean(),
+        regressionType: z.enum(["linear", "loess"]).optional(),
+        showCorrelation: z.boolean(),
     })
     .strict();
 
@@ -178,6 +179,7 @@ const boxGroupSchema = z
         q3: z.number(),
         max: z.number(),
         outliers: z.array(z.number()).readonly(),
+        mean: z.number().optional(),
         n: z.number(),
     })
     .strict();
@@ -187,22 +189,36 @@ const boxPlotDataSchema = z
         kind: z.literal("box"),
         groups: z.array(boxGroupSchema).readonly(),
     })
-    .strict();
+    .strict()
+    .superRefine((data, ctx) => {
+        data.groups.forEach((g, i) => {
+            const ordered =
+                g.min <= g.q1 &&
+                g.q1 <= g.median &&
+                g.median <= g.q3 &&
+                g.q3 <= g.max;
+
+            if (!ordered) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "min, quartiles, and max must satisfy min ≤ q1 ≤ median ≤ q3 ≤ max",
+                    path: ["groups", i],
+                });
+            }
+        });
+    });
 
 const xyPointSchema = z
     .object({
         x: z.number(),
         y: z.number(),
-        errorLow: z.number().optional(),
-        errorHigh: z.number().optional(),
     })
     .strict();
 
-const xyRegressionSchema = z
+const xyRegressionPlotSchema = z
     .object({
         slope: z.number(),
         intercept: z.number(),
-        r2: z.number(),
     })
     .strict();
 
@@ -210,7 +226,6 @@ const xySeriesSchema = z
     .object({
         label: nonEmpty(),
         points: z.array(xyPointSchema).readonly(),
-        regression: xyRegressionSchema.optional(),
     })
     .strict();
 
@@ -218,8 +233,21 @@ const xyPlotDataSchema = z
     .object({
         kind: z.literal("xy"),
         series: z.array(xySeriesSchema).readonly(),
+        regression: xyRegressionPlotSchema.optional(),
+        correlation: z.number().optional(),
     })
-    .strict();
+    .strict()
+    .superRefine((data, ctx) => {
+        data.series.forEach((s, i) => {
+            if (s.points.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "each series must have at least one point",
+                    path: ["series", i, "points"],
+                });
+            }
+        });
+    });
 
 export const plotDataSchema = z.discriminatedUnion("kind", [
     kmPlotDataSchema,
@@ -258,7 +286,7 @@ const statTestSchema = z
     .object({
         label: nonEmpty(),
         name: nonEmpty().optional(),
-        pValue: z.number().optional(),
+        pValue: z.number().min(0).max(1).optional(),
         statistic: z.number().optional(),
         ci95: z.tuple([z.number(), z.number()]).readonly().optional(),
         notes: nonEmpty().optional(),

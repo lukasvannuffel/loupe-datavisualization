@@ -49,11 +49,12 @@ describe("createDefaultChartSpec", () => {
         }
         if (box.kind === "box") {
             expect(box.showOutliers).toBe(true);
-            expect(box.notched).toBe(false);
+            expect(box.groupOrder).toBe("alphabetical");
         }
         if (xy.kind === "xy") {
             expect(xy.mode).toBe("line");
             expect(xy.showRegression).toBe(false);
+            expect(xy.showCorrelation).toBe(false);
         }
     });
 });

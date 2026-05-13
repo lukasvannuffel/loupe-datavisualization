@@ -63,7 +63,7 @@ const buildBox = (id: string, createdAt: string): BoxSpec => ({
     kind: "box",
     showOutliers: true,
     showMeanMarker: false,
-    notched: false,
+    groupOrder: "alphabetical",
 });
 
 const buildXy = (id: string, createdAt: string): XYSpec => ({
@@ -73,7 +73,7 @@ const buildXy = (id: string, createdAt: string): XYSpec => ({
     kind: "xy",
     mode: "line",
     showRegression: false,
-    showErrorBands: false,
+    showCorrelation: false,
 });
 
 const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => ChartSpec>> = {
