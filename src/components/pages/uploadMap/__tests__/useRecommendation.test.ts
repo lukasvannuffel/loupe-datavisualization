@@ -87,4 +87,50 @@ describe("useRecommendation", () => {
             status: "error",
         });
     });
+
+    it("calls onSuccess with receipt and reset when recommendation succeeds", async () => {
+        const onSuccess = vi.fn();
+        recommendChartMock.mockResolvedValueOnce({
+            chartType: "km",
+            costEstimateEur: 0.01,
+            ok: true,
+            receipt: {
+                alternatives: [],
+                intent: "x",
+                recommendation: {
+                    because: "b",
+                    becauseTitle: "Because",
+                    chartName: "KM",
+                    handles: "h",
+                    handlesTitle: "Handles",
+                    headline: "head",
+                },
+                selectionMode: "ai",
+                tests: [],
+                testsTitle: "Tests",
+                transformations: [],
+            },
+        });
+
+        const { result } = renderHook(() =>
+            useRecommendation({
+                onSuccess,
+            }),
+        );
+
+        await act(async () => {
+            await result.current.run({
+                columns: [],
+                intent: "intent",
+                mapping: {},
+            });
+        });
+
+        expect(onSuccess).toHaveBeenCalledTimes(1);
+        expect(onSuccess.mock.calls[0]?.[0]).toEqual({
+            chartKind: "km",
+            receipt: expect.objectContaining({ intent: "x" }),
+        });
+        expect(typeof onSuccess.mock.calls[0]?.[1]).toBe("function");
+    });
 });

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAppState, type ColumnRole } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import type { Mapping } from "@/lib/roles/types";
 import { autoMapColumns } from "@/lib/roles";
 
 import { assignRole } from "./uploadMap.types";
@@ -11,7 +12,9 @@ type UploadMapApi = {
     readonly dismissPhi: boolean;
     readonly inferences: readonly ColumnInference[];
     readonly onChangeRole: (column: string, role: ColumnRole) => void;
-    readonly onRenameColumn: (oldName: string, newName: string) => void;
+    readonly onRenameColumns: (
+        pairs: ReadonlyArray<{ readonly oldName: string; readonly newName: string }>,
+    ) => void;
     readonly onReplace: () => void;
     readonly setDismissPhi: (next: boolean) => void;
     readonly setSentAnywayConfirmed: (next: boolean) => void;
@@ -47,19 +50,32 @@ export const useUploadMap = (): UploadMapApi => {
 
     const inferences = useMemo<readonly ColumnInference[]>(() => dataset ?? [], [dataset]);
 
-    const onRenameColumn = (oldName: string, newName: string): void => {
-        if (dataset === null) {
+    const onRenameColumns = (
+        pairs: ReadonlyArray<{ readonly oldName: string; readonly newName: string }>,
+    ): void => {
+        if (dataset === null || pairs.length === 0) {
             return;
         }
 
-        const updatedInferences = dataset.map((i) =>
-            i.name === oldName ? { ...i, name: newName } : i,
-        );
-        const updatedMapping: typeof mapping = { ...mapping };
+        const renameMap = new Map<string, string>(pairs.map((p) => [p.oldName, p.newName]));
+
+        const updatedInferences = dataset.map((i) => {
+            const next = renameMap.get(i.name);
+
+            return next !== undefined ? { ...i, name: next } : i;
+        });
+
+        const updatedMapping: Mapping = { ...mapping };
 
         for (const role of Object.keys(updatedMapping) as ColumnRole[]) {
-            if (updatedMapping[role] === oldName) {
-                updatedMapping[role] = newName;
+            const col = updatedMapping[role];
+
+            if (col !== undefined) {
+                const mapped = renameMap.get(col);
+
+                if (mapped !== undefined) {
+                    updatedMapping[role] = mapped;
+                }
             }
         }
 
@@ -71,7 +87,7 @@ export const useUploadMap = (): UploadMapApi => {
         dismissPhi,
         inferences,
         onChangeRole: (column, role) => setMapping(assignRole(mapping, column, role)),
-        onRenameColumn,
+        onRenameColumns,
         onReplace: () => {
             clearDataset();
             setMapping({});

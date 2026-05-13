@@ -26,5 +26,13 @@ describe("AI payload privacy", () => {
         expect(encoded).not.toContain("P-1043");
         expect(encoded).not.toContain("sampleValues");
         expect(encoded).not.toContain("reasons");
+
+        const allowedKeys = new Set(["name", "primaryType", "nullCount", "uniqueCount", "semanticTag"]);
+
+        for (const col of payload) {
+            for (const key of Object.keys(col)) {
+                expect(allowedKeys.has(key)).toBe(true);
+            }
+        }
     });
 });

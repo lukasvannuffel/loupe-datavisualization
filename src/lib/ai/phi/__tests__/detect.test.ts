@@ -10,6 +10,12 @@ describe("detectPhiColumns", () => {
         expect(detectPhiColumns(["initials"]).map((m) => m.reason)).toContain("personal initials");
     });
 
+    it("flags compound personal-name headers (word-boundary / underscore forms)", () => {
+        expect(detectPhiColumns(["patient_first_name"]).length).toBeGreaterThan(0);
+        expect(detectPhiColumns(["subject_full_name"]).length).toBeGreaterThan(0);
+        expect(detectPhiColumns(["Patient Last Name"]).length).toBeGreaterThan(0);
+    });
+
     it("flags DOB and record identifiers", () => {
         expect(detectPhiColumns(["dob"]).map((m) => m.reason)).toContain("date of birth");
         expect(detectPhiColumns(["Date of Birth"]).map((m) => m.reason)).toContain("date of birth");
@@ -38,7 +44,7 @@ describe("detectPhiColumns", () => {
         expect(detectPhiColumns(["email"]).map((m) => m.reason)).toContain("email address");
     });
 
-    it("ignores benign clinical column names", () => {
+    it("ignores benign clinical column names (including treatment_name)", () => {
         const headers = [
             "treatment_arm",
             "outcome",
@@ -48,6 +54,7 @@ describe("detectPhiColumns", () => {
             "age",
             "treatment_name",
             "outcome_name",
+            "phone_followup",
         ];
 
         expect(detectPhiColumns(headers)).toEqual([]);

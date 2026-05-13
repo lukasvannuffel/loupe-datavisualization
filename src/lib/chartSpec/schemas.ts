@@ -286,7 +286,7 @@ const statTestSchema = z
     .object({
         label: nonEmpty(),
         name: nonEmpty().optional(),
-        pValue: z.number().optional(),
+        pValue: z.number().min(0).max(1).optional(),
         statistic: z.number().optional(),
         ci95: z.tuple([z.number(), z.number()]).readonly().optional(),
         notes: nonEmpty().optional(),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import { useAppState } from "@/app/providers";
 import { detectPhiColumns } from "@/lib/ai/phi/detect";
@@ -33,14 +33,22 @@ export const UploadMap = (): JSX.Element => {
         dismissPhi,
         inferences,
         onChangeRole,
-        onRenameColumn,
+        onRenameColumns,
         onReplace,
         setDismissPhi,
         setSentAnywayConfirmed,
         sentAnywayConfirmed,
     } = useUploadMap();
-    const { reset, run, state } = useRecommendation();
-    const successAppliedRef = useRef(false);
+    const { run, state } = useRecommendation({
+        onSuccess: (payload, resetRecommendation) => {
+            setReceipt(payload.receipt);
+            setChartKind(payload.chartKind);
+            setChartSlug(payload.chartKind);
+            setSelectionMode("ai");
+            resetRecommendation();
+            router.push("/recommend");
+        },
+    });
 
     const payload = useMemo(
         () => ({
@@ -55,42 +63,13 @@ export const UploadMap = (): JSX.Element => {
 
     const validation = useMemo(() => validateMapping(mapping, inferences), [mapping, inferences]);
 
-    const phiBlocks = phi.length > 0 && !sentAnywayConfirmed && !dismissPhi;
+    const phiBlocks = phi.length > 0 && !sentAnywayConfirmed;
 
     const continueDisabled =
         phiBlocks ||
         validation.status !== "valid" ||
         intent.trim().length === 0 ||
         state.status === "loading";
-
-    useEffect(() => {
-        if (state.status !== "success") {
-            successAppliedRef.current = false;
-
-            return;
-        }
-
-        if (successAppliedRef.current) {
-            return;
-        }
-
-        successAppliedRef.current = true;
-
-        setReceipt(state.receipt);
-        setChartKind(state.chartKind);
-        setChartSlug(state.chartKind);
-        setSelectionMode("ai");
-        reset();
-        router.push("/recommend");
-    }, [
-        reset,
-        router,
-        setChartKind,
-        setChartSlug,
-        setReceipt,
-        setSelectionMode,
-        state,
-    ]);
 
     const handleContinue = (): void => {
         void run(payload);
@@ -130,7 +109,7 @@ export const UploadMap = (): JSX.Element => {
                     <PhiWarning
                         matches={phi}
                         onCancel={() => setDismissPhi(true)}
-                        onRename={onRenameColumn}
+                        onRenameColumns={onRenameColumns}
                         onSendAnyway={() => setSentAnywayConfirmed(true)}
                     />
                 )}

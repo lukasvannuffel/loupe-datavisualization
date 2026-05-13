@@ -13,7 +13,12 @@ describe("PhiWarning", () => {
 
     it("renders nothing when matches empty", () => {
         const { container } = render(
-            <PhiWarning matches={[]} onCancel={vi.fn()} onRename={vi.fn()} onSendAnyway={vi.fn()} />,
+            <PhiWarning
+                matches={[]}
+                onCancel={vi.fn()}
+                onRenameColumns={vi.fn()}
+                onSendAnyway={vi.fn()}
+            />,
         );
         expect(container.textContent).toBe("");
     });
@@ -26,7 +31,7 @@ describe("PhiWarning", () => {
                     { column: "Phone", reason: "phone number" },
                 ]}
                 onCancel={vi.fn()}
-                onRename={vi.fn()}
+                onRenameColumns={vi.fn()}
                 onSendAnyway={vi.fn()}
             />,
         );
@@ -40,7 +45,7 @@ describe("PhiWarning", () => {
             <PhiWarning
                 matches={[{ column: "email", reason: "email address" }]}
                 onCancel={vi.fn()}
-                onRename={vi.fn()}
+                onRenameColumns={vi.fn()}
                 onSendAnyway={send}
             />,
         );
@@ -51,13 +56,13 @@ describe("PhiWarning", () => {
         expect(send).toHaveBeenCalledTimes(1);
     });
 
-    it("rename modal saves changed names", () => {
+    it("rename modal saves changed names as a single batched call", () => {
         const rename = vi.fn();
         render(
             <PhiWarning
                 matches={[{ column: "email", reason: "email address" }]}
                 onCancel={vi.fn()}
-                onRename={rename}
+                onRenameColumns={rename}
                 onSendAnyway={vi.fn()}
             />,
         );
@@ -65,7 +70,7 @@ describe("PhiWarning", () => {
         const input = screen.getByDisplayValue("email");
         fireEvent.change(input, { target: { value: "contact_bucket" } });
         fireEvent.click(screen.getByRole("button", { name: /Save names/i }));
-        expect(rename).toHaveBeenCalledWith("email", "contact_bucket");
+        expect(rename.mock.calls[0]?.[0]).toEqual([{ oldName: "email", newName: "contact_bucket" }]);
     });
 
     it("Escape closes modal", () => {
@@ -73,7 +78,7 @@ describe("PhiWarning", () => {
             <PhiWarning
                 matches={[{ column: "email", reason: "email address" }]}
                 onCancel={vi.fn()}
-                onRename={vi.fn()}
+                onRenameColumns={vi.fn()}
                 onSendAnyway={vi.fn()}
             />,
         );

@@ -1,7 +1,13 @@
 import { z } from "zod";
 
-import { chartSlugSchema } from "@/lib/chartSpec/schemas";
 import type { ChartSpec } from "@/lib/chartSpec/types";
+import type { ColumnRole } from "@/lib/roles/types";
+
+/** MVP chart kinds (`SpecKind`). Mirrors providers `chartKindSchema`. Kept aligned via `_AssertEnumMatches` below. Centralize when LOUPE-26 expands the MVP union. */
+export const MVP_CHART_KINDS = ["km", "barError", "box", "xy"] as const;
+
+/** Must match the privacy-oriented superRefine message — used by recommendChart for PRIVACY_VIOLATION classification. */
+export const FORBIDDEN_PAYLOAD_REFINE_MESSAGE = "Payload contains forbidden keys." as const;
 
 const FORBIDDEN_KEYS = new Set([
     "rows",
@@ -13,7 +19,7 @@ const FORBIDDEN_KEYS = new Set([
     "raw",
 ]);
 
-const containsForbiddenKeyDeep = (value: unknown): boolean => {
+export const containsForbiddenKeyDeep = (value: unknown): boolean => {
     if (value === null || typeof value !== "object") {
         return false;
     }
@@ -79,19 +85,36 @@ export const payloadSchema = z
         intent: z.string().min(1),
     })
     .strict()
+    // .strict() at every nested layer is the primary defense — it rejects unknown keys before this walker runs.
+    // This .superRefine remains as belt-and-braces if future schemas relax strictness; the walker is unit-tested in recommendChart.schemas.test.ts.
     .superRefine((data, ctx) => {
         if (containsForbiddenKeyDeep(data)) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: "Payload contains forbidden keys.",
+                message: FORBIDDEN_PAYLOAD_REFINE_MESSAGE,
                 path: [],
             });
+        }
+    })
+    .superRefine((data, ctx) => {
+        const names = new Set(data.columns.map((c) => c.name));
+
+        for (const role of Object.keys(data.mapping) as ColumnRole[]) {
+            const col = data.mapping[role];
+
+            if (col !== undefined && !names.has(col)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Mapping references a column not listed in columns.",
+                    path: ["mapping", role],
+                });
+            }
         }
     });
 
 export const aiResponseSchema = z
     .object({
-        chartType: z.enum(["km", "barError", "box", "xy"]),
+        chartType: z.enum(MVP_CHART_KINDS),
         confidence: z.number().min(0).max(1),
         recommendation: z
             .object({
@@ -107,7 +130,7 @@ export const aiResponseSchema = z
             .array(
                 z
                     .object({
-                        slug: chartSlugSchema,
+                        slug: z.enum(MVP_CHART_KINDS),
                         name: z.string().min(1).max(80),
                         reason: z.string().min(1).max(300),
                     })
@@ -129,7 +152,7 @@ export const aiResponseSchema = z
             .array(
                 z
                     .object({
-                        label: z.string().min(1).max(80),
+                        label: z.string().min(1).max(120),
                         name: z.string().optional(),
                         pValue: z.number().min(0).max(1).optional(),
                         statistic: z.number().optional(),
@@ -144,7 +167,11 @@ export const aiResponseSchema = z
 
 type _AssertEnumMatches = z.infer<typeof aiResponseSchema>["chartType"] extends ChartSpec["kind"]
     ? ChartSpec["kind"] extends z.infer<typeof aiResponseSchema>["chartType"]
-        ? true
+        ? z.infer<typeof aiResponseSchema>["alternatives"][number]["slug"] extends ChartSpec["kind"]
+            ? ChartSpec["kind"] extends z.infer<typeof aiResponseSchema>["alternatives"][number]["slug"]
+                ? true
+                : never
+            : never
         : never
     : never;
 

@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ResolvedEnv } from "@/lib/ai/client.types";
 
 import { recommendChart } from "../recommendChart";
+import { PRICING_PER_MILLION_USD, USD_TO_EUR } from "../recommendChart.pricing";
 import type { RecommendInput } from "../recommendChart.types";
 
 const generateObjectMock = vi.hoisted(() => vi.fn());
@@ -138,7 +139,48 @@ describe("recommendChart", () => {
         const result = await recommendChart(bad);
 
         expect(generateObjectMock).not.toHaveBeenCalled();
-        expect(result.ok).toBe(false);
+        expect(result).toEqual({
+            code: "PRIVACY_VIOLATION",
+            message: "Payload contains forbidden fields.",
+            ok: false,
+        });
+    });
+
+    it("rejects empty intent with VALIDATION_FAILED (not privacy)", async () => {
+        const bad = { ...validPayload, intent: "" };
+
+        const result = await recommendChart(bad);
+
+        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(result).toEqual({
+            code: "VALIDATION_FAILED",
+            message: "Payload failed schema validation.",
+            ok: false,
+        });
+    });
+
+    it("rejects mapping that references a missing column", async () => {
+        const bad: RecommendInput = {
+            columns: [
+                {
+                    name: "a",
+                    nullCount: 0,
+                    primaryType: "numeric",
+                    uniqueCount: 1,
+                },
+            ],
+            intent: "Describe relationship.",
+            mapping: { time: "ghost" },
+        };
+
+        const result = await recommendChart(bad);
+
+        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(result).toEqual({
+            code: "VALIDATION_FAILED",
+            message: "Payload failed schema validation.",
+            ok: false,
+        });
     });
 
     it("returns a KM receipt on success", async () => {
@@ -163,6 +205,54 @@ describe("recommendChart", () => {
     it("fails validation when chartType is roc (catalogue-only slug)", async () => {
         generateObjectMock.mockResolvedValueOnce({
             object: { ...validAiObject, chartType: "roc" } as unknown,
+            usage: { inputTokens: 1, outputTokens: 1 },
+        });
+
+        const result = await recommendChart(validPayload);
+
+        expect(result).toEqual({
+            code: "VALIDATION_FAILED",
+            message: "AI response did not match the schema.",
+            ok: false,
+        });
+    });
+
+    it("fails validation when alternatives use a catalogue-only slug (roc)", async () => {
+        generateObjectMock.mockResolvedValueOnce({
+            object: {
+                ...validAiObject,
+                alternatives: [
+                    {
+                        name: "ROC curve",
+                        reason: "Discrimination curve.",
+                        slug: "roc",
+                    },
+                ],
+            } as unknown,
+            usage: { inputTokens: 1, outputTokens: 1 },
+        });
+
+        const result = await recommendChart(validPayload);
+
+        expect(result.ok).toBe(false);
+
+        if (!result.ok) {
+            expect(result.code).toBe("VALIDATION_FAILED");
+        }
+    });
+
+    it("fails validation when alternatives use violin slug", async () => {
+        generateObjectMock.mockResolvedValueOnce({
+            object: {
+                ...validAiObject,
+                alternatives: [
+                    {
+                        name: "Violin plot",
+                        reason: "Density view.",
+                        slug: "violin",
+                    },
+                ],
+            } as unknown,
             usage: { inputTokens: 1, outputTokens: 1 },
         });
 
@@ -216,7 +306,7 @@ describe("recommendChart", () => {
         }
     });
 
-    it("estimates cost under €0.05 for representative usage", async () => {
+    it("estimates cost from PRICING_PER_MILLION_USD for the active model", async () => {
         const result = await recommendChart(validPayload);
 
         expect(result.ok).toBe(true);
@@ -225,7 +315,12 @@ describe("recommendChart", () => {
             return;
         }
 
-        expect(result.costEstimateEur).toBeCloseTo(0.007812, 5);
+        const model = "anthropic/claude-sonnet-4.6";
+        const rates = PRICING_PER_MILLION_USD[model]!;
+        const expectedEur =
+            (((800 / 1_000_000) * rates.input + (400 / 1_000_000) * rates.output) * USD_TO_EUR);
+
+        expect(result.costEstimateEur).toBeCloseTo(expectedEur, 5);
         expect(result.costEstimateEur).toBeLessThan(0.05);
     });
 

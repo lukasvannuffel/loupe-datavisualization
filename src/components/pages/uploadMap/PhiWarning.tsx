@@ -8,14 +8,16 @@ import { PhiRenameModal } from "./PhiRenameModal";
 
 type PhiWarningProps = {
     readonly matches: ReadonlyArray<PhiMatch>;
-    readonly onRename: (oldName: string, newName: string) => void;
+    readonly onRenameColumns: (
+        pairs: ReadonlyArray<{ readonly oldName: string; readonly newName: string }>,
+    ) => void;
     readonly onSendAnyway: () => void;
     readonly onCancel: () => void;
 };
 
 export const PhiWarning = ({
     matches,
-    onRename,
+    onRenameColumns,
     onSendAnyway,
     onCancel,
 }: PhiWarningProps): JSX.Element | null => {
@@ -26,14 +28,6 @@ export const PhiWarning = ({
     if (matches.length === 0) {
         return null;
     }
-
-    const onSaveRenames = (
-        pairs: ReadonlyArray<{ readonly oldName: string; readonly newName: string }>,
-    ): void => {
-        for (const p of pairs) {
-            onRename(p.oldName, p.newName);
-        }
-    };
 
     const onSendClick = (): void => {
         if (sendStep === 0) {
@@ -84,7 +78,7 @@ export const PhiWarning = ({
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
                 onSave={(pairs) => {
-                    onSaveRenames(pairs);
+                    onRenameColumns(pairs);
                 }}
             />
         </>

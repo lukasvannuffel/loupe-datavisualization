@@ -83,10 +83,11 @@ export const PhiRenameModal = ({
                 <h3 className="phi-modal-title" id={titleId}>
                     Rename sensitive columns
                 </h3>
-                {matches.map((m) => (
+                {matches.map((m, index) => (
                     <label key={m.column} className="phi-modal-field">
                         <span>{m.column}</span>
                         <input
+                            autoFocus={index === 0}
                             type="text"
                             value={drafts[m.column] ?? ""}
                             onChange={(e) =>

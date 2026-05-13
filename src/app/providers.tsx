@@ -27,6 +27,7 @@ const SELECTION_MODE_KEY = "loupe.selectionMode";
 const RECEIPT_KEY = "loupe.receipt";
 const CHART_KIND_KEY = "loupe.chartKind";
 
+// Mirrors specKindSchema. Kept aligned via _AssertEnumMatches in recommendChart.schemas.ts. Centralize when LOUPE-26 expands the MVP union.
 const chartKindSchema = z.enum(["km", "barError", "box", "xy"]);
 
 export type SelectionMode = "ai" | "manual";

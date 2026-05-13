@@ -1,23 +1,46 @@
 "use server";
 
 import { generateObject } from "ai";
+import type { ZodError } from "zod";
 
 import type { Receipt } from "@/lib/chartSpec/types";
 
 import { createGatewayLanguageModel, getEnv } from "./client";
-import { aiResponseSchema, payloadSchema } from "./recommendChart.schemas";
+import { PRICING_PER_MILLION_USD, USD_TO_EUR } from "./recommendChart.pricing";
+import {
+    aiResponseSchema,
+    FORBIDDEN_PAYLOAD_REFINE_MESSAGE,
+    payloadSchema,
+} from "./recommendChart.schemas";
 import type { RecommendInput, RecommendResult } from "./recommendChart.types";
 import { SYSTEM_PROMPT } from "./prompts/recommend.system";
 import { buildUserPrompt } from "./prompts/recommend.user";
 
-const estimateCostEur = (usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-}): number => {
-    const inputUsd = ((usage?.inputTokens ?? 0) / 1_000_000) * 3;
-    const outputUsd = ((usage?.outputTokens ?? 0) / 1_000_000) * 15;
+const FALLBACK_PRICING_MODEL = "anthropic/claude-sonnet-4.6";
 
-    return (inputUsd + outputUsd) * 0.93;
+const isPrivacyPayloadFailure = (error: ZodError): boolean =>
+    error.issues.some(
+        (issue) =>
+            issue.code === "unrecognized_keys" ||
+            (issue.code === "custom" && issue.message === FORBIDDEN_PAYLOAD_REFINE_MESSAGE),
+    );
+
+const estimateCostEur = (
+    usage: { inputTokens?: number; outputTokens?: number } | undefined,
+    model: string,
+): number => {
+    let rates = PRICING_PER_MILLION_USD[model];
+
+    if (rates === undefined) {
+        // TODO(LOUPE-26): Centralize pricing table when multi-model routing lands.
+        console.warn("[ai] unknown model for cost estimate — using fallback Sonnet 4 rates", model);
+        rates = PRICING_PER_MILLION_USD[FALLBACK_PRICING_MODEL]!;
+    }
+
+    const inputUsd = ((usage?.inputTokens ?? 0) / 1_000_000) * rates.input;
+    const outputUsd = ((usage?.outputTokens ?? 0) / 1_000_000) * rates.output;
+
+    return (inputUsd + outputUsd) * USD_TO_EUR;
 };
 
 export const recommendChart = async (input: RecommendInput): Promise<RecommendResult> => {
@@ -26,7 +49,15 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
     if (!parsed.success) {
         console.error("[ai] payload validation failed", parsed.error.flatten());
 
-        return { ok: false, code: "PRIVACY_VIOLATION", message: "Payload contains forbidden fields." };
+        if (isPrivacyPayloadFailure(parsed.error)) {
+            return { ok: false, code: "PRIVACY_VIOLATION", message: "Payload contains forbidden fields." };
+        }
+
+        return {
+            ok: false,
+            code: "VALIDATION_FAILED",
+            message: "Payload failed schema validation.",
+        };
     }
 
     const env = getEnv();
@@ -81,7 +112,7 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
 
         return {
             chartType: ai.data.chartType,
-            costEstimateEur: estimateCostEur(result.usage),
+            costEstimateEur: estimateCostEur(result.usage, env.model),
             ok: true,
             receipt,
         };
