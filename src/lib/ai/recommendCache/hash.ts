@@ -1,5 +1,18 @@
 import type { ContentHash } from "./cache.types";
 
+const HEX64 = /^[0-9a-f]{64}$/;
+
+/**
+ * Narrows a validated 64-char lowercase hex string to `ContentHash` (single choke-point for the brand).
+ */
+export const toContentHash = (hex: string): ContentHash => {
+    if (!HEX64.test(hex)) {
+        throw new Error("ContentHash must be 64 lowercase hex characters");
+    }
+
+    return hex as ContentHash;
+};
+
 /**
  * SHA-256 hash via Web Crypto. Returns lowercase hex.
  *
@@ -13,5 +26,5 @@ export const sha256 = async (input: string): Promise<ContentHash> => {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
 
-    return hex as ContentHash;
+    return toContentHash(hex);
 };

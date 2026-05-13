@@ -23,6 +23,7 @@ export const useRecommendation = (
     const [state, setState] = useState<RecommendationState>({ status: "idle" });
 
     const run = async (payload: RecommendPayload): Promise<void> => {
+        // Cache hits skip a visible loading frame by design — React batches loading→success, and the cached path is sub-100ms.
         setState({ fromCache: false, status: "loading" });
         const cached = await getCacheEntry(payload);
         if (cached.ok) {

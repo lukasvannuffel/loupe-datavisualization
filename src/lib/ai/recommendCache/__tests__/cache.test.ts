@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RecommendPayload } from "@/lib/ai/recommendChart.types";
 import type { Receipt } from "@/lib/chartSpec/types";
 
-import { clearCache, getCacheEntry, setCacheEntry } from "../cache";
+import { clearCache, getCacheEntry, hashPayload, setCacheEntry } from "../cache";
 
 const STORAGE_KEY = "loupe.recommendCache";
 
@@ -60,6 +60,20 @@ describe("recommendCache cache", () => {
         }
     });
 
+    it("hashPayload matches for RecommendPayload with different top-level key order", async () => {
+        const a: RecommendPayload = {
+            columns: [],
+            intent: "same",
+            mapping: { event: "e", time: "t" },
+        };
+        const b: RecommendPayload = {
+            intent: "same",
+            mapping: { time: "t", event: "e" },
+            columns: [],
+        };
+        expect(await hashPayload(a)).toBe(await hashPayload(b));
+    });
+
     it("hits the same bucket when payload keys differ only in insertion order", async () => {
         const receipt = minimalReceipt();
         const a: RecommendPayload = { columns: [], intent: "x", mapping: { time: "t" } };
@@ -101,6 +115,10 @@ describe("recommendCache cache", () => {
                 entries: unknown[];
             };
             expect(file.entries.length).toBe(20);
+            await expect(getCacheEntry(payload("k0"))).resolves.toEqual({ ok: false });
+            await expect(getCacheEntry(payload("k4"))).resolves.toEqual({ ok: false });
+            await expect(getCacheEntry(payload("k5"))).resolves.toMatchObject({ ok: true });
+            await expect(getCacheEntry(payload("k24"))).resolves.toMatchObject({ ok: true });
         } finally {
             vi.useRealTimers();
         }
@@ -111,6 +129,18 @@ describe("recommendCache cache", () => {
         expect(window.sessionStorage.getItem(STORAGE_KEY)).not.toBeNull();
         clearCache();
         expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it("rejects future cache file versions and clears storage", async () => {
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ entries: [], version: 2 }));
+        await expect(getCacheEntry(payload("v2"))).resolves.toEqual({ ok: false });
+        expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it("does not persist a Receipt that fails receiptSchema (e.g. forbidden rows key)", async () => {
+        const malicious = { ...minimalReceipt(), rows: [] } as unknown as Receipt;
+        await setCacheEntry(payload("bad-rows"), malicious, "km", 0);
+        await expect(getCacheEntry(payload("bad-rows"))).resolves.toEqual({ ok: false });
     });
 
     it("recovers from bad JSON by clearing the key", async () => {

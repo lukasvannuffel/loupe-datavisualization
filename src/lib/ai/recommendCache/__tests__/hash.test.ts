@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { sha256 } from "../hash";
+import { sha256, toContentHash } from "../hash";
+
+describe("toContentHash", () => {
+    it("accepts 64 lowercase hex and returns the branded value", () => {
+        const hex = "a".repeat(64);
+        expect(toContentHash(hex)).toBe(hex);
+    });
+
+    it("rejects invalid lengths and characters", () => {
+        expect(() => toContentHash("gg".repeat(32))).toThrow();
+        expect(() => toContentHash("a".repeat(63))).toThrow();
+    });
+});
 
 describe("sha256", () => {
     it("is deterministic across calls", async () => {

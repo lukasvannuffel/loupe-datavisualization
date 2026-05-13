@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ContentHash } from "@/lib/ai/recommendCache/cache.types";
+import { toContentHash } from "@/lib/ai/recommendCache/hash";
 import type { Receipt } from "@/lib/chartSpec/types";
 
 import { useRecommendation } from "../useRecommendation";
@@ -110,7 +110,7 @@ describe("useRecommendation", () => {
                 cachedAt: new Date().toISOString(),
                 chartKind: "km",
                 costEstimateEur: 0,
-                hash: "00".repeat(32) as ContentHash,
+                hash: toContentHash("00".repeat(32)),
                 receipt: r,
             },
             ok: true,
@@ -139,7 +139,7 @@ describe("useRecommendation", () => {
                 cachedAt: new Date().toISOString(),
                 chartKind: "km",
                 costEstimateEur: 0,
-                hash: "11".repeat(32) as ContentHash,
+                hash: toContentHash("11".repeat(32)),
                 receipt: r,
             },
             ok: true,
