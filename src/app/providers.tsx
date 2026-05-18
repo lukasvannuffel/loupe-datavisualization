@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import type { ChartSlug } from "@/components/charts/chartPreviews";
+import { clearCache } from "@/lib/ai/recommendCache/cache";
 import type { ChartSpec } from "@/lib/chartSpec";
 import { receiptSchema } from "@/lib/chartSpec/schemas";
 import type { Receipt } from "@/lib/chartSpec/types";
@@ -22,6 +23,7 @@ import { z } from "zod";
 
 const INTENT_KEY = "loupe.intent";
 const DATASET_KEY = "loupe.dataset";
+const DATASET_SOURCE_KEY = "loupe.datasetSource";
 const MAPPING_KEY = "loupe.mapping";
 const SELECTION_MODE_KEY = "loupe.selectionMode";
 const RECEIPT_KEY = "loupe.receipt";
@@ -34,6 +36,12 @@ export type SelectionMode = "ai" | "manual";
 
 export type { ColumnRole, Mapping };
 
+export type DatasetSource = {
+    readonly fileName: string;
+    readonly rowCount: number;
+    readonly sheetName?: string;
+};
+
 type AppState = {
     readonly hydrated: boolean;
     readonly intent: string;
@@ -41,8 +49,11 @@ type AppState = {
     readonly mapping: Mapping;
     readonly setMapping: (next: Mapping) => void;
     readonly dataset: readonly ColumnInference[] | null;
-    readonly setDataset: (next: readonly ColumnInference[]) => void;
+    readonly setDataset: (next: readonly ColumnInference[], source?: DatasetSource) => void;
     readonly clearDataset: () => void;
+    readonly clearRecommendCache: () => void;
+    readonly lastRecommendationFromCache: boolean;
+    readonly setLastRecommendationFromCache: (next: boolean) => void;
     readonly receipt: Receipt | null;
     readonly setReceipt: (next: Receipt | null) => void;
     readonly chartKind: ChartSpec["kind"] | null;
@@ -140,6 +151,20 @@ const isMapping = (v: unknown): v is Mapping =>
 
 const isSelectionMode = (v: unknown): v is SelectionMode => v === "ai" || v === "manual";
 
+const isDatasetSource = (v: unknown): v is DatasetSource => {
+    if (v === null || typeof v !== "object") {
+        return false;
+    }
+
+    const r = v as Record<string, unknown>;
+
+    return (
+        typeof r.fileName === "string" &&
+        typeof r.rowCount === "number" &&
+        (r.sheetName === undefined || typeof r.sheetName === "string")
+    );
+};
+
 export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Element => {
     const [intent, setIntentState] = useState<string>("");
     const [mapping, setMappingState] = useState<Mapping>({});
@@ -149,6 +174,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
     const [chartSlug, setChartSlugState] = useState<ChartSlug | null>(null);
     const [chartSpec, setChartSpecState] = useState<ChartSpec | null>(null);
     const [selectionMode, setSelectionModeState] = useState<SelectionMode | null>(null);
+    const [lastRecommendationFromCache, setLastRecommendationFromCacheState] = useState<boolean>(false);
     const [hydrated, setHydrated] = useState<boolean>(false);
     const didHydrate = useRef<boolean>(false);
 
@@ -227,23 +253,67 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         }
     }, []);
 
-    const setDataset = useCallback((next: readonly ColumnInference[]): void => {
+    const setDataset = useCallback((next: readonly ColumnInference[], source?: DatasetSource): void => {
         setDatasetState(next);
-        if (typeof window !== "undefined") {
-            window.sessionStorage.setItem(DATASET_KEY, JSON.stringify(next));
+        if (typeof window === "undefined") {
+            return;
         }
+
+        window.sessionStorage.setItem(DATASET_KEY, JSON.stringify(next));
+
+        if (source === undefined) {
+            return;
+        }
+
+        const prevRaw = window.sessionStorage.getItem(DATASET_SOURCE_KEY);
+        let prev: DatasetSource | null = null;
+
+        if (prevRaw !== null) {
+            try {
+                const parsed: unknown = JSON.parse(prevRaw);
+                if (isDatasetSource(parsed)) {
+                    prev = parsed;
+                }
+            } catch {
+                /* ignore */
+            }
+        }
+
+        const changed =
+            prev !== null &&
+            (prev.fileName !== source.fileName ||
+                prev.rowCount !== source.rowCount ||
+                (prev.sheetName ?? "") !== (source.sheetName ?? ""));
+
+        if (changed) {
+            clearCache();
+        }
+
+        window.sessionStorage.setItem(DATASET_SOURCE_KEY, JSON.stringify(source));
+    }, []);
+
+    const clearRecommendCache = useCallback((): void => {
+        clearCache();
+    }, []);
+
+    const setLastRecommendationFromCache = useCallback((next: boolean): void => {
+        setLastRecommendationFromCacheState(next);
     }, []);
 
     const clearDataset = useCallback((): void => {
         setDatasetState(null);
         setReceiptState(null);
         setChartKindState(null);
+        setLastRecommendationFromCacheState(false);
         if (typeof window === "undefined") {
             return;
         }
+
         window.sessionStorage.removeItem(DATASET_KEY);
+        window.sessionStorage.removeItem(DATASET_SOURCE_KEY);
         window.sessionStorage.removeItem(RECEIPT_KEY);
         window.sessionStorage.removeItem(CHART_KIND_KEY);
+        clearCache();
     }, []);
 
     const setChartSlug = useCallback((next: ChartSlug | null): void => {
@@ -294,6 +364,9 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             dataset,
             setDataset,
             clearDataset,
+            clearRecommendCache,
+            lastRecommendationFromCache,
+            setLastRecommendationFromCache,
             receipt,
             setReceipt,
             chartKind,
@@ -314,6 +387,9 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             dataset,
             setDataset,
             clearDataset,
+            clearRecommendCache,
+            lastRecommendationFromCache,
+            setLastRecommendationFromCache,
             receipt,
             setReceipt,
             chartKind,

@@ -26,6 +26,7 @@ export const UploadMap = (): JSX.Element => {
         setChartKind,
         setChartSlug,
         setIntent,
+        setLastRecommendationFromCache,
         setReceipt,
         setSelectionMode,
     } = useAppState();
@@ -40,12 +41,12 @@ export const UploadMap = (): JSX.Element => {
         sentAnywayConfirmed,
     } = useUploadMap();
     const { run, state } = useRecommendation({
-        onSuccess: (payload, resetRecommendation) => {
-            setReceipt(payload.receipt);
-            setChartKind(payload.chartKind);
-            setChartSlug(payload.chartKind);
+        onSuccess: (rec, kind, fromCache) => {
+            setReceipt(rec);
+            setChartKind(kind);
+            setChartSlug(kind);
             setSelectionMode("ai");
-            resetRecommendation();
+            setLastRecommendationFromCache(fromCache);
             router.push("/recommend");
         },
     });
@@ -122,7 +123,14 @@ export const UploadMap = (): JSX.Element => {
                             <button type="button" className="btn btn--ghost btn--sm" onClick={() => run(payload)}>
                                 Try again
                             </button>
-                            <button type="button" className="btn btn--quiet btn--sm" onClick={() => router.push("/library")}>
+                            <button
+                                type="button"
+                                className="btn btn--quiet btn--sm"
+                                onClick={() => {
+                                    setSelectionMode("manual");
+                                    router.push("/recommend/manual");
+                                }}
+                            >
                                 Pick chart manually
                             </button>
                         </div>
