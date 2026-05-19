@@ -120,7 +120,12 @@ export const UploadMap = (): JSX.Element => {
                         <div className="map-ai-error-title">Couldn&apos;t generate a recommendation.</div>
                         <p className="muted">{state.message}</p>
                         <div className="map-ai-error-actions">
-                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => run(payload)}>
+                            <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                disabled={state.code === "RATE_LIMITED"}
+                                onClick={() => run(payload)}
+                            >
                                 Try again
                             </button>
                             <button

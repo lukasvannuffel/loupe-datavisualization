@@ -29,6 +29,7 @@ export type RecommendResult =
           readonly ok: false;
           readonly code:
               | "MISSING_ENV"
+              | "RATE_LIMITED"
               | "UPSTREAM_FAILURE"
               | "TIMEOUT"
               | "VALIDATION_FAILED"

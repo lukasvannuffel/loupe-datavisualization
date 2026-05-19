@@ -1,4 +1,18 @@
-# sessionStorage Keys
+# Storage surface
+
+## Server-side (Supabase)
+
+This is the **only** server-side persistent storage in the project.
+
+| Table | Purpose | Written by | Client access |
+|---|---|---|---|
+| `public.ai_rate_limits` | AI recommendation rate limiting — one row per `recommendChart` call (`actor_key`, `called_at`) | `checkAndRecord` (`src/lib/ai/rateLimit/rateLimit.ts`) via service role | **None** — RLS policy denies all; server-only |
+
+`actor_key` is either `user:<supabase_uuid>` or a salted SHA-256 hash of the client IP (raw IPs are never stored).
+
+---
+
+## sessionStorage Keys
 
 All Loupe wizard state is stored in `sessionStorage` (never `localStorage`). The table below lists every key written by the application, its purpose, and its lifecycle.
 

@@ -283,17 +283,17 @@ Het hart van je product. De prompt neemt de kolom-schema (geen waarden!) + inten
 Vervang de hardcoded `RECOMMEND_COPY` in `Recommendation.tsx` door echte AI-output. Behoud de bestaande UI-fasen (intent dissolves → chart appears) maar drive ze nu door echte streaming response.
 
 **Actie-items**
-- [ ] `Recommendation.tsx` refactor: useState → useChat / useObject hook
-- [ ] Loading state: ring-loader animatie tijdens API-call
-- [ ] Error state: vriendelijke fallback met "try again" + verwijzing naar /library én manual picker
-- [ ] Caching: zelfde intent + schema → geen nieuwe API-call (sessionStorage)
-- [ ] Phase-animaties hookups op streaming events
-- [ ] Receipt-data accumuleren tijdens response
+- [x] `Recommendation.tsx` refactor: useState → useChat / useObject hook
+- [x] Loading state: ring-loader animatie tijdens API-call
+- [x] Error state: vriendelijke fallback met "try again" + verwijzing naar /library én manual picker
+- [x] Caching: zelfde intent + schema → geen nieuwe API-call (sessionStorage)
+- [x] Phase-animaties hookups op streaming events
+- [x] Receipt-data accumuleren tijdens response
 
 **Acceptance criteria**
-- [ ] Echte CSV → echte AI-aanbeveling → correct chart type gerenderd
-- [ ] Bij netwerkfout: geen crash, gebruiker krijgt actie-optie
-- [ ] Tweede call met identieke input is instant (cache hit)
+- [x] Echte CSV → echte AI-aanbeveling → correct chart type gerenderd
+- [x] Bij netwerkfout: geen crash, gebruiker krijgt actie-optie
+- [x] Tweede call met identieke input is instant (cache hit)
 
 ---
 
@@ -330,14 +330,14 @@ Vervang de hardcoded `RECOMMEND_COPY` in `Recommendation.tsx` door echte AI-outp
 Met budget van 50 EUR moet je voorkomen dat een testflow per ongeluk 100 calls doet. Bouw rate-limiting per user en kost-tracking in.
 
 **Actie-items**
-- [ ] Rate limit: max 20 recommendation-calls per user per uur (Supabase tabel)
-- [ ] Token budget per call: max input 5k tokens (truncate intent als langer)
-- [ ] Server-side counter: totale tokens per dag (gewoon log lijn)
-- [ ] AI Gateway cost-cap configureren
+- [x] Rate limit: max 20 recommendation-calls per user per uur (Supabase tabel)
+- [x] Token budget per call: max input 5k tokens (truncate intent als langer)
+- [x] Server-side counter: totale tokens per dag (gewoon log lijn)
+- [x] AI Gateway cost-cap configureren
 
 **Acceptance criteria**
-- [ ] 21e call binnen een uur retourneert duidelijke "rate limited" message
-- [ ] Budget kan in dashboard van AI Gateway gevolgd worden
+- [x] 21e call binnen een uur retourneert duidelijke "rate limited" message
+- [x] Budget kan in dashboard van AI Gateway gevolgd worden
 
 ---
 

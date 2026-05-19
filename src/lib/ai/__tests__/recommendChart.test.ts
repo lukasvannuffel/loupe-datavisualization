@@ -26,6 +26,14 @@ vi.mock("../client", () => ({
     getEnv: getEnvMock,
 }));
 
+vi.mock("../rateLimit/actorKey", () => ({
+    resolveActorKey: vi.fn().mockResolvedValue("user:test-actor"),
+}));
+
+vi.mock("../rateLimit/rateLimit", () => ({
+    checkAndRecord: vi.fn().mockResolvedValue({ allowed: true, remaining: 19 }),
+}));
+
 const validPayload: RecommendInput = {
     columns: [
         {
