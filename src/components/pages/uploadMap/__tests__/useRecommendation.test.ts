@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// Mocked cache test — verifies hook contract. See cachePersistence.test.ts for end-to-end storage behavior.
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,6 +26,7 @@ vi.mock("@/lib/ai/recommendCache/cache", () => ({
 const successReceipt = (): Receipt => ({
     alternatives: [],
     intent: "x",
+    overrides: [],
     recommendation: {
         because: "b",
         becauseTitle: "Because",
@@ -154,5 +156,64 @@ describe("useRecommendation", () => {
 
         expect(onSuccess).toHaveBeenCalledTimes(1);
         expect(onSuccess).toHaveBeenCalledWith(r, "km", true);
+    });
+
+    it("cache hit returns pristine AI receipt without user overrides", async () => {
+        const pristine = successReceipt();
+        const overridden: Receipt = {
+            ...pristine,
+            overrides: [
+                {
+                    at: "2026-05-19T14:23:00.000Z",
+                    from: "km",
+                    to: "box",
+                },
+            ],
+        };
+        recommendChartMock.mockResolvedValueOnce({
+            chartType: "km",
+            costEstimateEur: 0.01,
+            ok: true,
+            receipt: pristine,
+        });
+        getCacheEntryMock
+            .mockResolvedValueOnce({ ok: false })
+            .mockResolvedValueOnce({
+                entry: {
+                    cachedAt: new Date().toISOString(),
+                    chartKind: "km",
+                    costEstimateEur: 0,
+                    hash: toContentHash("22".repeat(32)),
+                    receipt: pristine,
+                },
+                ok: true,
+            });
+
+        const { result } = renderHook(() => useRecommendation());
+
+        await act(async () => {
+            await result.current.run(basePayload);
+        });
+        expect(setCacheEntryMock).toHaveBeenCalledWith(
+            basePayload,
+            pristine,
+            "km",
+            0.01,
+        );
+        expect(setCacheEntryMock).not.toHaveBeenCalledWith(
+            basePayload,
+            overridden,
+            "km",
+            expect.anything(),
+        );
+
+        await act(async () => {
+            await result.current.run(basePayload);
+        });
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        if (result.current.state.status === "success") {
+            expect(result.current.state.receipt.overrides).toEqual([]);
+            expect(result.current.state.receipt).not.toEqual(overridden);
+        }
     });
 });

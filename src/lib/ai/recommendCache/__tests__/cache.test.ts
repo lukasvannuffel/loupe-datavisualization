@@ -12,6 +12,7 @@ const STORAGE_KEY = "loupe.recommendCache";
 const minimalReceipt = (): Receipt => ({
     alternatives: [],
     intent: "intent",
+    overrides: [],
     recommendation: {
         because: "b",
         becauseTitle: "Because",
@@ -147,5 +148,46 @@ describe("recommendCache cache", () => {
         window.sessionStorage.setItem(STORAGE_KEY, "not json");
         await expect(getCacheEntry(payload("any"))).resolves.toEqual({ ok: false });
         expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it("hydrates a pre-LOUPE-08 cache entry whose receipt omits overrides", async () => {
+        const legacyReceipt = {
+            alternatives: [],
+            intent: "legacy intent",
+            recommendation: {
+                because: "b",
+                becauseTitle: "Because",
+                chartName: "KM",
+                handles: "h",
+                handlesTitle: "Handles",
+                headline: "head",
+            },
+            selectionMode: "ai",
+            tests: [],
+            testsTitle: "Tests",
+            transformations: [],
+        };
+        const p = payload("legacy");
+        const hash = await hashPayload(p);
+        window.sessionStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+                entries: [
+                    {
+                        cachedAt: new Date().toISOString(),
+                        chartKind: "km",
+                        costEstimateEur: 0,
+                        hash,
+                        receipt: legacyReceipt,
+                    },
+                ],
+                version: 1,
+            }),
+        );
+        const hit = await getCacheEntry(p);
+        expect(hit.ok).toBe(true);
+        if (hit.ok) {
+            expect(hit.entry.receipt.overrides).toEqual([]);
+        }
     });
 });

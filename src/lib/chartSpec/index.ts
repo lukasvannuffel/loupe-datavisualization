@@ -14,6 +14,7 @@ export type {
     KMPlotData,
     KMPoint,
     KMSpec,
+    OverrideEvent,
     PlotData,
     Receipt,
     RecommendationBlock,

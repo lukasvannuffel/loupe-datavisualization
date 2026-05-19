@@ -293,7 +293,18 @@ const statTestSchema = z
     })
     .strict();
 
-export const receiptSchema = z
+const specKindSchema = z.enum(["km", "barError", "box", "xy"]);
+
+const overrideEventSchema = z
+    .object({
+        from: specKindSchema,
+        to: specKindSchema,
+        at: z.iso.datetime(),
+        reason: nonEmpty().optional(),
+    })
+    .strict();
+
+const receiptObjectSchema = z
     .object({
         intent: nonEmpty(),
         selectionMode: selectionModeSchema,
@@ -303,6 +314,7 @@ export const receiptSchema = z
         transformations: z.array(transformationBlockSchema).readonly(),
         testsTitle: nonEmpty(),
         tests: z.array(statTestSchema).readonly(),
+        overrides: z.array(overrideEventSchema).readonly(),
     })
     .strict()
     .refine(
@@ -316,3 +328,11 @@ export const receiptSchema = z
                 "manualSelectionNote must equal the canonical note iff selectionMode === 'manual'",
         },
     );
+
+export const receiptSchema = z.preprocess((val) => {
+    if (val !== null && typeof val === "object" && !Array.isArray(val) && !("overrides" in val)) {
+        return { ...val, overrides: [] };
+    }
+
+    return val;
+}, receiptObjectSchema);

@@ -103,6 +103,7 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
         const receipt: Receipt = {
             alternatives: ai.data.alternatives,
             intent: parsed.data.intent,
+            overrides: [],
             recommendation: ai.data.recommendation,
             selectionMode: "ai",
             tests: ai.data.tests,

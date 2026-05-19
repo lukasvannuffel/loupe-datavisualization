@@ -2,35 +2,22 @@
 
 import { useEffect } from "react";
 
-import { CHART_PREVIEWS, type ChartSlug } from "@/components/charts/chartPreviews";
+import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
+import type { ChartSpec } from "@/lib/chartSpec/types";
 
-type ChartChoice = {
-    slug: ChartSlug;
-    name: string;
-    use: string;
-};
-
-const CHOICES: readonly ChartChoice[] = [
+const CHOICES: readonly { slug: ChartSpec["kind"]; name: string; use: string }[] = [
     { slug: "km", name: "Kaplan–Meier", use: "Time-to-event with censoring" },
-    { slug: "forest", name: "Forest plot", use: "Many subgroup HRs" },
     { slug: "barError", name: "Bar with error bars", use: "Group means · SD / SEM / CI" },
-    { slug: "groupedBar", name: "Grouped bar", use: "Two series across categories" },
-    { slug: "dot", name: "Cleveland dot plot", use: "Ranked single-series comparison" },
     { slug: "box", name: "Box plot", use: "Distribution by group" },
-    { slug: "violin", name: "Violin plot", use: "Density-shaped distributions" },
-    { slug: "roc", name: "ROC curve", use: "Diagnostic performance" },
-    { slug: "volcano", name: "Volcano plot", use: "Differential expression / many tests" },
-    { slug: "bland", name: "Bland–Altman", use: "Two-method agreement" },
-    { slug: "funnel", name: "Funnel plot", use: "Meta-analysis bias check" },
-    { slug: "spaghetti", name: "Spaghetti plot", use: "Per-subject trajectories" },
+    { slug: "xy", name: "XY plot", use: "Line or scatter · continuous variables" },
 ];
 
 type RecommendationOverrideProps = {
     open: boolean;
     onClose: () => void;
-    current: ChartSlug;
-    onSelect: (slug: ChartSlug) => void;
+    current: ChartSpec["kind"];
+    onSelect: (kind: ChartSpec["kind"]) => void;
 };
 
 export const RecommendationOverride = ({
@@ -76,10 +63,7 @@ export const RecommendationOverride = ({
                     <div>
                         <Eyebrow>Override</Eyebrow>
                         <h3>Pick a different chart shape.</h3>
-                        <p className="muted">
-                            Loupe&apos;s recommendation is based on your finding and column types. You can
-                            override it — the receipt records the swap.
-                        </p>
+                        <p className="muted">Override the recommendation — the receipt records the swap.</p>
                     </div>
                     <button
                         type="button"
@@ -101,7 +85,9 @@ export const RecommendationOverride = ({
                                 type="button"
                                 className={"override-card " + (isCurrent ? "is-active" : "")}
                                 onClick={() => {
-                                    onSelect(c.slug);
+                                    if (!isCurrent) {
+                                        onSelect(c.slug);
+                                    }
                                     onClose();
                                 }}
                             >

@@ -308,14 +308,14 @@ Vervang de hardcoded `RECOMMEND_COPY` in `Recommendation.tsx` door echte AI-outp
 `RecommendationOverride` shell bestaat al. Hook hem aan echte chart-switching, en update de Receipt om de override te registreren ("user overrode KM in favor of box plot, original AI reasoning preserved").
 
 **Actie-items**
-- [ ] `onSelect` propagatie naar app state
-- [ ] Receipt update: append override-event met timestamp + originele aanbeveling
-- [ ] Visuele indicator op chart: "Overridden by you"
-- [ ] Re-render check zonder full reload
+- [x] `onSelect` propagatie naar app state
+- [x] Receipt update: append override-event met timestamp + originele aanbeveling
+- [x] Visuele indicator op chart: "Overridden by you"
+- [x] Re-render check zonder full reload
 
 **Acceptance criteria**
-- [ ] User kiest Box in plaats van KM → chart switcht zonder reload
-- [ ] Receipt vermeldt expliciet de override
+- [x] User kiest Box in plaats van KM → chart switcht zonder reload
+- [x] Receipt vermeldt expliciet de override
 
 ---
 
@@ -331,7 +331,7 @@ Met budget van 50 EUR moet je voorkomen dat een testflow per ongeluk 100 calls d
 
 **Actie-items**
 - [ ] Rate limit: max 20 recommendation-calls per user per uur (Supabase tabel)
-- [ ] Token budget per call: max input 4k tokens (truncate intent als langer)
+- [ ] Token budget per call: max input 5k tokens (truncate intent als langer)
 - [ ] Server-side counter: totale tokens per dag (gewoon log lijn)
 - [ ] AI Gateway cost-cap configureren
 

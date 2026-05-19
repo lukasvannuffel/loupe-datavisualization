@@ -54,6 +54,7 @@ const KM_DATASET: readonly ColumnInference[] = [
 const MOCK_RECEIPT: Receipt = {
     alternatives: [],
     intent: "Compare survival between arms",
+    overrides: [],
     recommendation: {
         because: "Because text.",
         becauseTitle: "Because",
