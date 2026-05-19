@@ -125,6 +125,7 @@ describe("AppStateProvider receipt + chartKind", () => {
     const SAMPLE_RECEIPT: Receipt = {
         alternatives: [],
         intent: "Compare arms",
+        overrides: [],
         recommendation: {
             because: "Because.",
             becauseTitle: "Because",
@@ -152,5 +153,88 @@ describe("AppStateProvider receipt + chartKind", () => {
         const { result } = renderHook(() => useAppState(), { wrapper });
         expect(result.current.receipt).toBeNull();
         expect(window.sessionStorage.getItem("loupe.receipt")).toBeNull();
+    });
+});
+
+describe("AppStateProvider appendOverride", () => {
+    const SAMPLE_RECEIPT: Receipt = {
+        alternatives: [],
+        intent: "Compare arms",
+        overrides: [],
+        recommendation: {
+            because: "Because.",
+            becauseTitle: "Because",
+            chartName: "Kaplan–Meier curve",
+            handles: "Handles.",
+            handlesTitle: "Handles",
+            headline: "Headline.",
+        },
+        selectionMode: "ai",
+        tests: [],
+        testsTitle: "Tests",
+        transformations: [],
+    };
+
+    const EVENT_1 = {
+        at: "2026-05-19T14:23:00.000Z",
+        from: "km" as const,
+        to: "box" as const,
+    };
+
+    const EVENT_2 = {
+        at: "2026-05-19T14:25:00.000Z",
+        from: "box" as const,
+        to: "xy" as const,
+    };
+
+    it("appends one override and updates chartKind", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        expect(result.current.receipt?.overrides).toHaveLength(1);
+        expect(result.current.receipt?.overrides[0]).toEqual(EVENT_1);
+        expect(result.current.chartKind).toBe("box");
+        const stored = window.sessionStorage.getItem("loupe.receipt");
+        expect(stored).not.toBeNull();
+        expect(JSON.parse(stored!).overrides).toHaveLength(1);
+        expect(window.sessionStorage.getItem("loupe.chartKind")).toBe(JSON.stringify("box"));
+    });
+
+    it("appends overrides in chronological order", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.appendOverride(EVENT_2));
+        expect(result.current.receipt?.overrides).toEqual([EVENT_1, EVENT_2]);
+        const firstAt = result.current.receipt?.overrides[0]?.at ?? "";
+        const secondAt = result.current.receipt?.overrides[1]?.at ?? "";
+        expect(firstAt <= secondAt).toBe(true);
+        expect(result.current.chartKind).toBe("xy");
+    });
+
+    it("no-ops when receipt is null", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.appendOverride(EVENT_1));
+        expect(result.current.receipt).toBeNull();
+        expect(result.current.chartKind).toBeNull();
+        expect(window.sessionStorage.getItem("loupe.receipt")).toBeNull();
+        expect(window.sessionStorage.getItem("loupe.chartKind")).toBeNull();
+    });
+
+    it("survives re-hydration from sessionStorage", () => {
+        window.sessionStorage.setItem("loupe.receipt", JSON.stringify(SAMPLE_RECEIPT));
+        window.sessionStorage.setItem("loupe.chartKind", JSON.stringify("km"));
+        const { result, unmount } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.appendOverride(EVENT_1));
+        unmount();
+        const { result: reloaded } = renderHook(() => useAppState(), { wrapper });
+        expect(reloaded.current.receipt?.overrides).toEqual([EVENT_1]);
+        expect(reloaded.current.chartKind).toBe("box");
     });
 });

@@ -1,4 +1,18 @@
-# sessionStorage Keys
+# Storage surface
+
+## Server-side (Supabase)
+
+This is the **only** server-side persistent storage in the project.
+
+| Table | Purpose | Written by | Client access |
+|---|---|---|---|
+| `public.ai_rate_limits` | AI recommendation rate limiting — one row per `recommendChart` call (`actor_key`, `called_at`) | `checkAndRecord` (`src/lib/ai/rateLimit/rateLimit.ts`) via service role | **None** — RLS policy denies all; server-only |
+
+`actor_key` is either `user:<supabase_uuid>` or a salted SHA-256 hash of the client IP (raw IPs are never stored).
+
+---
+
+## sessionStorage Keys
 
 All Loupe wizard state is stored in `sessionStorage` (never `localStorage`). The table below lists every key written by the application, its purpose, and its lifecycle.
 
@@ -11,7 +25,7 @@ All Loupe wizard state is stored in `sessionStorage` (never `localStorage`). The
 | `loupe.datasetSource` | File metadata: `fileName`, `rowCount`, `sheetName` — used to detect re-uploads that should bust the AI cache | `AppStateProvider.setDataset` (when `source` arg is provided) | `AppStateProvider.clearDataset` | Yes | No |
 | `loupe.mapping` | Column-role mapping object (`Mapping`) from `/upload/map` | `AppStateProvider.setMapping` (`src/app/providers.tsx`) | Never explicitly removed — persists until overwritten or tab closes | Yes | No |
 | `loupe.selectionMode` | Wizard path: `"ai"` or `"manual"` | `AppStateProvider.setSelectionMode` (`src/app/providers.tsx`) | `AppStateProvider.setSelectionMode(null)` | Yes | No |
-| `loupe.receipt` | `Receipt` provenance record (AI rationale, alternatives, transformations) | `AppStateProvider.setReceipt` (`src/app/providers.tsx`) | `AppStateProvider.clearDataset`; `AppStateProvider.setReceipt(null)` | Yes | No |
+| `loupe.receipt` | `Receipt` provenance record (AI rationale, alternatives, transformations; includes append-only `overrides[]` with `{ from, to, at, reason? }` per user chart switch) | `AppStateProvider.setReceipt` and `AppStateProvider.appendOverride` (`src/app/providers.tsx`) | `AppStateProvider.clearDataset`; `AppStateProvider.setReceipt(null)` | Yes | No |
 | `loupe.chartKind` | Active `SpecKind` (`"km"` \| `"barError"` \| `"box"` \| `"xy"`) | `AppStateProvider.setChartKind` (`src/app/providers.tsx`) | `AppStateProvider.clearDataset`; `AppStateProvider.setChartKind(null)` | Yes | No |
 | `loupe.recommendCache` | JSON cache file (`{ version: 1, entries: CacheEntry[] }`) — AI recommendation results keyed by SHA-256 payload hash, TTL 24 h, max 20 entries | `setCacheEntry` (`src/lib/ai/recommendCache/cache.ts`) | `clearCache` (called by `AppStateProvider.clearDataset` and on dataset file change in `AppStateProvider.setDataset`); `QuotaExceededError` silently drops the write | Yes | No |
 | `loupe.chatOpened` | Flag (`"1"`) indicating the user has opened the export-chat panel — suppresses the first-visit nudge | `ExportChatLauncher` (`src/components/pages/ExportChat/ExportChatLauncher.tsx`) | Never removed — persists for the session | Yes | No |

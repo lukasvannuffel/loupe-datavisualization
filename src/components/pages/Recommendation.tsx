@@ -2,16 +2,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAppState } from "@/app/providers";
-import {
-    CHART_PREVIEWS,
-    getPublicationChart,
-    type ChartSlug,
-} from "@/components/charts/chartPreviews";
+import { ChartRenderer } from "@/components/charts/ChartRenderer";
+import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
+import type { ChartSlug } from "@/components/charts/chartPreviews";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
+import { formatOverrideHistory } from "./formatOverrideHistory";
 import { RecommendationOverride } from "./RecommendationOverride";
+import { RecommendationWhy } from "./RecommendationWhy";
+
 export type RecommendationProps = {
     readonly chartKind: ChartSpec["kind"];
     readonly fromCache: boolean;
@@ -24,9 +25,7 @@ export const Recommendation = ({
     receipt,
 }: RecommendationProps): JSX.Element => {
     const router = useRouter();
-    const { chartSlug, intent, setChartSlug, setSelectionMode } = useAppState();
-    const activeSlug: ChartSlug = chartSlug ?? chartKind;
-    const ChartComponent = getPublicationChart(activeSlug);
+    const { appendOverride, intent, setSelectionMode } = useAppState();
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
     const transform = receipt.transformations[0];
@@ -34,6 +33,7 @@ export const Recommendation = ({
     const words = text.split(/(\s+)/);
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
+    const hasOverrides = receipt.overrides.length > 0;
 
     useEffect(() => {
         let cancelled = false;
@@ -53,13 +53,29 @@ export const Recommendation = ({
     }, []);
 
     const onUseAlt = (): void => {
-        if (primaryAlt !== undefined) {
-            setChartSlug(primaryAlt.slug);
+        if (primaryAlt === undefined || !isSpecKind(primaryAlt.slug)) {
+            return;
         }
+        if (primaryAlt.slug === chartKind) {
+            return;
+        }
+        appendOverride({
+            at: new Date().toISOString(),
+            from: chartKind,
+            reason: "from AI alternatives",
+            to: primaryAlt.slug,
+        });
     };
     const onSwitchToManual = (): void => {
         setSelectionMode("manual");
         router.push("/recommend/manual");
+    };
+    const onOverrideSelect = (target: ChartSpec["kind"]): void => {
+        if (target === chartKind) {
+            return;
+        }
+        appendOverride({ at: new Date().toISOString(), from: chartKind, to: target });
+        setOverrideOpen(false);
     };
     const transformVerb = transform?.verb ?? "becomes a";
     const transformChart = transform?.chart ?? `${receipt.recommendation.chartName}.`;
@@ -105,9 +121,19 @@ export const Recommendation = ({
                             <span className="muted mono rec-chart-tag">FIG · DRAFT</span>
                         </div>
                         <div className="rec-chart-frame">
+                            {hasOverrides ? (
+                                <span
+                                    role="status"
+                                    className="rec-override-badge mono muted"
+                                    title={formatOverrideHistory(receipt.overrides)}
+                                    aria-label={`Chart overridden. ${formatOverrideHistory(receipt.overrides)}`}
+                                >
+                                    Overridden by you
+                                </span>
+                            ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    <ChartComponent animated />
+                                    <ChartRenderer kind={chartKind} />
                                 </div>
                             ) : (
                                 <div className="rec-chart-frame-loading">
@@ -123,47 +149,13 @@ export const Recommendation = ({
                         </div>
                     </div>
 
-                    <div className={"rec-why rec-why-stage" + (phase >= 3 ? " is-visible" : "")}>
-                        <Eyebrow>Why this chart</Eyebrow>
-                        <h4>{receipt.recommendation.headline}</h4>
-                        <div className="rec-why-block">
-                            <span className="label">{receipt.recommendation.becauseTitle}</span>
-                            <p>{receipt.recommendation.because}</p>
-                        </div>
-                        <div className="rec-why-block">
-                            <span className="label">{receipt.recommendation.handlesTitle}</span>
-                            <p>{receipt.recommendation.handles}</p>
-                        </div>
-                        {primaryAlt !== undefined && AltPreview !== null ? (
-                            <div className="rec-why-block">
-                                <span className="label">We considered, then set aside</span>
-                                <div className="rec-alt">
-                                    <div className="rec-alt-mini">
-                                        <AltPreview h={36} w={64} />
-                                    </div>
-                                    <div>
-                                        <div className="rec-alt-name">{primaryAlt.name}</div>
-                                        <div className="rec-alt-reason">{primaryAlt.reason}</div>
-                                    </div>
-                                    <button type="button" onClick={onUseAlt}>
-                                        Use instead →
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
-                        <div className="rec-why-block">
-                            <span className="label">{receipt.testsTitle}</span>
-                            <p className="rec-why-block-tests">
-                                {receipt.tests.map((t, i) => (
-                                    <span key={`${t.label}-${i}`}>
-                                        · {t.label}
-                                        {t.notes !== undefined ? ` — ${t.notes}` : ""}
-                                        {i < receipt.tests.length - 1 ? <br /> : null}
-                                    </span>
-                                ))}
-                            </p>
-                        </div>
-                    </div>
+                    <RecommendationWhy
+                        AltPreview={AltPreview}
+                        onUseAlt={onUseAlt}
+                        phase={phase}
+                        primaryAlt={primaryAlt}
+                        receipt={receipt}
+                    />
                 </div>
             </div>
 
@@ -193,7 +185,15 @@ export const Recommendation = ({
                 </div>
             </div>
 
-            <RecommendationOverride current={activeSlug} onClose={() => setOverrideOpen(false)} onSelect={(slug) => setChartSlug(slug)} open={overrideOpen} />
+            <RecommendationOverride
+                current={chartKind}
+                onClose={() => setOverrideOpen(false)}
+                onSelect={onOverrideSelect}
+                open={overrideOpen}
+            />
         </div>
     );
 };
+
+const isSpecKind = (slug: ChartSlug): slug is ChartSpec["kind"] =>
+    slug === "km" || slug === "barError" || slug === "box" || slug === "xy";

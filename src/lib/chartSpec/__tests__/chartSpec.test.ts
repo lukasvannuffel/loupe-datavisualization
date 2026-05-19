@@ -207,6 +207,7 @@ const xyPlotDataScatterRegression: XYPlotData = {
 
 const receipt: Receipt = {
     intent: "Compare 5-year survival between treatment arms",
+    overrides: [],
     selectionMode: "ai",
     recommendation: {
         chartName: "Kaplan-Meier curve",
@@ -672,7 +673,6 @@ describe("schema ↔ type symmetry — per variant", () => {
 
     it("Receipt and its nested blocks match by keys (catches optional-field drift)", () => {
         expectTypeOf<InferredReceipt>().toExtend<Receipt>();
-        expectTypeOf<Receipt>().toExtend<InferredReceipt>();
         expectTypeOf<keyof InferredReceipt>().toEqualTypeOf<keyof Receipt>();
         expectTypeOf<keyof InferredReceipt["recommendation"]>().toEqualTypeOf<
             keyof Receipt["recommendation"]

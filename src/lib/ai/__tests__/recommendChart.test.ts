@@ -26,6 +26,17 @@ vi.mock("../client", () => ({
     getEnv: getEnvMock,
 }));
 
+const resolveActorKeyMock = vi.hoisted(() => vi.fn().mockResolvedValue("user:test-actor"));
+const checkAndRecordMock = vi.hoisted(() => vi.fn().mockResolvedValue({ allowed: true, remaining: 19 }));
+
+vi.mock("../rateLimit/actorKey", () => ({
+    resolveActorKey: resolveActorKeyMock,
+}));
+
+vi.mock("../rateLimit/rateLimit", () => ({
+    checkAndRecord: checkAndRecordMock,
+}));
+
 const validPayload: RecommendInput = {
     columns: [
         {
@@ -342,12 +353,14 @@ describe("recommendChart", () => {
         spy.mockRestore();
     });
 
-    it("returns MISSING_ENV when the gateway is not configured", async () => {
+    it("returns MISSING_ENV when the gateway is not configured without rate-limit side effects", async () => {
         getEnvMock.mockReturnValueOnce({ missing: ["AI_GATEWAY_API_KEY"] });
 
         const result = await recommendChart(validPayload);
 
         expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(resolveActorKeyMock).not.toHaveBeenCalled();
+        expect(checkAndRecordMock).not.toHaveBeenCalled();
         expect(result).toEqual({
             code: "MISSING_ENV",
             message: "AI gateway is not configured.",

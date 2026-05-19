@@ -15,7 +15,7 @@ import type { ChartSlug } from "@/components/charts/chartPreviews";
 import { clearCache } from "@/lib/ai/recommendCache/cache";
 import type { ChartSpec } from "@/lib/chartSpec";
 import { receiptSchema } from "@/lib/chartSpec/schemas";
-import type { Receipt } from "@/lib/chartSpec/types";
+import type { OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { columnInferenceArraySchema } from "@/lib/parser/inference.schemas";
 import type { ColumnInference } from "@/lib/parser/inference.types";
 import type { ColumnRole, Mapping } from "@/lib/roles/types";
@@ -56,6 +56,7 @@ type AppState = {
     readonly setLastRecommendationFromCache: (next: boolean) => void;
     readonly receipt: Receipt | null;
     readonly setReceipt: (next: Receipt | null) => void;
+    readonly appendOverride: (event: OverrideEvent) => void;
     readonly chartKind: ChartSpec["kind"] | null;
     readonly setChartKind: (next: ChartSpec["kind"] | null) => void;
     readonly chartSlug: ChartSlug | null;
@@ -239,6 +240,25 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         window.sessionStorage.setItem(CHART_KIND_KEY, JSON.stringify(next));
     }, []);
 
+    // setChartKind inside setReceiptState updater is intentional — required for atomic Receipt+kind transitions. React 18 batching makes this safe; flushSync would be heavier without a real benefit.
+    const appendOverride = useCallback(
+        (event: OverrideEvent): void => {
+            setReceiptState((prev) => {
+                if (prev === null) {
+                    return prev;
+                }
+                const next: Receipt = { ...prev, overrides: [...prev.overrides, event] };
+                if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
+                }
+                setChartKind(event.to);
+
+                return next;
+            });
+        },
+        [setChartKind],
+    );
+
     const setIntent = useCallback((next: string): void => {
         setIntentState(next);
         if (typeof window !== "undefined") {
@@ -369,6 +389,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             setLastRecommendationFromCache,
             receipt,
             setReceipt,
+            appendOverride,
             chartKind,
             setChartKind,
             chartSlug,
@@ -392,6 +413,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             setLastRecommendationFromCache,
             receipt,
             setReceipt,
+            appendOverride,
             chartKind,
             setChartKind,
             chartSlug,

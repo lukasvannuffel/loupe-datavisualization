@@ -241,6 +241,14 @@ export const manualSelectionNoteFor = (
 ): typeof MANUAL_SELECTION_NOTE | undefined =>
     mode === "manual" ? MANUAL_SELECTION_NOTE : undefined;
 
+/** Append-only user override of the AI-recommended chart kind. */
+export type OverrideEvent = {
+    readonly from: ChartSpec["kind"];
+    readonly to: ChartSpec["kind"];
+    readonly at: string;
+    readonly reason?: string;
+};
+
 /**
  * Reproducibility record bound to a chart: how it was selected, the intent that
  * drove it, recommendation copy, alternatives, transformations, and tests.
@@ -259,4 +267,5 @@ export type Receipt = {
     transformations: readonly TransformationBlock[];
     testsTitle: string;
     tests: readonly StatTest[];
+    readonly overrides: ReadonlyArray<OverrideEvent>;
 };
