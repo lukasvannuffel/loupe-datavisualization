@@ -37,7 +37,7 @@ export const enforceCeiling = (
         };
     }
 
-    const charBudget = intentBudget * CHARS_PER_TOKEN;
+    const charBudget = Math.max(0, intentBudget * CHARS_PER_TOKEN - TRUNCATION_SUFFIX.length);
     const cut = payload.intent.slice(0, charBudget).replace(/\s+\S*$/, "");
     const truncated = `${cut}${TRUNCATION_SUFFIX}`;
 

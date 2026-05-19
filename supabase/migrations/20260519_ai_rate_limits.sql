@@ -13,6 +13,9 @@ create index if not exists ai_rate_limits_actor_window
 
 alter table public.ai_rate_limits enable row level security;
 
+-- Idempotent so re-applying the migration during development doesn't fail.
+drop policy if exists "no client access" on public.ai_rate_limits;
+
 create policy "no client access" on public.ai_rate_limits
   for all
   using (false);

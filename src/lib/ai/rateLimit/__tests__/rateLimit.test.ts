@@ -8,13 +8,17 @@ const ACTOR = "user:test-actor" as ActorKey;
 const selectMock = vi.fn();
 const insertMock = vi.fn();
 
-vi.mock("@/utils/supabase/admin", () => ({
-    createSupabaseAdminClient: () => ({
+const createSupabaseAdminClientMock = vi.hoisted(() =>
+    vi.fn(() => ({
         from: () => ({
             insert: insertMock,
             select: selectMock,
         }),
-    }),
+    })),
+);
+
+vi.mock("@/utils/supabase/admin", () => ({
+    createSupabaseAdminClient: createSupabaseAdminClientMock,
 }));
 
 const chainSelect = (rows: { called_at: string }[]) => {
@@ -33,6 +37,12 @@ describe("checkAndRecord", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         insertMock.mockResolvedValue({ error: null });
+        createSupabaseAdminClientMock.mockImplementation(() => ({
+            from: () => ({
+                insert: insertMock,
+                select: selectMock,
+            }),
+        }));
         vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
@@ -103,6 +113,21 @@ describe("checkAndRecord", () => {
 
         expect(result).toEqual({ allowed: true, remaining: 20 });
         expect(console.error).toHaveBeenCalled();
+        expect(insertMock).not.toHaveBeenCalled();
+    });
+
+    it("fails open when admin client cannot be created", async () => {
+        createSupabaseAdminClientMock.mockImplementationOnce(() => {
+            throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+        });
+
+        const result = await checkAndRecord(ACTOR);
+
+        expect(result).toEqual({ allowed: true, remaining: 20 });
+        expect(console.error).toHaveBeenCalledWith(
+            "[ai] rate limit admin client unavailable",
+            expect.any(Error),
+        );
         expect(insertMock).not.toHaveBeenCalled();
     });
 

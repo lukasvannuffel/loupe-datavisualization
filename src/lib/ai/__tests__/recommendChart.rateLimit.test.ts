@@ -1,3 +1,5 @@
+// Mocked Supabase. Real-DB integration coverage relies on the manual verification walk in docs/AI_GATEWAY_SETUP.md.
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ResolvedEnv } from "@/lib/ai/client.types";

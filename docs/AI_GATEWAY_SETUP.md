@@ -44,9 +44,13 @@ Requires `AI_GATEWAY_API_KEY` in `.env.local`.
 
 **IP detection (Vercel):** `x-forwarded-for` (first comma-separated value), then `x-real-ip`, then `"unknown"`.
 
+- Anonymous requests without any forwarding header share a single rate-limit bucket (hash of `unknown`). Real deployments behind Vercel always have `x-forwarded-for` set, so this is a fallback for local development or unusual proxy chains.
+
 **Storage:** Supabase table `public.ai_rate_limits` (`actor_key`, `called_at`). RLS denies all client access; only the service role used in `recommendChart` can read/write.
 
 **Cache:** Client-side recommendation cache hits do not call `recommendChart` and therefore do not consume rate-limit quota.
+
+**Gateway before rate limit:** `getEnv()` runs before `checkAndRecord()`. A missing `AI_GATEWAY_API_KEY` returns `MISSING_ENV` without inserting a rate-limit row.
 
 ### View activity
 
@@ -100,3 +104,11 @@ supabase db reset
 ```
 
 Migration file: `supabase/migrations/20260519_ai_rate_limits.sql`.
+
+## Manual verification walk
+
+1. Unset `AI_GATEWAY_API_KEY` → trigger recommendation → `MISSING_ENV`; confirm zero new rows in `ai_rate_limits`.
+2. Restore key → paste a ~25,000-character intent → success; server log shows `intentTruncated: true`.
+3. Trigger rate limit (20 uncached calls) → error card: Try again disabled, Pick chart manually enabled; message includes minutes.
+4. Re-apply migration (`supabase db reset` or re-run SQL) → no policy-already-exists error.
+5. At 380px viewport, confirm error card buttons stack and message wraps.

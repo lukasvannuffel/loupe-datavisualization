@@ -375,10 +375,12 @@ describe("UploadMap", () => {
         await waitFor(() => {
             expect(screen.getByText(/Too many recommendations/i)).toBeTruthy();
         });
-        const tryAgain = screen.getByRole("button", { name: /Try again/i }) as HTMLButtonElement;
-        const manual = screen.getByRole("button", { name: /Pick chart manually/i }) as HTMLButtonElement;
-        expect(tryAgain.disabled).toBe(true);
-        expect(manual.disabled).toBe(false);
+        const tryAgain = screen.getByRole("button", { name: /Try again/i });
+        const manual = screen.getByRole("button", { name: /Pick chart manually/i });
+        expect(tryAgain).toBeDisabled();
+        expect(manual).not.toBeDisabled();
+        expect(continueButton().disabled).toBe(true);
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
     });
 
     it("shows error card and Try again on upstream failure", async () => {

@@ -66,11 +66,14 @@ export const UploadMap = (): JSX.Element => {
 
     const phiBlocks = phi.length > 0 && !sentAnywayConfirmed;
 
+    const rateLimited = state.status === "error" && state.code === "RATE_LIMITED";
+
     const continueDisabled =
         phiBlocks ||
         validation.status !== "valid" ||
         intent.trim().length === 0 ||
-        state.status === "loading";
+        state.status === "loading" ||
+        rateLimited;
 
     const handleContinue = (): void => {
         void run(payload);
