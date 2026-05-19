@@ -359,6 +359,30 @@ describe("UploadMap", () => {
         expect(continueButton().disabled).toBe(true);
     });
 
+    it("disables Try again when rate limited but keeps Pick chart manually enabled", async () => {
+        seedDataset(KM_DATASET);
+        recommendChartMock.mockResolvedValueOnce({
+            code: "RATE_LIMITED",
+            message: "Too many recommendations in the last hour. Try again in 45 minutes.",
+            ok: false,
+        });
+        renderPage();
+        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
+        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
+        await act(async () => {
+            continueButton().click();
+        });
+        await waitFor(() => {
+            expect(screen.getByText(/Too many recommendations/i)).toBeTruthy();
+        });
+        const tryAgain = screen.getByRole("button", { name: /Try again/i });
+        const manual = screen.getByRole("button", { name: /Pick chart manually/i });
+        expect(tryAgain).toBeDisabled();
+        expect(manual).not.toBeDisabled();
+        expect(continueButton().disabled).toBe(true);
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
+    });
+
     it("shows error card and Try again on upstream failure", async () => {
         seedDataset(KM_DATASET);
         recommendChartMock.mockResolvedValueOnce({

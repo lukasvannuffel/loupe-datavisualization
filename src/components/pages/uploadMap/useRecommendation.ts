@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { recommendChart } from "@/lib/ai/recommendChart";
 import type { RecommendPayload, RecommendResult } from "@/lib/ai/recommendChart.types";
@@ -21,10 +21,9 @@ export const useRecommendation = (
     options?: Options,
 ): { readonly reset: () => void; readonly run: (payload: RecommendPayload) => Promise<void>; readonly state: RecommendationState } => {
     const [state, setState] = useState<RecommendationState>({ status: "idle" });
+    const rateLimitedRef = useRef(false);
 
     const run = async (payload: RecommendPayload): Promise<void> => {
-        // Cache hits skip a visible loading frame by design — React batches loading→success, and the cached path is sub-100ms.
-        setState({ fromCache: false, status: "loading" });
         const cached = await getCacheEntry(payload);
         if (cached.ok) {
             setState({
@@ -36,6 +35,13 @@ export const useRecommendation = (
             options?.onSuccess?.(cached.entry.receipt, cached.entry.chartKind, true);
             return;
         }
+
+        if (rateLimitedRef.current) {
+            return;
+        }
+
+        setState({ fromCache: false, status: "loading" });
+
         const result: RecommendResult = await recommendChart(payload);
         if (result.ok) {
             await setCacheEntry(payload, result.receipt, result.chartType, result.costEstimateEur);
@@ -48,8 +54,16 @@ export const useRecommendation = (
             options?.onSuccess?.(result.receipt, result.chartType, false);
             return;
         }
+        rateLimitedRef.current = result.code === "RATE_LIMITED";
         setState({ code: result.code, message: result.message, status: "error" });
     };
 
-    return { reset: () => setState({ status: "idle" }), run, state };
+    return {
+        reset: () => {
+            rateLimitedRef.current = false;
+            setState({ status: "idle" });
+        },
+        run,
+        state,
+    };
 };

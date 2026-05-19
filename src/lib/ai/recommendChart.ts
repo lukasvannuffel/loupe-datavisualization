@@ -1,22 +1,26 @@
 "use server";
 
+// File budget: keep this module under 160 lines.
+
 import { generateObject } from "ai";
 import type { ZodError } from "zod";
 
 import type { Receipt } from "@/lib/chartSpec/types";
 
+import { getDailyTokenTotal, recordInputTokens } from "./budget/dailyTokenCounter";
+import { enforceCeiling } from "./budget/tokenBudget";
 import { createGatewayLanguageModel, getEnv } from "./client";
-import { PRICING_PER_MILLION_USD, USD_TO_EUR } from "./recommendChart.pricing";
+import { estimateCostEur } from "./recommendChart.pricing";
 import {
     aiResponseSchema,
     FORBIDDEN_PAYLOAD_REFINE_MESSAGE,
     payloadSchema,
 } from "./recommendChart.schemas";
-import type { RecommendInput, RecommendResult } from "./recommendChart.types";
+import type { RecommendInput, RecommendPayload, RecommendResult } from "./recommendChart.types";
+import { resolveActorKey } from "./rateLimit/actorKey";
+import { checkAndRecord } from "./rateLimit/rateLimit";
 import { SYSTEM_PROMPT } from "./prompts/recommend.system";
 import { buildUserPrompt } from "./prompts/recommend.user";
-
-const FALLBACK_PRICING_MODEL = "anthropic/claude-sonnet-4.6";
 
 const isPrivacyPayloadFailure = (error: ZodError): boolean =>
     error.issues.some(
@@ -24,24 +28,6 @@ const isPrivacyPayloadFailure = (error: ZodError): boolean =>
             issue.code === "unrecognized_keys" ||
             (issue.code === "custom" && issue.message === FORBIDDEN_PAYLOAD_REFINE_MESSAGE),
     );
-
-const estimateCostEur = (
-    usage: { inputTokens?: number; outputTokens?: number } | undefined,
-    model: string,
-): number => {
-    let rates = PRICING_PER_MILLION_USD[model];
-
-    if (rates === undefined) {
-        // TODO(LOUPE-26): Centralize pricing table when multi-model routing lands.
-        console.warn("[ai] unknown model for cost estimate — using fallback Sonnet 4 rates", model);
-        rates = PRICING_PER_MILLION_USD[FALLBACK_PRICING_MODEL]!;
-    }
-
-    const inputUsd = ((usage?.inputTokens ?? 0) / 1_000_000) * rates.input;
-    const outputUsd = ((usage?.outputTokens ?? 0) / 1_000_000) * rates.output;
-
-    return (inputUsd + outputUsd) * USD_TO_EUR;
-};
 
 export const recommendChart = async (input: RecommendInput): Promise<RecommendResult> => {
     const parsed = payloadSchema.safeParse(input);
@@ -66,6 +52,31 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
         return { ok: false, code: "MISSING_ENV", message: "AI gateway is not configured." };
     }
 
+    const actorKey = await resolveActorKey();
+    const limit = await checkAndRecord(actorKey);
+
+    if (!limit.allowed) {
+        const minutes = Math.ceil(limit.retryAfterSeconds / 60);
+
+        return {
+            ok: false,
+            code: "RATE_LIMITED",
+            message: `Too many recommendations in the last hour. Try again in ${minutes} minutes.`,
+        };
+    }
+
+    const budget = enforceCeiling(SYSTEM_PROMPT, parsed.data);
+    const safePayload: RecommendPayload = budget.truncated
+        ? { ...parsed.data, intent: budget.intent }
+        : parsed.data;
+
+    if (budget.truncated) {
+        console.info("[ai] intent truncated for token budget", {
+            intentFinalTokens: budget.finalTokens,
+            intentOriginalTokens: budget.originalTokens,
+        });
+    }
+
     const model = createGatewayLanguageModel(env);
     const startedAt = Date.now();
 
@@ -74,7 +85,7 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
             abortSignal: AbortSignal.timeout(30_000),
             maxOutputTokens: 1200,
             model,
-            prompt: buildUserPrompt(parsed.data),
+            prompt: buildUserPrompt(safePayload),
             schema: aiResponseSchema,
             system: SYSTEM_PROMPT,
         });
@@ -91,18 +102,26 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
             };
         }
 
-        const latencyMs = Date.now() - startedAt;
+        const inputTokens = result.usage.inputTokens ?? 0;
 
+        recordInputTokens(inputTokens);
+
+        // dailyTokenTotal is approximate — per-process counter, resets on cold start. Real daily totals: Vercel AI Gateway dashboard.
         console.info("[ai] recommend", {
-            inputTokens: result.usage.inputTokens,
-            latencyMs,
+            actorKey,
+            dailyTokenTotal: getDailyTokenTotal(),
+            inputTokens,
+            intentFinalTokens: budget.finalTokens,
+            intentOriginalTokens: budget.originalTokens,
+            intentTruncated: budget.truncated,
+            latencyMs: Date.now() - startedAt,
             model: env.model,
             outputTokens: result.usage.outputTokens,
         });
 
         const receipt: Receipt = {
             alternatives: ai.data.alternatives,
-            intent: parsed.data.intent,
+            intent: safePayload.intent,
             overrides: [],
             recommendation: ai.data.recommendation,
             selectionMode: "ai",

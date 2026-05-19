@@ -105,6 +105,30 @@ describe("useRecommendation", () => {
         expect(setCacheEntryMock).not.toHaveBeenCalled();
     });
 
+    it("does not call recommendChart again while rate limited", async () => {
+        recommendChartMock.mockResolvedValueOnce({
+            code: "RATE_LIMITED",
+            message: "Too many recommendations in the last hour. Try again in 45 minutes.",
+            ok: false,
+        });
+        getCacheEntryMock.mockResolvedValue({ ok: false });
+
+        const { result } = renderHook(() => useRecommendation());
+
+        await act(async () => {
+            await result.current.run(basePayload);
+        });
+        await act(async () => {
+            await result.current.run(basePayload);
+        });
+
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        expect(result.current.state).toMatchObject({
+            code: "RATE_LIMITED",
+            status: "error",
+        });
+    });
+
     it("hits cache without calling recommendChart and flags fromCache", async () => {
         const r = successReceipt();
         getCacheEntryMock.mockResolvedValueOnce({
