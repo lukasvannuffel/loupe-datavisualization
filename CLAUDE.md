@@ -20,6 +20,20 @@ npm run smoke:ai     # real network ping of the AI gateway (needs .env.local)
 
 Run a single test file: `npx vitest run src/lib/parser/__tests__/parseCsv.test.ts`
 
+## Mutation-verify discipline
+
+When mutation-verifying a test:
+
+1. State the mutation before applying it.
+2. Apply the mutation.
+3. Run the test. Confirm red.
+4. REVERT immediately. Run the test. Confirm green.
+5. Report all four steps in the verification log, in order.
+
+If a mutation drill cannot be reverted cleanly (e.g., requires a git stash that another change overwrote), STOP and report. Do not continue. The integrity of the codebase outranks completing the drill.
+
+Final commit MUST contain the unmutated code. If a mutation is in the final diff, the drill was not completed.
+
 ## Architecture
 
 **Loupe** is a medical/scientific data-visualization wizard. Users upload a dataset, map columns to typed roles, get a chart recommendation (AI or manual), and export a reproducible chart with a provenance receipt.
