@@ -96,3 +96,13 @@ export const createDefaultChartSpec = (
     seed?: { readonly id?: string; readonly createdAt?: string },
 ): ChartSpec =>
     FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
+
+/** Minimal default `BarErrorSpec` for renderer smoke tests and pages without a saved spec. */
+export const defaultBarErrorSpec = (): BarErrorSpec => {
+    const spec = createDefaultChartSpec("barError");
+    if (spec.kind !== "barError") {
+        throw new Error("createDefaultChartSpec(barError) returned unexpected kind");
+    }
+
+    return spec;
+};

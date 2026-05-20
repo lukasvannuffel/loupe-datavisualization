@@ -7,7 +7,7 @@ import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
-import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
+import type { ChartSpec, PlotData, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
 import { RecommendationOverride } from "./RecommendationOverride";
@@ -16,13 +16,17 @@ import { RecommendationWhy } from "./RecommendationWhy";
 export type RecommendationProps = {
     readonly chartKind: ChartSpec["kind"];
     readonly fromCache: boolean;
+    readonly plotData: PlotData;
     readonly receipt: Receipt;
+    readonly spec: ChartSpec;
 };
 
 export const Recommendation = ({
     chartKind,
     fromCache,
+    plotData,
     receipt,
+    spec,
 }: RecommendationProps): JSX.Element => {
     const router = useRouter();
     const { appendOverride, intent, setSelectionMode } = useAppState();
@@ -133,7 +137,7 @@ export const Recommendation = ({
                             ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    <ChartRenderer kind={chartKind} />
+                                    <ChartRenderer plotData={plotData} spec={spec} />
                                 </div>
                             ) : (
                                 <div className="rec-chart-frame-loading">

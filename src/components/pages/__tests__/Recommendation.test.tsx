@@ -3,7 +3,8 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OverrideEvent, Receipt } from "@/lib/chartSpec/types";
+import { createDefaultChartSpec, mockPlotDataFromInferences } from "@/lib/chartSpec";
+import type { ChartSpec, OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 
 import { Recommendation } from "../Recommendation";
 
@@ -34,6 +35,25 @@ vi.mock("@/app/providers", () => ({
 vi.mock("@/components/charts/PublicationKM", () => ({
     PublicationKM: (): JSX.Element => <div data-testid="publication-km">Kaplan–Meier</div>,
 }));
+
+vi.mock("@/components/charts/d3/BarErrorChart", () => ({
+    BarErrorChart: (): JSX.Element => <div data-testid="bar-error-chart">Bar with errors</div>,
+}));
+
+const chartRenderProps = (
+    chartKind: ChartSpec["kind"],
+    receipt: Receipt,
+    fromCache = false,
+) => ({
+    chartKind,
+    fromCache,
+    receipt,
+    spec: createDefaultChartSpec(chartKind, {
+        id: "spec-test",
+        createdAt: "2026-05-20T10:00:00.000Z",
+    }),
+    plotData: mockPlotDataFromInferences([], chartKind),
+});
 
 const sampleReceipt = (overrides: readonly OverrideEvent[] = []): Receipt => ({
     alternatives: [],
@@ -91,7 +111,7 @@ describe("Recommendation", () => {
     });
 
     it("renders receipt sections", () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         expect(document.body.textContent).toContain("Compare arms");
         expect(screen.getByText("Headline.")).toBeTruthy();
         expect(screen.getByText(/Log-rank/)).toBeTruthy();
@@ -99,15 +119,15 @@ describe("Recommendation", () => {
 
     it("shows cached badge only when fromCache is true", () => {
         const { rerender } = render(
-            <Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />,
+            <Recommendation {...chartRenderProps("km", sampleReceipt())} />,
         );
         expect(screen.queryByText(/cached · instant/i)).toBeNull();
-        rerender(<Recommendation chartKind="km" fromCache={true} receipt={sampleReceipt()} />);
+        rerender(<Recommendation {...chartRenderProps("km", sampleReceipt(), true)} />);
         expect(screen.getByText(/cached · instant/i)).toBeTruthy();
     });
 
     it("runs phase timers: dissolve, chart reveal, then why panel", async () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         const intentRoot = document.querySelector(".rec-intent");
         expect(intentRoot).not.toBeNull();
         const firstWord = intentRoot?.querySelector(".rec-word");
@@ -131,7 +151,7 @@ describe("Recommendation", () => {
 
     it("does not update phase after unmount mid-sequence", async () => {
         const err = vi.spyOn(console, "error").mockImplementation(() => {});
-        const { unmount } = render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        const { unmount } = render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await act(async () => {
             vi.advanceTimersByTime(500);
         });
@@ -144,21 +164,21 @@ describe("Recommendation", () => {
     });
 
     it("renders PublicationKM for km after chart phase", async () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
         expect(screen.getByTestId("publication-km")).toBeTruthy();
         expect(screen.queryByText(/renderer coming soon/i)).toBeNull();
     });
 
     it("renders PlaceholderRenderer for non-km kinds after chart phase", async () => {
-        render(<Recommendation chartKind="box" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("box", sampleReceipt())} />);
         await advanceToChartPhase();
         expect(screen.queryByTestId("publication-km")).toBeNull();
         expect(screen.getByText(/Box plot renderer coming soon/i)).toBeTruthy();
     });
 
     it("does not show override badge when overrides is empty", async () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
         expect(screen.queryByRole("status")).toBeNull();
     });
@@ -169,7 +189,7 @@ describe("Recommendation", () => {
             { at: "2026-05-19T14:25:00.000Z", from: "box", to: "xy" },
         ];
         render(
-            <Recommendation chartKind="xy" fromCache={false} receipt={sampleReceipt(overrides)} />,
+            <Recommendation {...chartRenderProps("xy", sampleReceipt(overrides))} />,
         );
         await advanceToChartPhase();
         const badge = screen.getByRole("status", { name: /Chart overridden/i });
@@ -180,7 +200,7 @@ describe("Recommendation", () => {
     });
 
     it("calls appendOverride when selecting a different chart in the override shell", async () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
         fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
         fireEvent.click(screen.getByRole("button", { name: /Box plot/i }));
@@ -193,7 +213,7 @@ describe("Recommendation", () => {
 
     it("calls appendOverride with reason when clicking Use instead on an alternative", async () => {
         render(
-            <Recommendation chartKind="km" fromCache={false} receipt={receiptWithBarAlt()} />,
+            <Recommendation {...chartRenderProps("km", receiptWithBarAlt())} />,
         );
         await advanceToWhyPhase();
         fireEvent.click(screen.getByRole("button", { name: /Use instead/i }));
@@ -209,7 +229,7 @@ describe("Recommendation", () => {
     });
 
     it("does not call appendOverride when selecting the current chart", async () => {
-        render(<Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />);
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
         fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
         fireEvent.click(screen.getByRole("button", { name: /Kaplan–Meier/i }));
@@ -218,7 +238,7 @@ describe("Recommendation", () => {
 
     it("updates placeholder and badge after override via rerender", async () => {
         const { rerender } = render(
-            <Recommendation chartKind="km" fromCache={false} receipt={sampleReceipt()} />,
+            <Recommendation {...chartRenderProps("km", sampleReceipt())} />,
         );
         await advanceToChartPhase();
         fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
@@ -229,7 +249,7 @@ describe("Recommendation", () => {
             to: "box",
         };
         rerender(
-            <Recommendation chartKind="box" fromCache={false} receipt={sampleReceipt([event])} />,
+            <Recommendation {...chartRenderProps("box", sampleReceipt([event]))} />,
         );
         expect(screen.getByText(/Box plot renderer coming soon/i)).toBeTruthy();
         expect(screen.getByRole("status", { name: /Chart overridden/i })).toBeTruthy();
@@ -242,7 +262,7 @@ describe("Recommendation", () => {
             to: "box",
         };
         const { rerender } = render(
-            <Recommendation chartKind="box" fromCache={false} receipt={sampleReceipt([first])} />,
+            <Recommendation {...chartRenderProps("box", sampleReceipt([first]))} />,
         );
         await advanceToChartPhase();
         fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
@@ -256,11 +276,7 @@ describe("Recommendation", () => {
             to: "km",
         };
         rerender(
-            <Recommendation
-                chartKind="km"
-                fromCache={false}
-                receipt={sampleReceipt([first, second])}
-            />,
+            <Recommendation {...chartRenderProps("km", sampleReceipt([first, second]))} />,
         );
         expect(screen.getByRole("status", { name: /Chart overridden/i })).toBeTruthy();
     });
