@@ -27,5 +27,9 @@ export const ChartRenderer = ({ spec, plotData }: Props): JSX.Element => {
         case "box":
         case "xy":
             return <PlaceholderRenderer kind={spec.kind} />;
+        default: {
+            const _exhaustive: never = spec;
+            return _exhaustive;
+        }
     }
 };

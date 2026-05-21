@@ -1,11 +1,40 @@
 // @vitest-environment happy-dom
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BarErrorPlotData, BarErrorSpec } from "@/lib/chartSpec/types";
 
-import { BarErrorChart } from "../BarErrorChart";
+import { BarErrorChart, barErrorChartRenderCountForTest } from "../BarErrorChart";
+import * as useResizeObserverModule from "../useResizeObserver";
+
+const scaleLinearDomainCalls: number[][] = [];
+
+vi.mock("d3-scale", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("d3-scale")>();
+
+    return {
+        ...actual,
+        scaleLinear: () => {
+            const scale = actual.scaleLinear();
+            const baseDomain = scale.domain.bind(scale);
+            scale.domain = ((domain?: ReadonlyArray<number> | number) => {
+                if (Array.isArray(domain)) {
+                    scaleLinearDomainCalls.push([...domain]);
+                }
+
+                if (domain === undefined) {
+                    return baseDomain();
+                }
+
+                return baseDomain(domain as Parameters<typeof baseDomain>[0]);
+            }) as typeof scale.domain;
+
+            return scale;
+        },
+    };
+});
 
 type ObserverCallback = (entries: ResizeObserverEntry[]) => void;
 
@@ -62,8 +91,13 @@ const installResizeObserver = (size?: { readonly width: number; readonly height:
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
 };
 
+const stableSpec: BarErrorSpec = spec;
+const stableData: BarErrorPlotData = threeCategories;
+
 describe("BarErrorChart", () => {
     beforeEach(() => {
+        barErrorChartRenderCountForTest.value = 0;
+        scaleLinearDomainCalls.length = 0;
         installResizeObserver();
         vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
             cb(0);
@@ -74,6 +108,63 @@ describe("BarErrorChart", () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+    });
+
+    // Validates React Compiler memoization on stable props — acceptance criterion of LOUPE-10.
+    it("does not re-render when parent state changes but spec and data stay referentially stable", async () => {
+        const stableDims = { width: 400, height: 250 };
+        vi.spyOn(useResizeObserverModule, "useResizeObserver").mockReturnValue([
+            { current: null },
+            stableDims,
+        ]);
+
+        const Parent = (): JSX.Element => {
+            const [counter, setCounter] = useState(0);
+
+            return (
+                <div>
+                    <BarErrorChart data={stableData} spec={stableSpec} />
+                    <button type="button" onClick={() => setCounter((c) => c + 1)}>
+                        {counter}
+                    </button>
+                </div>
+            );
+        };
+
+        const { getByRole } = render(<Parent />);
+
+        await waitFor(() => {
+            expect(document.querySelector("rect.bar")).not.toBeNull();
+        });
+
+        expect(barErrorChartRenderCountForTest.value).toBe(1);
+
+        fireEvent.click(getByRole("button"));
+        fireEvent.click(getByRole("button"));
+        fireEvent.click(getByRole("button"));
+
+        expect(barErrorChartRenderCountForTest.value).toBe(1);
+    });
+
+    it("gives all-negative categories headroom above the largest mean", async () => {
+        const allNegativeData: BarErrorPlotData = {
+            kind: "barError",
+            categories: [
+                { label: "A", mean: -5, error: 1, n: 10 },
+                { label: "B", mean: -8, error: 1.5, n: 12 },
+            ],
+        };
+        const maxMean = Math.max(...allNegativeData.categories.map((c) => c.mean));
+
+        render(<BarErrorChart data={allNegativeData} spec={spec} />);
+
+        await waitFor(() => {
+            expect(scaleLinearDomainCalls.length).toBeGreaterThan(0);
+        });
+
+        const domainTop = scaleLinearDomainCalls.at(-1)?.[1];
+        expect(domainTop).toBeDefined();
+        expect(domainTop as number).toBeGreaterThan(maxMean);
     });
 
     it("renders bars, error lines, axis labels, and aria-label", async () => {
@@ -221,6 +312,24 @@ describe("BarErrorChart", () => {
                 "rotate(-35)",
             );
         });
+    });
+
+    it("renders negative means upward from the zero baseline", async () => {
+        const negative: BarErrorPlotData = {
+            kind: "barError",
+            categories: [{ label: "Loss", mean: -5, error: 1, n: 10 }],
+        };
+        const { container } = render(<BarErrorChart data={negative} spec={spec} />);
+
+        await waitFor(() => {
+            expect(container.querySelector("rect.bar")).not.toBeNull();
+        });
+
+        const bar = container.querySelector("rect.bar");
+        const y = Number(bar?.getAttribute("y"));
+        const height = Number(bar?.getAttribute("height"));
+        expect(height).toBeGreaterThan(0);
+        expect(y + height).toBeLessThanOrEqual(250);
     });
 
     it("binds svg width, height, and viewBox to measured dimensions", async () => {

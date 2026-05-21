@@ -2,9 +2,9 @@
 
 import { max, min } from "d3-array";
 import { scaleBand, scaleLinear } from "d3-scale";
-import type { ScaleBand, ScaleLinear } from "d3-scale";
+import type { ScaleLinear } from "d3-scale";
 import { select } from "d3-selection";
-import { useEffect } from "react";
+import { memo, useEffect, useLayoutEffect } from "react";
 
 import type { BarErrorPlotData, BarErrorSpec } from "@/lib/chartSpec/types";
 
@@ -15,28 +15,13 @@ import { useResizeObserver } from "./useResizeObserver";
 
 type Props = { readonly spec: BarErrorSpec; readonly data: BarErrorPlotData };
 
-const resolveCategories = (
-    categories: BarErrorPlotData["categories"],
-    xScale: ScaleBand<string>,
-): BarErrorPlotData["categories"] => {
-    const dropped: string[] = [];
-    const seen = new Set<string>();
-    const resolved = categories.filter((c) => {
-        if (seen.has(c.label) || xScale(c.label) === undefined) {
-            dropped.push(c.label);
-            return false;
-        }
-        seen.add(c.label);
-        return true;
-    });
-    if (process.env.NODE_ENV !== "production" && dropped.length > 0) {
-        console.warn(`BarErrorChart: dropped categories: ${[...new Set(dropped)].join(", ")}`);
-    }
-    return resolved;
-};
+export const barErrorChartRenderCountForTest = { value: 0 };
 
-export const BarErrorChart = ({ spec, data }: Props): JSX.Element => {
+const BarErrorChartInner = ({ spec, data }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
+    useLayoutEffect(() => {
+        barErrorChartRenderCountForTest.value += 1;
+    });
 
     useEffect(() => {
         if (!dims || !containerRef.current) {
@@ -64,12 +49,24 @@ export const BarErrorChart = ({ spec, data }: Props): JSX.Element => {
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         const domain = [...new Set(data.categories.map((c) => c.label))];
         const xScale = scaleBand<string>().domain(domain).range([0, innerWidth]).padding(0.25);
-        const resolved = resolveCategories(data.categories, xScale);
+        const dropped: string[] = [];
+        const seen = new Set<string>();
+        const resolved = data.categories.filter((c) => {
+            if (seen.has(c.label) || xScale(c.label) === undefined) {
+                dropped.push(c.label);
+                return false;
+            }
+            seen.add(c.label);
+            return true;
+        });
+        if (process.env.NODE_ENV !== "production" && dropped.length > 0) {
+            console.warn(`BarErrorChart: dropped categories: ${[...new Set(dropped)].join(", ")}`);
+        }
+        const yLo = Math.min(0, min(resolved, (c) => c.mean - c.error) ?? 0);
+        const yHi = Math.max(0, max(resolved, (c) => c.mean + c.error) ?? 0);
+        const ySpan = Math.max(yHi - yLo, 1e-6);
         const yScale: ScaleLinear<number, number> = scaleLinear()
-            .domain([
-                Math.min(0, min(resolved, (c) => c.mean - c.error) ?? 0),
-                (max(resolved, (c) => c.mean + c.error) ?? 0) * 1.1,
-            ])
+            .domain([yLo - ySpan * 0.05, yHi + ySpan * 0.1])
             .range([innerHeight, 0])
             .nice();
         const baselineY = yScale(0);
@@ -111,8 +108,7 @@ export const BarErrorChart = ({ spec, data }: Props): JSX.Element => {
         });
 
         applyAxes({ svg: svgEl, dimensions: dims, margin, innerWidth, innerHeight }, xScale, yScale, tokens);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- ref identity must not retrigger D3
-    }, [spec, data, dims]);
+    }, [spec, data, dims, containerRef]);
 
     return (
         <div ref={containerRef} style={{ width: "100%", minHeight: 240 }}>
@@ -120,3 +116,5 @@ export const BarErrorChart = ({ spec, data }: Props): JSX.Element => {
         </div>
     );
 };
+
+export const BarErrorChart = memo(BarErrorChartInner);

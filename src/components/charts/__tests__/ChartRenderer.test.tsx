@@ -91,6 +91,7 @@ describe("ChartRenderer", () => {
         expect(screen.getByTestId("placeholder")).toHaveTextContent("xy");
     });
 
+    // The actual exhaustiveness guard is the `never` default in ChartRenderer.tsx — verified by tsc failing if a new ChartSpec kind is added without updating the switch. This test documents the contract, not the enforcement.
     it("dispatches only on the four ChartSpec kinds", () => {
         expectTypeOf<ChartSpec["kind"]>().toEqualTypeOf<"km" | "barError" | "box" | "xy">();
     });
