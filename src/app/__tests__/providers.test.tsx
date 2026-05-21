@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppStateProvider, useAppState, type SelectionMode } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import { brandRows } from "@/lib/parser/types";
 import type { Receipt } from "@/lib/chartSpec/types";
 
 const VALID: ColumnInference = {
@@ -33,9 +34,13 @@ beforeEach(() => {
 describe("AppStateProvider hydration", () => {
     it("accepts a well-formed persisted dataset", () => {
         window.sessionStorage.setItem("loupe.dataset", JSON.stringify([VALID]));
+        window.sessionStorage.setItem("loupe.datasetRows", JSON.stringify([{ age: "1" }]));
         const { result } = renderHook(() => useAppState(), { wrapper });
         expect(result.current.hydrated).toBe(true);
-        expect(result.current.dataset).toEqual([VALID]);
+        expect(result.current.dataset).toEqual({
+            inferences: [VALID],
+            rows: brandRows([{ age: "1" }]),
+        });
     });
 
     it("drops a malformed persisted dataset and removes the key", () => {

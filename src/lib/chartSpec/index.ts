@@ -1,6 +1,6 @@
 export type {
     AlternativeBlock,
-    BarErrorCategory,
+    BarErrorGroupStats,
     BarErrorPlotData,
     BarErrorSpec,
     BaseSpec,
@@ -31,4 +31,11 @@ export type {
 export { MANUAL_SELECTION_NOTE, manualSelectionNoteFor } from "./types";
 export { chartSpecSchema, plotDataSchema, receiptSchema } from "./schemas";
 export { createDefaultChartSpec, defaultBarErrorSpec } from "./factory";
-export { mockPlotDataFromInferences } from "./mockPlotData";
+export { aggregateBarError } from "./aggregators/barError";
+export type {
+    BarErrorAggregation,
+    ErrorBarType,
+    GroupStats,
+    MissingDataInfo,
+} from "./aggregators/barError.types";
+export { computeErrorBar, inferErrorTypeFromReceipt, Z_95 } from "./aggregators/errorBars";
