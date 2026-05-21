@@ -12,6 +12,7 @@ const push = vi.fn();
 const replace = vi.fn();
 const appendOverride = vi.fn();
 const setSelectionMode = vi.fn();
+const updateLatestOverrideReason = vi.fn();
 
 vi.mock("next/navigation", () => ({
     useRouter: (): { push: typeof push; replace: typeof replace } => ({
@@ -25,10 +26,12 @@ vi.mock("@/app/providers", () => ({
         appendOverride: typeof appendOverride;
         intent: string;
         setSelectionMode: typeof setSelectionMode;
+        updateLatestOverrideReason: typeof updateLatestOverrideReason;
     } => ({
         appendOverride,
         intent: "",
         setSelectionMode,
+        updateLatestOverrideReason,
     }),
 }));
 
@@ -101,6 +104,7 @@ describe("Recommendation", () => {
         vi.useFakeTimers();
         appendOverride.mockClear();
         setSelectionMode.mockClear();
+        updateLatestOverrideReason.mockClear();
         push.mockClear();
         replace.mockClear();
     });
@@ -221,10 +225,10 @@ describe("Recommendation", () => {
         expect(appendOverride).toHaveBeenCalledWith(
             expect.objectContaining({
                 from: "km",
-                reason: "from AI alternatives",
                 to: "barError",
             }),
         );
+        expect(appendOverride.mock.calls[0]?.[0].reason).toBeUndefined();
         expect(appendOverride.mock.calls[0]?.[0].at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
 
@@ -278,6 +282,111 @@ describe("Recommendation", () => {
         rerender(
             <Recommendation {...chartRenderProps("km", sampleReceipt([first, second]))} />,
         );
-        expect(screen.getByRole("status", { name: /Chart overridden/i })).toBeTruthy();
+        expect(screen.queryByRole("status", { name: /Chart overridden/i })).toBeNull();
+        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+    });
+
+    it("shows AI chart name as title when overrides is empty", () => {
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+        expect(document.body.textContent).not.toContain("overridden from");
+    });
+
+    it("shows composite title when display-overridden", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+        ];
+        render(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
+        );
+        const title = screen.getByRole("heading", { level: 3 }).textContent ?? "";
+        expect(title).toContain("Bar chart with error bars");
+        expect(title).toContain("overridden from Kaplan-Meier");
+    });
+
+    it("shows override reason textarea when display-overridden", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+        ];
+        render(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
+        );
+        const textarea = screen.getByPlaceholderText(/note your reasoning/i);
+        expect(textarea).toBeTruthy();
+        expect((textarea as HTMLTextAreaElement).value).toBe("");
+    });
+
+    it("calls updateLatestOverrideReason when typing override reason", async () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+        ];
+        const { rerender } = render(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
+        );
+        const textarea = screen.getByPlaceholderText(/note your reasoning/i);
+        fireEvent.change(textarea, { target: { value: "I prefer comparing means" } });
+        expect(updateLatestOverrideReason).toHaveBeenCalledWith("I prefer comparing means");
+
+        const updated: OverrideEvent[] = [
+            {
+                at: "2026-05-19T14:23:00.000Z",
+                from: "km",
+                reason: "I prefer comparing means",
+                to: "barError",
+            },
+        ];
+        rerender(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(updated))} />,
+        );
+        expect((screen.getByPlaceholderText(/note your reasoning/i) as HTMLTextAreaElement).value).toBe(
+            "I prefer comparing means",
+        );
+    });
+
+    it("composite title uses first override source as original kind", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+            { at: "2026-05-19T14:25:00.000Z", from: "barError", to: "box" },
+        ];
+        render(<Recommendation {...chartRenderProps("box", sampleReceipt(overrides))} />);
+        const title = screen.getByRole("heading", { level: 3 }).textContent ?? "";
+        expect(title).toContain("Box plot");
+        expect(title).toContain("overridden from Kaplan-Meier");
+        expect(title).not.toContain("overridden from Bar chart");
+    });
+
+    it("applies historical rationale class when display-overridden", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+        ];
+        render(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
+        );
+        expect(document.querySelector(".rec-rationale--historical")).toBeTruthy();
+    });
+
+    it("override reason textarea respects maxLength of 500", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+        ];
+        render(
+            <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
+        );
+        const textarea = screen.getByPlaceholderText(/note your reasoning/i) as HTMLTextAreaElement;
+        expect(textarea.maxLength).toBe(500);
+        fireEvent.change(textarea, { target: { value: "x".repeat(501) } });
+        expect(updateLatestOverrideReason).toHaveBeenCalledWith("x".repeat(500));
+    });
+
+    it("treats back-to-original kind as not display-overridden", () => {
+        const overrides: OverrideEvent[] = [
+            { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
+            { at: "2026-05-19T14:25:00.000Z", from: "barError", to: "km" },
+        ];
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt(overrides))} />);
+        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+        expect(document.body.textContent).not.toContain("overridden from");
+        expect(screen.queryByPlaceholderText(/note your reasoning/i)).toBeNull();
+        expect(screen.queryByRole("status", { name: /Chart overridden/i })).toBeNull();
     });
 });

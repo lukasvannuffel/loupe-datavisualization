@@ -57,6 +57,7 @@ type AppState = {
     readonly receipt: Receipt | null;
     readonly setReceipt: (next: Receipt | null) => void;
     readonly appendOverride: (event: OverrideEvent) => void;
+    readonly updateLatestOverrideReason: (reason: string) => void;
     readonly chartKind: ChartSpec["kind"] | null;
     readonly setChartKind: (next: ChartSpec["kind"] | null) => void;
     readonly chartSlug: ChartSlug | null;
@@ -259,6 +260,30 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         [setChartKind],
     );
 
+    // Only updates the most recent override event — correct for "why did you override this time."
+    const updateLatestOverrideReason = useCallback((reason: string): void => {
+        setReceiptState((prev) => {
+            if (prev === null || prev.overrides.length === 0) {
+                return prev;
+            }
+            const updated = [...prev.overrides];
+            const last = updated[updated.length - 1];
+            const trimmed = reason.trim();
+            if (trimmed.length === 0) {
+                const { reason: _dropped, ...withoutReason } = last;
+                updated[updated.length - 1] = withoutReason;
+            } else {
+                updated[updated.length - 1] = { ...last, reason: trimmed.slice(0, 500) };
+            }
+            const next: Receipt = { ...prev, overrides: updated };
+            if (typeof window !== "undefined") {
+                window.sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
+            }
+
+            return next;
+        });
+    }, []);
+
     const setIntent = useCallback((next: string): void => {
         setIntentState(next);
         if (typeof window !== "undefined") {
@@ -390,6 +415,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             receipt,
             setReceipt,
             appendOverride,
+            updateLatestOverrideReason,
             chartKind,
             setChartKind,
             chartSlug,
@@ -414,6 +440,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             receipt,
             setReceipt,
             appendOverride,
+            updateLatestOverrideReason,
             chartKind,
             setChartKind,
             chartSlug,
