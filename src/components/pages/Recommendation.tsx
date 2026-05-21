@@ -10,6 +10,7 @@ import type { ChartSlug } from "@/components/charts/chartPreviews";
 import type { ChartSpec, PlotData, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
+import { getOverrideDisplayState } from "./overrideDisplay";
 import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
 
@@ -29,7 +30,7 @@ export const Recommendation = ({
     spec,
 }: RecommendationProps): JSX.Element => {
     const router = useRouter();
-    const { appendOverride, intent, setSelectionMode } = useAppState();
+    const { appendOverride, intent, setSelectionMode, updateLatestOverrideReason } = useAppState();
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
     const transform = receipt.transformations[0];
@@ -37,7 +38,7 @@ export const Recommendation = ({
     const words = text.split(/(\s+)/);
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
-    const hasOverrides = receipt.overrides.length > 0;
+    const { isDisplayOverridden, title } = getOverrideDisplayState(receipt, chartKind);
 
     useEffect(() => {
         let cancelled = false;
@@ -66,7 +67,6 @@ export const Recommendation = ({
         appendOverride({
             at: new Date().toISOString(),
             from: chartKind,
-            reason: "from AI alternatives",
             to: primaryAlt.slug,
         });
     };
@@ -119,13 +119,13 @@ export const Recommendation = ({
                             <div>
                                 <Eyebrow>Recommended figure</Eyebrow>
                                 <h3 className="rec-chart-title" contentEditable suppressContentEditableWarning>
-                                    {receipt.recommendation.chartName}
+                                    {title}
                                 </h3>
                             </div>
                             <span className="muted mono rec-chart-tag">FIG · DRAFT</span>
                         </div>
                         <div className="rec-chart-frame">
-                            {hasOverrides ? (
+                            {isDisplayOverridden ? (
                                 <span
                                     role="status"
                                     className="rec-override-badge mono muted"
@@ -155,10 +155,12 @@ export const Recommendation = ({
 
                     <RecommendationWhy
                         AltPreview={AltPreview}
+                        isDisplayOverridden={isDisplayOverridden}
                         onUseAlt={onUseAlt}
                         phase={phase}
                         primaryAlt={primaryAlt}
                         receipt={receipt}
+                        updateLatestOverrideReason={updateLatestOverrideReason}
                     />
                 </div>
             </div>

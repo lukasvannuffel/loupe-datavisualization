@@ -238,3 +238,82 @@ describe("AppStateProvider appendOverride", () => {
         expect(reloaded.current.chartKind).toBe("box");
     });
 });
+
+describe("AppStateProvider updateLatestOverrideReason", () => {
+    const SAMPLE_RECEIPT: Receipt = {
+        alternatives: [],
+        intent: "Compare arms",
+        overrides: [],
+        recommendation: {
+            because: "Because.",
+            becauseTitle: "Because",
+            chartName: "Kaplan–Meier curve",
+            handles: "Handles.",
+            handlesTitle: "Handles",
+            headline: "Headline.",
+        },
+        selectionMode: "ai",
+        tests: [],
+        testsTitle: "Tests",
+        transformations: [],
+    };
+
+    const EVENT_1 = {
+        at: "2026-05-19T14:23:00.000Z",
+        from: "km" as const,
+        to: "box" as const,
+    };
+
+    const EVENT_2 = {
+        at: "2026-05-19T14:25:00.000Z",
+        from: "box" as const,
+        to: "xy" as const,
+    };
+
+    it("updates only the last override entry reason", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.appendOverride(EVENT_2));
+        act(() => result.current.updateLatestOverrideReason("test reason"));
+        expect(result.current.receipt?.overrides[0]?.reason).toBeUndefined();
+        expect(result.current.receipt?.overrides[1]?.reason).toBe("test reason");
+    });
+
+    it("no-ops when overrides is empty", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.setReceipt(SAMPLE_RECEIPT));
+        act(() => result.current.updateLatestOverrideReason("test reason"));
+        expect(result.current.receipt?.overrides).toEqual([]);
+    });
+
+    it("omits reason when cleared to empty string", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.updateLatestOverrideReason("note"));
+        act(() => result.current.updateLatestOverrideReason(""));
+        expect(result.current.receipt?.overrides[0]?.reason).toBeUndefined();
+        const stored = window.sessionStorage.getItem("loupe.receipt");
+        expect(JSON.parse(stored!).overrides[0].reason).toBeUndefined();
+    });
+
+    it("persists reason to sessionStorage", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.updateLatestOverrideReason("persisted reason"));
+        const stored = window.sessionStorage.getItem("loupe.receipt");
+        expect(stored).not.toBeNull();
+        expect(JSON.parse(stored!).overrides[0].reason).toBe("persisted reason");
+    });
+});

@@ -1706,6 +1706,36 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     color: var(--ink-2);
     margin: 0;
 }
+
+/* Override-aware rationale styling */
+.rec-section-label--historical {
+    color: var(--muted);
+    font-style: italic;
+}
+.rec-rationale--historical {
+    color: var(--muted);
+    opacity: 0.85;
+}
+.rec-why-block--historical .label {
+    color: var(--muted);
+}
+.rec-override-reason {
+    width: 100%;
+    min-height: 80px;
+    padding: 8px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-3);
+    background: var(--paper);
+    font-family: var(--font-serif);
+    font-size: 14px;
+    resize: vertical;
+    margin: 8px 0 16px;
+}
+.rec-override-reason:focus {
+    outline: none;
+    border-color: var(--amber);
+}
+
 .rec-alt {
     border: 1px solid var(--hairline);
     border-radius: var(--r-3);
