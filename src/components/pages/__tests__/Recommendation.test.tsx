@@ -9,6 +9,7 @@ import type { ChartSpec, OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
 import type { PrivateRows } from "@/lib/parser/types";
 import type { BarErrorAggregation } from "@/lib/chartSpec/aggregators/barError.types";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { Mapping } from "@/lib/roles/types";
 
 import * as barErrorMappingModule from "../recommendation/barErrorMapping";
@@ -27,7 +28,12 @@ vi.mock("next/navigation", () => ({
     }),
 }));
 
-const defaultMapping: Mapping = { group: "arm", outcome: "value" };
+const defaultMapping: Mapping = {
+    event: "event",
+    group: "arm",
+    outcome: "value",
+    time: "time",
+};
 
 vi.mock("@/app/providers", () => ({
     useAppState: (): {
@@ -67,8 +73,40 @@ vi.mock("@/lib/chartSpec/aggregators/barError", () => ({
         aggregateBarErrorMock(rows, mapping),
 }));
 
+vi.mock("@/lib/chartSpec/aggregators/kaplanMeier", () => ({
+    aggregateKaplanMeier: (rows: PrivateRows, mapping: Mapping) =>
+        aggregateKaplanMeierMock(rows, mapping),
+}));
+
 vi.mock("@/components/charts/d3/BarErrorChart", () => ({
     BarErrorChart: (): JSX.Element => <div data-testid="bar-error-chart">Bar with errors</div>,
+}));
+
+vi.mock("@/components/charts/d3/KaplanMeierChart", () => ({
+    KaplanMeierChart: (): JSX.Element => <div data-testid="km-chart">Kaplan–Meier chart</div>,
+}));
+
+const aggregateKaplanMeierMock = vi.fn((_rows: PrivateRows, _mapping: Mapping) => ({
+    groups: [
+        {
+            atRiskTicks: [{ nAtRisk: 10, t: 0 }],
+            label: "A",
+            nEvents: 1,
+            nTotal: 10,
+            points: [
+                {
+                    censored: false,
+                    ciLower: 0.8,
+                    ciUpper: 1,
+                    nAtRisk: 10,
+                    survival: 1,
+                    t: 0,
+                },
+            ],
+        },
+    ],
+    kind: "km" as const,
+    tMax: 30,
 }));
 
 const emptyDataset: LoupeDataset = {
@@ -140,6 +178,29 @@ describe("Recommendation", () => {
         setSelectionMode.mockClear();
         updateLatestOverrideReason.mockClear();
         aggregateBarErrorMock.mockClear();
+        aggregateKaplanMeierMock.mockClear();
+        aggregateKaplanMeierMock.mockImplementation((_rows: PrivateRows, _mapping: Mapping) => ({
+            groups: [
+                {
+                    atRiskTicks: [{ nAtRisk: 10, t: 0 }],
+                    label: "A",
+                    nEvents: 1,
+                    nTotal: 10,
+                    points: [
+                        {
+                            censored: false,
+                            ciLower: 0.8,
+                            ciUpper: 1,
+                            nAtRisk: 10,
+                            survival: 1,
+                            t: 0,
+                        },
+                    ],
+                },
+            ],
+            kind: "km" as const,
+            tMax: 30,
+        }));
         push.mockClear();
         replace.mockClear();
     });
@@ -203,11 +264,20 @@ describe("Recommendation", () => {
         err.mockRestore();
     });
 
-    it("renders PublicationKM for km after chart phase", async () => {
+    it("renders KaplanMeierChart for km after chart phase", async () => {
         render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.getByTestId("publication-km")).toBeTruthy();
-        expect(screen.queryByText(/renderer coming soon/i)).toBeNull();
+        expect(screen.getByTestId("km-chart")).toBeTruthy();
+        expect(screen.queryByTestId("publication-km")).toBeNull();
+    });
+
+    it("shows KaplanMeierError message when more than 4 groups", async () => {
+        aggregateKaplanMeierMock.mockImplementation(() => {
+            throw new KaplanMeierError("Max 4 groups supported. Received 5.");
+        });
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByRole("alert").textContent).toContain("Max 4 groups supported");
     });
 
     it("renders PlaceholderRenderer for non-km kinds after chart phase", async () => {

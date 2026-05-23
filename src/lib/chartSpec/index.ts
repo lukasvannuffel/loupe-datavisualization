@@ -1,5 +1,6 @@
 export type {
     AlternativeBlock,
+    AtRiskTick,
     BarErrorGroupStats,
     BarErrorPlotData,
     BarErrorSpec,
@@ -9,7 +10,6 @@ export type {
     BoxSpec,
     ChartSlug,
     ChartSpec,
-    KMConfidenceInterval,
     KMGroup,
     KMPlotData,
     KMPoint,
@@ -28,10 +28,11 @@ export type {
     XYSeries,
     XYSpec,
 } from "./types";
-export { MANUAL_SELECTION_NOTE, manualSelectionNoteFor } from "./types";
+export { KaplanMeierError, MANUAL_SELECTION_NOTE, manualSelectionNoteFor } from "./types";
 export { chartSpecSchema, plotDataSchema, receiptSchema } from "./schemas";
 export { createDefaultChartSpec, defaultBarErrorSpec } from "./factory";
 export { aggregateBarError } from "./aggregators/barError";
+export { aggregateKaplanMeier } from "./aggregators/kaplanMeier";
 export type {
     BarErrorAggregation,
     ErrorBarType,

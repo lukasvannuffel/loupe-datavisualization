@@ -3,11 +3,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAppState, type LoupeDataset } from "@/app/providers";
 import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
+import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
+import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { ErrorBarType } from "@/lib/chartSpec/aggregators/barError.types";
 import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
@@ -55,6 +58,26 @@ export const Recommendation = ({
         () => aggregateBarError(dataset.rows, barErrorMapping),
         [dataset.rows, barErrorMapping],
     );
+    const kmPlotResult = useMemo(() => {
+        if (chartKind !== "km") {
+            return null;
+        }
+        if (mapping.time === undefined || mapping.event === undefined) {
+            return { status: "missing" as const };
+        }
+        try {
+            return {
+                data: aggregateKaplanMeier(dataset.rows, mapping),
+                status: "ok" as const,
+            };
+        }
+        catch (err) {
+            if (err instanceof KaplanMeierError) {
+                return { message: err.message, status: "error" as const };
+            }
+            throw err;
+        }
+    }, [chartKind, dataset.rows, mapping]);
     const [errorType, setErrorType] = useState<ErrorBarType>(() => inferErrorTypeFromReceipt(receipt));
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
@@ -227,6 +250,30 @@ export const Recommendation = ({
                                                     />
                                                 </>
                                             )}
+                                        </>
+                                    ) : chartKind === "km" && spec.kind === "km" ? (
+                                        <>
+                                            {kmPlotResult?.status === "missing" ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable survival data yet. On the map step,
+                                                        assign <strong>Time variable</strong> and{" "}
+                                                        <strong>Event indicator</strong> (0 = censored, 1 =
+                                                        event).
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            {kmPlotResult?.status === "error" ? (
+                                                <div className="rec-chart-empty muted" role="alert">
+                                                    <p>{kmPlotResult.message}</p>
+                                                </div>
+                                            ) : null}
+                                            {kmPlotResult?.status === "ok" ? (
+                                                <KaplanMeierChart
+                                                    data={kmPlotResult.data}
+                                                    spec={spec}
+                                                />
+                                            ) : null}
                                         </>
                                     ) : (
                                         <ChartRenderer spec={spec} />

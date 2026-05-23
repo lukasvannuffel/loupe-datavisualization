@@ -89,15 +89,34 @@ const xySpecScatterLine: XYSpec = {
 
 const kmPlotData: KMPlotData = {
     kind: "km",
+    tMax: 36,
     groups: [
         {
             label: "A",
-            points: [
-                { time: 0, survival: 1, atRisk: 100, censored: 0 },
-                { time: 12, survival: 0.82, atRisk: 78, censored: 4 },
+            nTotal: 100,
+            nEvents: 22,
+            atRiskTicks: [
+                { t: 0, nAtRisk: 100 },
+                { t: 12, nAtRisk: 78 },
             ],
-            median: 36,
-            ci: [{ time: 12, lower: 0.74, upper: 0.9 }],
+            points: [
+                {
+                    t: 0,
+                    survival: 1,
+                    nAtRisk: 100,
+                    censored: false,
+                    ciLower: 1,
+                    ciUpper: 1,
+                },
+                {
+                    t: 12,
+                    survival: 0.82,
+                    nAtRisk: 78,
+                    censored: false,
+                    ciLower: 0.74,
+                    ciUpper: 0.9,
+                },
+            ],
         },
     ],
 };
@@ -482,10 +501,23 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
     it("plotDataSchema rejects an extra `rows` key on a KM payload", () => {
         const smuggled = {
             kind: "km",
+            tMax: 12,
             groups: [
                 {
                     label: "A",
-                    points: [{ time: 0, survival: 1, atRisk: 1, censored: 0 }],
+                    nTotal: 1,
+                    nEvents: 0,
+                    atRiskTicks: [{ t: 0, nAtRisk: 1 }],
+                    points: [
+                        {
+                            t: 0,
+                            survival: 1,
+                            nAtRisk: 1,
+                            censored: false,
+                            ciLower: 1,
+                            ciUpper: 1,
+                        },
+                    ],
                 },
             ],
             rows: [{ patientId: "p1", time: 12, event: 1 }],

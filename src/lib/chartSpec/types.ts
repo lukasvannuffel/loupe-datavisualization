@@ -99,34 +99,8 @@ export type XYSpec = BaseSpec & {
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
 export type ChartSpec = KMSpec | BarErrorSpec | BoxSpec | XYSpec;
 
-/** Single step on a Kaplan–Meier curve at one event/censoring time. Aggregated, never per-patient. */
-export type KMPoint = {
-    time: number;
-    survival: number;
-    atRisk: number;
-    censored: number;
-};
-
-/** Pointwise confidence band around a KM curve at a given time. */
-export type KMConfidenceInterval = {
-    time: number;
-    lower: number;
-    upper: number;
-};
-
-/** One survival curve: label + step points + optional median + optional CI band. No raw rows. */
-export type KMGroup = {
-    label: string;
-    points: readonly KMPoint[];
-    median?: number;
-    ci?: readonly KMConfidenceInterval[];
-};
-
-/** Survival aggregates ready to render: per-group step points + at-risk counts. No per-patient rows. */
-export type KMPlotData = {
-    kind: "km";
-    groups: readonly KMGroup[];
-};
+export type { AtRiskTick, KMGroup, KMPlotData, KMPoint } from "./aggregators/kaplanMeier.types";
+export { KaplanMeierError } from "./aggregators/kaplanMeier.types";
 
 /** Per-group summary statistics for bar-with-error charts. Error magnitude is derived at render time. */
 export type BarErrorGroupStats = {
@@ -185,7 +159,11 @@ export type XYPlotData = {
 };
 
 /** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
-export type PlotData = KMPlotData | BarErrorPlotData | BoxPlotData | XYPlotData;
+export type PlotData =
+    | import("./aggregators/kaplanMeier.types").KMPlotData
+    | BarErrorPlotData
+    | BoxPlotData
+    | XYPlotData;
 
 /** Headline + reasoning shown to the user when a chart type is recommended. */
 export type RecommendationBlock = {

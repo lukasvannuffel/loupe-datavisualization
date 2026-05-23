@@ -1,7 +1,7 @@
 "use client";
 
 // Bundle delta from D3: ~13 kB gzipped (esbuild minify of d3-selection/scale/array/axis only; measured 2026-05-20, Next 16.2.6).
-// Budget: 35 kB. d3-shape is installed for LOUPE-12+ but not imported yet. If this comment goes stale, audit imports.
+// Budget: 35 kB. d3-shape used by KaplanMeierChart (LOUPE-12). If this comment goes stale, audit imports.
 
 import type { ChartSpec } from "@/lib/chartSpec/types";
 

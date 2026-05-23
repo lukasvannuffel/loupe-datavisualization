@@ -381,21 +381,21 @@ Bouw de centrale `ChartRenderer` component die een ChartSpec + PlotData neemt en
 Begin met de simpelste chart — valideert je hele architectuur (data → spec → renderer → SVG). Render uit `[{label, mean, sd, n}]`. Toggle tussen SD/SEM/CI95. Match design system: hairlines, Source Serif titels, geen kleurig overload.
 
 **Actie-items**
-- [ ] `BarErrorChart.tsx` component
-- [ ] X-as: categorisch met label-rotation bij overflow
-- [ ] Y-as: numeriek met smart tick selection
-- [ ] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
+- [x] `BarErrorChart.tsx` component
+- [x] X-as: categorisch met label-rotation bij overflow
+- [x] Y-as: numeriek met smart tick selection
+- [x] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
        (t-distribution; 1.96·SEM is wrong for small n — see post-review fix.)
-- [ ] Toggle in customization rail (later in LOUPE-15)
-- [ ] Inline-editable titel via `contentEditable` zoals huidig prototype
-- [ ] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
+- [x] Toggle in customization rail (later in LOUPE-15)
+- [x] Inline-editable titel via `contentEditable` zoals huidig prototype
+- [x] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
 
 **Acceptance criteria**
-- [ ] Render uit echte aggregaties van CSV
-- [ ] Error-type toggle wisselt zonder re-aggregate
-- [ ] Visueel match met design system mockups
+- [x] Render uit echte aggregaties van CSV
+- [x] Error-type toggle wisselt zonder re-aggregate
+- [x] Visueel match met design system mockups
 
---->
+---
 
 ### LOUPE-12 · Kaplan–Meier curve
 

@@ -123,18 +123,19 @@ const survivalUnit = z.number().min(0).max(1);
 
 const kmPointSchema = z
     .object({
-        time: z.number(),
+        t: z.number(),
         survival: survivalUnit,
-        atRisk: z.number(),
-        censored: z.number(),
+        nAtRisk: z.number(),
+        censored: z.boolean(),
+        ciLower: z.number(),
+        ciUpper: z.number(),
     })
     .strict();
 
-const kmCiSchema = z
+const atRiskTickSchema = z
     .object({
-        time: z.number(),
-        lower: z.number(),
-        upper: z.number(),
+        t: z.number(),
+        nAtRisk: z.number(),
     })
     .strict();
 
@@ -142,8 +143,9 @@ const kmGroupSchema = z
     .object({
         label: nonEmpty(),
         points: z.array(kmPointSchema).readonly(),
-        median: z.number().optional(),
-        ci: z.array(kmCiSchema).readonly().optional(),
+        atRiskTicks: z.array(atRiskTickSchema).readonly(),
+        nTotal: z.number(),
+        nEvents: z.number(),
     })
     .strict();
 
@@ -151,6 +153,7 @@ const kmPlotDataSchema = z
     .object({
         kind: z.literal("km"),
         groups: z.array(kmGroupSchema).readonly(),
+        tMax: z.number(),
     })
     .strict();
 
