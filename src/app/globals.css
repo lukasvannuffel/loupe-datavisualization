@@ -1736,6 +1736,97 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     border-color: var(--amber);
 }
 
+.rec-error-toggle {
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-3);
+    padding: 12px 16px;
+    margin: 16px 0;
+}
+.rec-error-toggle__legend {
+    padding: 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.rec-error-toggle__options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+@media (min-width: 640px) {
+    .rec-error-toggle__options {
+        flex-direction: row;
+        gap: 16px;
+    }
+}
+.rec-error-toggle__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    cursor: pointer;
+}
+.rec-error-toggle__option.is-active {
+    color: var(--ink);
+}
+.rec-error-toggle__hint {
+    font-size: 12px;
+}
+@media (min-width: 640px) {
+    .rec-error-toggle__hint {
+        display: none;
+    }
+}
+
+.rec-missing-warning {
+    border: 1px solid var(--amber);
+    background: color-mix(in srgb, var(--amber) 8%, var(--paper));
+    border-radius: var(--r-3);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.rec-missing-warning p {
+    margin: 6px 0 0;
+}
+
+.rec-inferred-outcome {
+    margin: 0 0 12px;
+    line-height: 1.45;
+}
+
+.rec-chart-empty {
+    border: 1px dashed var(--hairline);
+    border-radius: var(--r-3);
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.rec-chart-empty p {
+    margin: 0 0 8px;
+}
+.rec-chart-empty p:last-child {
+    margin-bottom: 0;
+}
+
+.rec-error-unavailable {
+    border: 1px solid var(--amber);
+    background: color-mix(in srgb, var(--amber) 8%, var(--paper));
+    border-radius: var(--r-3);
+    padding: 10px 14px;
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+.rec-error-unavailable p {
+    margin: 0 0 6px;
+}
+.rec-error-unavailable p:last-child {
+    margin-bottom: 0;
+}
+
 .rec-alt {
     border: 1px solid var(--hairline);
     border-radius: var(--r-3);

@@ -128,18 +128,18 @@ export type KMPlotData = {
     groups: readonly KMGroup[];
 };
 
-/** One bar: category mean, sample size, and a single error magnitude (SD/SEM/CI half-width). */
-export type BarErrorCategory = {
-    label: string;
-    mean: number;
-    error: number;
-    n: number;
+/** Per-group summary statistics for bar-with-error charts. Error magnitude is derived at render time. */
+export type BarErrorGroupStats = {
+    readonly label: string;
+    readonly mean: number;
+    readonly sd: number;
+    readonly n: number;
 };
 
-/** Bar-with-error aggregates: per-category summary statistics. No per-patient rows. */
+/** Bar-with-error aggregates: per-group means and spread inputs. No per-patient rows. */
 export type BarErrorPlotData = {
     kind: "barError";
-    categories: readonly BarErrorCategory[];
+    groups: readonly BarErrorGroupStats[];
 };
 
 /** One aggregated box-and-whisker group: five-number summary, optional mean, outlier values, and sample size. */

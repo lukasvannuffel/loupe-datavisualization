@@ -18,11 +18,13 @@ import { receiptSchema } from "@/lib/chartSpec/schemas";
 import type { OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { columnInferenceArraySchema } from "@/lib/parser/inference.schemas";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import { brandRows, type PrivateRows } from "@/lib/parser/types";
 import type { ColumnRole, Mapping } from "@/lib/roles/types";
 import { z } from "zod";
 
 const INTENT_KEY = "loupe.intent";
 const DATASET_KEY = "loupe.dataset";
+const DATASET_ROWS_KEY = "loupe.datasetRows";
 const DATASET_SOURCE_KEY = "loupe.datasetSource";
 const MAPPING_KEY = "loupe.mapping";
 const SELECTION_MODE_KEY = "loupe.selectionMode";
@@ -42,14 +44,23 @@ export type DatasetSource = {
     readonly sheetName?: string;
 };
 
+export type LoupeDataset = {
+    readonly inferences: readonly ColumnInference[];
+    readonly rows: PrivateRows;
+};
+
 type AppState = {
     readonly hydrated: boolean;
     readonly intent: string;
     readonly setIntent: (next: string) => void;
     readonly mapping: Mapping;
     readonly setMapping: (next: Mapping) => void;
-    readonly dataset: readonly ColumnInference[] | null;
-    readonly setDataset: (next: readonly ColumnInference[], source?: DatasetSource) => void;
+    readonly dataset: LoupeDataset | null;
+    readonly setDataset: (
+        inferences: readonly ColumnInference[],
+        rows: PrivateRows,
+        source?: DatasetSource,
+    ) => void;
     readonly clearDataset: () => void;
     readonly clearRecommendCache: () => void;
     readonly lastRecommendationFromCache: boolean;
@@ -88,26 +99,53 @@ const safeParse = <T,>(raw: string | null, guard: (v: unknown) => v is T): T | n
  * ColumnInference contract is dropped (key removed) so we never render broken UI
  * over malformed state. Silent by design — no console noise for tampered storage.
  */
-const hydrateDataset = (
-    store: Storage,
-    key: string,
-): readonly ColumnInference[] | null => {
+const isPrivateRowRecord = (v: unknown): v is Readonly<Record<string, string>> =>
+    v !== null && typeof v === "object" && !Array.isArray(v);
+
+const hydratePrivateRows = (store: Storage, key: string): PrivateRows | null => {
     const raw = store.getItem(key);
     if (raw === null) {
         return null;
     }
     try {
         const parsed: unknown = JSON.parse(raw);
-        const result = columnInferenceArraySchema.safeParse(parsed);
-        if (result.success) {
-            return result.data;
+        if (!Array.isArray(parsed) || !parsed.every(isPrivateRowRecord)) {
+            throw new Error("invalid rows");
         }
-    } catch {
-        // fall through to drop
-    }
-    store.removeItem(key);
 
-    return null;
+        return brandRows(parsed);
+    } catch {
+        store.removeItem(key);
+
+        return null;
+    }
+};
+
+const hydrateLoupeDataset = (store: Storage): LoupeDataset | null => {
+    const raw = store.getItem(DATASET_KEY);
+    if (raw === null) {
+        return null;
+    }
+    try {
+        const parsed: unknown = JSON.parse(raw);
+        const result = columnInferenceArraySchema.safeParse(parsed);
+        if (!result.success) {
+            throw new Error("invalid inferences");
+        }
+        const rows = hydratePrivateRows(store, DATASET_ROWS_KEY);
+        if (rows === null) {
+            store.removeItem(DATASET_KEY);
+
+            return null;
+        }
+
+        return { inferences: result.data, rows };
+    } catch {
+        store.removeItem(DATASET_KEY);
+        store.removeItem(DATASET_ROWS_KEY);
+
+        return null;
+    }
 };
 
 const hydrateReceipt = (store: Storage, key: string): Receipt | null => {
@@ -170,7 +208,7 @@ const isDatasetSource = (v: unknown): v is DatasetSource => {
 export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Element => {
     const [intent, setIntentState] = useState<string>("");
     const [mapping, setMappingState] = useState<Mapping>({});
-    const [dataset, setDatasetState] = useState<readonly ColumnInference[] | null>(null);
+    const [dataset, setDatasetState] = useState<LoupeDataset | null>(null);
     const [receipt, setReceiptState] = useState<Receipt | null>(null);
     const [chartKind, setChartKindState] = useState<ChartSpec["kind"] | null>(null);
     const [chartSlug, setChartSlugState] = useState<ChartSlug | null>(null);
@@ -192,7 +230,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setIntentState(storedIntent);
         }
-        const storedDataset = hydrateDataset(store, DATASET_KEY);
+        const storedDataset = hydrateLoupeDataset(store);
         if (storedDataset !== null) {
             setDatasetState(storedDataset);
         }
@@ -298,44 +336,53 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         }
     }, []);
 
-    const setDataset = useCallback((next: readonly ColumnInference[], source?: DatasetSource): void => {
-        setDatasetState(next);
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        window.sessionStorage.setItem(DATASET_KEY, JSON.stringify(next));
-
-        if (source === undefined) {
-            return;
-        }
-
-        const prevRaw = window.sessionStorage.getItem(DATASET_SOURCE_KEY);
-        let prev: DatasetSource | null = null;
-
-        if (prevRaw !== null) {
-            try {
-                const parsed: unknown = JSON.parse(prevRaw);
-                if (isDatasetSource(parsed)) {
-                    prev = parsed;
-                }
-            } catch {
-                /* ignore */
+    const setDataset = useCallback(
+        (inferences: readonly ColumnInference[], rows: PrivateRows, source?: DatasetSource): void => {
+            const next: LoupeDataset = { inferences, rows };
+            setDatasetState(next);
+            if (typeof window === "undefined") {
+                return;
             }
-        }
 
-        const changed =
-            prev !== null &&
-            (prev.fileName !== source.fileName ||
-                prev.rowCount !== source.rowCount ||
-                (prev.sheetName ?? "") !== (source.sheetName ?? ""));
+            window.sessionStorage.setItem(DATASET_KEY, JSON.stringify(inferences));
+            try {
+                window.sessionStorage.setItem(DATASET_ROWS_KEY, JSON.stringify(rows));
+            } catch {
+                window.sessionStorage.removeItem(DATASET_ROWS_KEY);
+            }
 
-        if (changed) {
-            clearCache();
-        }
+            if (source === undefined) {
+                return;
+            }
 
-        window.sessionStorage.setItem(DATASET_SOURCE_KEY, JSON.stringify(source));
-    }, []);
+            const prevRaw = window.sessionStorage.getItem(DATASET_SOURCE_KEY);
+            let prev: DatasetSource | null = null;
+
+            if (prevRaw !== null) {
+                try {
+                    const parsed: unknown = JSON.parse(prevRaw);
+                    if (isDatasetSource(parsed)) {
+                        prev = parsed;
+                    }
+                } catch {
+                    /* ignore */
+                }
+            }
+
+            const changed =
+                prev !== null &&
+                (prev.fileName !== source.fileName ||
+                    prev.rowCount !== source.rowCount ||
+                    (prev.sheetName ?? "") !== (source.sheetName ?? ""));
+
+            if (changed) {
+                clearCache();
+            }
+
+            window.sessionStorage.setItem(DATASET_SOURCE_KEY, JSON.stringify(source));
+        },
+        [],
+    );
 
     const clearRecommendCache = useCallback((): void => {
         clearCache();
@@ -355,6 +402,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         }
 
         window.sessionStorage.removeItem(DATASET_KEY);
+        window.sessionStorage.removeItem(DATASET_ROWS_KEY);
         window.sessionStorage.removeItem(DATASET_SOURCE_KEY);
         window.sessionStorage.removeItem(RECEIPT_KEY);
         window.sessionStorage.removeItem(CHART_KIND_KEY);

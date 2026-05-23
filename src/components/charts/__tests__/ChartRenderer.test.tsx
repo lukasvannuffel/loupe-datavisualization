@@ -3,13 +3,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import type { BarErrorPlotData, BarErrorSpec, ChartSpec, KMPlotData } from "@/lib/chartSpec/types";
+import type { BarErrorSpec, ChartSpec } from "@/lib/chartSpec/types";
 
 import { ChartRenderer } from "../ChartRenderer";
-
-vi.mock("../d3/BarErrorChart", () => ({
-    BarErrorChart: (): JSX.Element => <div data-testid="bar-error-chart">BarError</div>,
-}));
 
 vi.mock("../PublicationKM", () => ({
     PublicationKM: (): JSX.Element => <div data-testid="publication-km">KM</div>,
@@ -35,47 +31,39 @@ const barSpec: BarErrorSpec = {
     annotations: [],
 };
 
-const barData: BarErrorPlotData = {
-    kind: "barError",
-    categories: [{ label: "A", mean: 1, error: 0.1, n: 10 }],
-};
-
-const kmData: KMPlotData = {
-    kind: "km",
-    groups: [
-        {
-            label: "All",
-            points: [{ time: 0, survival: 1, atRisk: 10, censored: 0 }],
-        },
-    ],
-};
-
 describe("ChartRenderer", () => {
     afterEach(() => {
         cleanup();
     });
 
-    it("renders BarErrorChart when kinds match", () => {
-        render(<ChartRenderer plotData={barData} spec={barSpec} />);
-        expect(screen.getByTestId("bar-error-chart")).toBeInTheDocument();
-    });
-
-    it("renders PlaceholderRenderer when plotData kind mismatches", () => {
-        render(<ChartRenderer plotData={kmData} spec={barSpec} />);
+    it("renders PlaceholderRenderer for barError (real chart is on Recommendation)", () => {
+        render(<ChartRenderer spec={barSpec} />);
         expect(screen.getByTestId("placeholder")).toHaveTextContent("barError");
     });
 
     it("renders PublicationKM for km", () => {
-        const kmSpec = { ...barSpec, kind: "km" as const, legendA: "A", dashB: false, showAtRisk: true, showStats: false, timeUnit: "months" as const };
-        render(<ChartRenderer plotData={kmData} spec={kmSpec} />);
+        const kmSpec = {
+            ...barSpec,
+            kind: "km" as const,
+            legendA: "A",
+            dashB: false,
+            showAtRisk: true,
+            showStats: false,
+            timeUnit: "months" as const,
+        };
+        render(<ChartRenderer spec={kmSpec} />);
         expect(screen.getByTestId("publication-km")).toBeInTheDocument();
     });
 
     it("renders PlaceholderRenderer for box and xy", () => {
-        const boxSpec = { ...barSpec, kind: "box" as const, showOutliers: true, showMeanMarker: false, groupOrder: "alphabetical" as const };
-        const { unmount: unmountBox } = render(
-            <ChartRenderer plotData={{ kind: "box", groups: [] }} spec={boxSpec} />,
-        );
+        const boxSpec = {
+            ...barSpec,
+            kind: "box" as const,
+            showOutliers: true,
+            showMeanMarker: false,
+            groupOrder: "alphabetical" as const,
+        };
+        const { unmount: unmountBox } = render(<ChartRenderer spec={boxSpec} />);
         expect(screen.getByTestId("placeholder")).toHaveTextContent("box");
         unmountBox();
         cleanup();
@@ -87,11 +75,10 @@ describe("ChartRenderer", () => {
             showRegression: false,
             showCorrelation: false,
         };
-        render(<ChartRenderer plotData={{ kind: "xy", series: [] }} spec={xySpec} />);
+        render(<ChartRenderer spec={xySpec} />);
         expect(screen.getByTestId("placeholder")).toHaveTextContent("xy");
     });
 
-    // The actual exhaustiveness guard is the `never` default in ChartRenderer.tsx — verified by tsc failing if a new ChartSpec kind is added without updating the switch. This test documents the contract, not the enforcement.
     it("dispatches only on the four ChartSpec kinds", () => {
         expectTypeOf<ChartSpec["kind"]>().toEqualTypeOf<"km" | "barError" | "box" | "xy">();
     });

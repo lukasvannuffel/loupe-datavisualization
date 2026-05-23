@@ -160,7 +160,7 @@ export const Upload = (): JSX.Element => {
             return;
         }
 
-        setDataset(inferences, {
+        setDataset(inferences, result.rows, {
             fileName: result.fileName,
             rowCount: result.rowCount,
             sheetName: result.sheetName,

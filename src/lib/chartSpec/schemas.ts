@@ -154,11 +154,11 @@ const kmPlotDataSchema = z
     })
     .strict();
 
-const barErrorCategorySchema = z
+const barErrorGroupStatsSchema = z
     .object({
         label: nonEmpty(),
         mean: z.number(),
-        error: z.number(),
+        sd: z.number(),
         n: z.number(),
     })
     .strict();
@@ -166,7 +166,7 @@ const barErrorCategorySchema = z
 const barErrorPlotDataSchema = z
     .object({
         kind: z.literal("barError"),
-        categories: z.array(barErrorCategorySchema).readonly(),
+        groups: z.array(barErrorGroupStatsSchema).readonly(),
     })
     .strict();
 

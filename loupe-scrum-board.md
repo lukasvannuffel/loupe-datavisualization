@@ -370,7 +370,7 @@ Bouw de centrale `ChartRenderer` component die een ChartSpec + PlotData neemt en
 
 ---
 
-### LOUPE-11 · Bar chart met error bars
+<### LOUPE-11 · Bar chart met error bars
 
 **Prioriteit:** P0
 **Einddatum:** 23 mei 2026
@@ -384,7 +384,8 @@ Begin met de simpelste chart — valideert je hele architectuur (data → spec �
 - [ ] `BarErrorChart.tsx` component
 - [ ] X-as: categorisch met label-rotation bij overflow
 - [ ] Y-as: numeriek met smart tick selection
-- [ ] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± 1.96·SEM
+- [ ] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
+       (t-distribution; 1.96·SEM is wrong for small n — see post-review fix.)
 - [ ] Toggle in customization rail (later in LOUPE-15)
 - [ ] Inline-editable titel via `contentEditable` zoals huidig prototype
 - [ ] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
@@ -394,7 +395,7 @@ Begin met de simpelste chart — valideert je hele architectuur (data → spec �
 - [ ] Error-type toggle wisselt zonder re-aggregate
 - [ ] Visueel match met design system mockups
 
----
+--->
 
 ### LOUPE-12 · Kaplan–Meier curve
 

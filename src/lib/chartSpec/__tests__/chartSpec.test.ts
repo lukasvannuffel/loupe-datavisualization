@@ -104,9 +104,9 @@ const kmPlotData: KMPlotData = {
 
 const barErrorPlotData: BarErrorPlotData = {
     kind: "barError",
-    categories: [
-        { label: "Arm A", mean: 12.4, error: 1.2, n: 80 },
-        { label: "Arm B", mean: 9.7, error: 1.4, n: 78 },
+    groups: [
+        { label: "Arm A", mean: 12.4, sd: 1.2, n: 80 },
+        { label: "Arm B", mean: 9.7, sd: 1.4, n: 78 },
     ],
 };
 
