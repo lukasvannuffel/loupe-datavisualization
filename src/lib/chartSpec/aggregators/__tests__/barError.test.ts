@@ -24,19 +24,16 @@ describe("aggregateBarError", () => {
         expect(a?.sd).toBeCloseTo(1.41421356, 4);
     });
 
-    it("aggregates 100 rows across 4 groups", () => {
+    it("aggregates 100 rows across 4 groups with pinned G0 mean", () => {
         const raw: Record<string, string>[] = [];
         for (let i = 0; i < 100; i++) {
-            const group = `G${i % 4}`;
-            raw.push({ arm: group, outcome: String(i % 10) });
+            raw.push({ arm: `G${i % 4}`, outcome: String(i % 10) });
         }
         const { groups } = aggregateBarError(brandRows(raw), mapping);
         expect(groups).toHaveLength(4);
         const g0 = groups.find((g) => g.label === "G0");
         expect(g0?.n).toBe(25);
-        const values = Array.from({ length: 25 }, (_, i) => (i * 4) % 10);
-        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-        expect(g0?.mean).toBeCloseTo(mean, 5);
+        expect(g0?.mean).toBe(4);
     });
 
     it("uses Bessel correction for sample SD", () => {
@@ -65,6 +62,7 @@ describe("aggregateBarError", () => {
         const { groups, missing } = aggregateBarError(rows, mapping);
         expect(groups[0]?.n).toBe(7);
         expect(missing.missingOutcomeRows).toBe(3);
+        expect(missing.droppedRows).toBe(3);
         expect(missing.dropRate).toBeCloseTo(0.3, 5);
     });
 
@@ -80,6 +78,17 @@ describe("aggregateBarError", () => {
         expect(missing.droppedRows).toBe(2);
     });
 
+    it("counts both-missing row in both tallies but once in droppedRows", () => {
+        const rows = brandRows([
+            { arm: "A", outcome: "1" },
+            { arm: "", outcome: "" },
+        ]);
+        const { missing } = aggregateBarError(rows, mapping);
+        expect(missing.droppedRows).toBe(1);
+        expect(missing.missingGroupRows).toBe(1);
+        expect(missing.missingOutcomeRows).toBe(1);
+    });
+
     it("treats whitespace-only cells as missing", () => {
         const rows = brandRows([
             { arm: "A", outcome: "10" },
@@ -91,6 +100,7 @@ describe("aggregateBarError", () => {
         expect(groups[0]?.n).toBe(1);
         expect(missing.missingOutcomeRows).toBe(1);
         expect(missing.missingGroupRows).toBe(1);
+        expect(missing.droppedRows).toBe(2);
     });
 
     it("parses European decimal commas", () => {
@@ -98,6 +108,11 @@ describe("aggregateBarError", () => {
         const rows = brandRows([{ arm: "A", outcome: "12,5" }]);
         const { groups } = aggregateBarError(rows, mapping);
         expect(groups[0]?.mean).toBeCloseTo(12.5, 5);
+    });
+
+    it("parses US thousand separators", () => {
+        expect(parseNumericCell("1,234")).toBe(1234);
+        expect(parseNumericCell("1,234.5")).toBeCloseTo(1234.5, 5);
     });
 
     it("coerces string numerics and treats non-numeric as missing", () => {
@@ -147,5 +162,4 @@ describe("aggregateBarError", () => {
         expect(fetchSpy).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
     });
-
 });

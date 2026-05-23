@@ -8,7 +8,7 @@ import { computeErrorBar } from "@/lib/chartSpec/aggregators/errorBars";
 import type { GroupStats } from "@/lib/chartSpec/aggregators/barError.types";
 import type { BarErrorSpec } from "@/lib/chartSpec/types";
 
-import { BarErrorChart, barErrorChartRenderCountForTest } from "../BarErrorChart";
+import { BarErrorChart } from "../BarErrorChart";
 import * as useResizeObserverModule from "../useResizeObserver";
 
 const scaleLinearDomainCalls: number[][] = [];
@@ -95,7 +95,6 @@ const stableGroups: readonly GroupStats[] = threeGroups;
 
 describe("BarErrorChart", () => {
     beforeEach(() => {
-        barErrorChartRenderCountForTest.value = 0;
         scaleLinearDomainCalls.length = 0;
         installResizeObserver();
         vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {

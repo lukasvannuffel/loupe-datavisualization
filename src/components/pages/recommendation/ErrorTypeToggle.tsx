@@ -32,7 +32,6 @@ export const ErrorTypeToggle = ({ value, onChange }: Props): JSX.Element => (
                         value={opt.value}
                         checked={value === opt.value}
                         onChange={() => onChange(opt.value)}
-                        onClick={() => onChange(opt.value)}
                     />
                     <span className="mono">{opt.label}</span>
                     <span className="rec-error-toggle__hint muted">{opt.hint}</span>

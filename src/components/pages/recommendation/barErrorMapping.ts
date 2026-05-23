@@ -1,18 +1,25 @@
 import type { ColumnInference } from "@/lib/parser/inference.types";
 import type { ColumnRole, Mapping } from "@/lib/roles/types";
 
-const OUTCOME_NAME = /(outcome|response|bp|pressure|reduction|systolic|diastolic|mean|value|score|level|change)/i;
+const OUTCOME_NAME =
+    /(outcome|response|uitkomst|resultaat|bp|bloeddruk|pressure|reduction|systolic|diastolic|mean|value|score|level|change|afname|verandering)/i;
+
+export type BarErrorMappingResult = {
+    readonly mapping: Mapping;
+    /** Set when outcome was guessed from column names — show a breadcrumb on /recommend. */
+    readonly inferredOutcome?: string;
+};
 
 /**
- * Bar charts need group + outcome. Auto-map only seeds group; this fills outcome on /recommend
- * from the first unused numeric column (name hint preferred) without changing strict map-step rules.
+ * Bar charts need group + outcome. Seeds outcome from the first unused numeric column
+ * (name hint preferred) when the map step left outcome empty.
  */
 export const mappingForBarError = (
     mapping: Mapping,
     inferences: readonly ColumnInference[],
-): Mapping => {
+): BarErrorMappingResult => {
     if (mapping.group !== undefined && mapping.outcome !== undefined) {
-        return mapping;
+        return { mapping };
     }
 
     const used = new Set(
@@ -32,8 +39,13 @@ export const mappingForBarError = (
         numerics.find((col) => OUTCOME_NAME.test(col.name))?.name ?? numerics[0]?.name;
 
     if (outcome === undefined) {
-        return mapping;
+        return { mapping };
     }
 
-    return { ...mapping, outcome };
+    const hadOutcome = mapping.outcome !== undefined;
+
+    return {
+        mapping: { ...mapping, outcome },
+        inferredOutcome: hadOutcome ? undefined : outcome,
+    };
 };

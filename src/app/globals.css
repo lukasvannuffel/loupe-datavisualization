@@ -1791,6 +1791,11 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     margin: 6px 0 0;
 }
 
+.rec-inferred-outcome {
+    margin: 0 0 12px;
+    line-height: 1.45;
+}
+
 .rec-chart-empty {
     border: 1px dashed var(--hairline);
     border-radius: var(--r-3);

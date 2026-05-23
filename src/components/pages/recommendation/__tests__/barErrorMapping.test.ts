@@ -16,7 +16,7 @@ const col = (over: Partial<ColumnInference> & Pick<ColumnInference, "name" | "pr
 describe("mappingForBarError", () => {
     it("returns mapping unchanged when group and outcome are set", () => {
         const mapping = { group: "arm", outcome: "bp_change" };
-        expect(mappingForBarError(mapping, [])).toEqual(mapping);
+        expect(mappingForBarError(mapping, [])).toEqual({ mapping });
     });
 
     it("infers outcome from first numeric when group is mapped", () => {
@@ -26,8 +26,18 @@ describe("mappingForBarError", () => {
             col({ name: "bp_reduction", primaryType: "numeric" }),
         ];
         expect(mappingForBarError(mapping, inferences)).toEqual({
-            group: "treatment_arm",
-            outcome: "bp_reduction",
+            mapping: { group: "treatment_arm", outcome: "bp_reduction" },
+            inferredOutcome: "bp_reduction",
         });
+    });
+
+    it("prefers Dutch outcome column names over first numeric", () => {
+        const mapping = { group: "arm" };
+        const inferences = [
+            col({ name: "arm", primaryType: "categorical" }),
+            col({ name: "leeftijd", primaryType: "numeric" }),
+            col({ name: "bloeddruk_afname", primaryType: "numeric" }),
+        ];
+        expect(mappingForBarError(mapping, inferences).mapping.outcome).toBe("bloeddruk_afname");
     });
 });

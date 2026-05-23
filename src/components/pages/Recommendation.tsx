@@ -15,12 +15,15 @@ import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
 import { getOverrideDisplayState } from "./overrideDisplay";
-import { mappingForBarError } from "./recommendation/barErrorMapping";
+import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
 import { ErrorBarsUnavailable } from "./recommendation/ErrorBarsUnavailable";
 import { ErrorTypeToggle } from "./recommendation/ErrorTypeToggle";
 import { MissingDataWarning } from "./recommendation/MissingDataWarning";
 import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
+
+/** Exclusive threshold: exactly 5% drop rate does not show MissingDataWarning. */
+const MISSING_DATA_WARN_DROP_RATE = 0.05;
 
 export type RecommendationProps = {
     readonly chartKind: ChartSpec["kind"];
@@ -40,11 +43,14 @@ export const Recommendation = ({
     const router = useRouter();
     const { appendOverride, intent, mapping, setSelectionMode, updateLatestOverrideReason } =
         useAppState();
-    const barErrorMapping = useMemo(
-        () =>
-            chartKind === "barError" ? mappingForBarError(mapping, dataset.inferences) : mapping,
-        [chartKind, dataset.inferences, mapping],
-    );
+    const barErrorMapResult = useMemo((): BarErrorMappingResult => {
+        if (chartKind !== "barError") {
+            return { mapping };
+        }
+
+        return mappingForBarError(mapping, dataset.inferences);
+    }, [chartKind, dataset.inferences, mapping]);
+    const barErrorMapping = barErrorMapResult.mapping;
     const barErrorAggregation = useMemo(
         () => aggregateBarError(dataset.rows, barErrorMapping),
         [dataset.rows, barErrorMapping],
@@ -158,8 +164,22 @@ export const Recommendation = ({
                                 <div className="rec-chart-reveal">
                                     {chartKind === "barError" && spec.kind === "barError" ? (
                                         <>
-                                            {barErrorAggregation.missing.dropRate > 0.05 ? (
+                                            {barErrorAggregation.missing.dropRate >
+                                            MISSING_DATA_WARN_DROP_RATE ? (
                                                 <MissingDataWarning info={barErrorAggregation.missing} />
+                                            ) : null}
+                                            {barErrorMapResult.inferredOutcome !== undefined ? (
+                                                <p
+                                                    className="rec-inferred-outcome muted small"
+                                                    role="status"
+                                                >
+                                                    Outcome column inferred:{" "}
+                                                    <strong className="mono">
+                                                        {barErrorMapResult.inferredOutcome}
+                                                    </strong>
+                                                    {" "}
+                                                    — confirm on the map step.
+                                                </p>
                                             ) : null}
                                             {barErrorAggregation.groups.length === 0 ? (
                                                 <div className="rec-chart-empty muted" role="status">
@@ -194,7 +214,6 @@ export const Recommendation = ({
                                             ) : (
                                                 <>
                                                     <BarErrorChart
-                                                        key={errorType}
                                                         spec={spec}
                                                         groups={barErrorAggregation.groups}
                                                         errorType={errorType}

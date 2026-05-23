@@ -4,7 +4,7 @@ import { max, min } from "d3-array";
 import { scaleBand, scaleLinear } from "d3-scale";
 import type { ScaleLinear } from "d3-scale";
 import { select } from "d3-selection";
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect } from "react";
 
 import { computeErrorBar } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ErrorBarType, GroupStats } from "@/lib/chartSpec/aggregators/barError.types";
@@ -21,13 +21,8 @@ type Props = {
     readonly errorType: ErrorBarType;
 };
 
-export const barErrorChartRenderCountForTest = { value: 0 };
-
 export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
-    useLayoutEffect(() => {
-        barErrorChartRenderCountForTest.value += 1;
-    });
 
     useEffect(() => {
         if (!dims || !containerRef.current || groups.length === 0) {
@@ -53,28 +48,17 @@ export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element =
         applyDesignTokens(svg, tokens);
 
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-        const domain = [...new Set(groups.map((c) => c.label))];
-        const xScale = scaleBand<string>().domain(domain).range([0, innerWidth]).padding(0.25);
-        const dropped: string[] = [];
-        const seen = new Set<string>();
-        const resolved = groups.filter((c) => {
-            if (seen.has(c.label) || xScale(c.label) === undefined) {
-                dropped.push(c.label);
-                return false;
-            }
-            seen.add(c.label);
-            return true;
-        });
-        if (process.env.NODE_ENV !== "production" && dropped.length > 0) {
-            console.warn(`BarErrorChart: dropped categories: ${[...new Set(dropped)].join(", ")}`);
-        }
+        const xScale = scaleBand<string>()
+            .domain(groups.map((c) => c.label))
+            .range([0, innerWidth])
+            .padding(0.25);
         const yLo = Math.min(
             0,
-            min(resolved, (c) => c.mean - computeErrorBar(c, errorType)) ?? 0,
+            min(groups, (c) => c.mean - computeErrorBar(c, errorType)) ?? 0,
         );
         const yHi = Math.max(
             0,
-            max(resolved, (c) => c.mean + computeErrorBar(c, errorType)) ?? 0,
+            max(groups, (c) => c.mean + computeErrorBar(c, errorType)) ?? 0,
         );
         const ySpan = Math.max(yHi - yLo, 1e-6);
         const yScale: ScaleLinear<number, number> = scaleLinear()
@@ -84,7 +68,7 @@ export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element =
         const baselineY = yScale(0);
 
         g.selectAll("rect.bar")
-            .data(resolved)
+            .data(groups)
             .join("rect")
             .attr("class", "bar")
             .attr("x", (d) => xScale(d.label) as number)
@@ -96,7 +80,7 @@ export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element =
 
         const errors = g.append("g").attr("class", "errors");
         const capW = Math.min(8, xScale.bandwidth() / 3);
-        resolved.forEach((c) => {
+        groups.forEach((c) => {
             const errorMag = computeErrorBar(c, errorType);
             if (errorMag <= 0) {
                 return;

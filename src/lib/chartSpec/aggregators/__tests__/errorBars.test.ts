@@ -30,8 +30,14 @@ describe("computeErrorBar", () => {
         expect(computeErrorBar(group, "sem")).toBeCloseTo(1, 5);
     });
 
-    it("returns 1.96*sem for CI95", () => {
+    it("returns 1.96*sem for CI95 on small group", () => {
         expect(computeErrorBar(group, "ci95")).toBeCloseTo(Z_95, 5);
+    });
+
+    it("returns CI95 half-width 3.92 for sd=10 and n=25", () => {
+        const large: GroupStats = { label: "L", mean: 50, sd: 10, n: 25 };
+        expect(computeErrorBar(large, "sem")).toBeCloseTo(2, 5);
+        expect(computeErrorBar(large, "ci95")).toBeCloseTo(3.92, 5);
     });
 });
 
@@ -62,6 +68,27 @@ describe("inferErrorTypeFromReceipt", () => {
         expect(inferErrorTypeFromReceipt(receipt)).toBe("ci95");
     });
 
+    it("infers ci95 from 95%CI without space", () => {
+        const receipt: Receipt = {
+            ...base,
+            tests: [{ label: "Post-hoc", name: "95%CI bars" }],
+        };
+        expect(inferErrorTypeFromReceipt(receipt)).toBe("ci95");
+    });
+
+    it("infers ci95 from confidence interval wording", () => {
+        const receipt: Receipt = {
+            ...base,
+            tests: [
+                {
+                    label: "Analysis",
+                    name: "ninety-five percent confidence interval",
+                },
+            ],
+        };
+        expect(inferErrorTypeFromReceipt(receipt)).toBe("ci95");
+    });
+
     it("infers sem from SEM hint", () => {
         const receipt: Receipt = {
             ...base,
@@ -70,8 +97,32 @@ describe("inferErrorTypeFromReceipt", () => {
         expect(inferErrorTypeFromReceipt(receipt)).toBe("sem");
     });
 
-    it("falls back to sem when no hint", () => {
+    it("infers sem from standard error wording", () => {
+        const receipt: Receipt = {
+            ...base,
+            tests: [{ label: "Means", name: "standard error of the mean" }],
+        };
+        expect(inferErrorTypeFromReceipt(receipt)).toBe("sem");
+    });
+
+    it("falls back to sem for t-test without error-bar hint", () => {
+        const receipt: Receipt = {
+            ...base,
+            tests: [{ label: "Independent samples t-test", name: "p = 0.04" }],
+        };
+        expect(inferErrorTypeFromReceipt(receipt)).toBe("sem");
+    });
+
+    it("falls back to sem when tests array is empty", () => {
         expect(inferErrorTypeFromReceipt(base)).toBe("sem");
+    });
+
+    it("prefers ci95 when SD and 95% CI appear in the same test row", () => {
+        const receipt: Receipt = {
+            ...base,
+            tests: [{ label: "Report", name: "SD and 95% CI shown" }],
+        };
+        expect(inferErrorTypeFromReceipt(receipt)).toBe("ci95");
     });
 });
 

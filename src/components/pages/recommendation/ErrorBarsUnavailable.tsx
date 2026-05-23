@@ -10,7 +10,7 @@ export const ErrorBarsUnavailable = ({ groups }: Props): JSX.Element | null => {
         return null;
     }
 
-    const maxN = Math.max(...groups.map((g) => g.n));
+    const maxN = groups.reduce((max, g) => (g.n > max ? g.n : max), 0);
     const anyDrawable = groups.some((g) => canDrawErrorBars(g));
 
     if (anyDrawable) {

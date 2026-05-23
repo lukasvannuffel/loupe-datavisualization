@@ -7,8 +7,11 @@ import type { LoupeDataset } from "@/app/providers";
 import { createDefaultChartSpec } from "@/lib/chartSpec";
 import type { ChartSpec, OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
+import type { PrivateRows } from "@/lib/parser/types";
+import type { BarErrorAggregation } from "@/lib/chartSpec/aggregators/barError.types";
 import type { Mapping } from "@/lib/roles/types";
 
+import * as barErrorMappingModule from "../recommendation/barErrorMapping";
 import { Recommendation } from "../Recommendation";
 
 const push = vi.fn();
@@ -46,19 +49,22 @@ vi.mock("@/components/charts/PublicationKM", () => ({
     PublicationKM: (): JSX.Element => <div data-testid="publication-km">Kaplan–Meier</div>,
 }));
 
-const aggregateBarErrorMock = vi.fn(() => ({
-    groups: [{ label: "A", mean: 10, sd: 1, n: 5 }],
-    missing: {
-        dropRate: 0.1,
-        droppedRows: 1,
-        missingGroupRows: 0,
-        missingOutcomeRows: 1,
-        totalRows: 10,
-    },
-}));
+const aggregateBarErrorMock = vi.fn(
+    (_rows: PrivateRows, _mapping: Mapping): BarErrorAggregation => ({
+        groups: [{ label: "A", mean: 10, sd: 1, n: 5 }],
+        missing: {
+            dropRate: 0.1,
+            droppedRows: 1,
+            missingGroupRows: 0,
+            missingOutcomeRows: 1,
+            totalRows: 10,
+        },
+    }),
+);
 
 vi.mock("@/lib/chartSpec/aggregators/barError", () => ({
-    aggregateBarError: (...args: unknown[]) => aggregateBarErrorMock(...args),
+    aggregateBarError: (rows: PrivateRows, mapping: Mapping) =>
+        aggregateBarErrorMock(rows, mapping),
 }));
 
 vi.mock("@/components/charts/d3/BarErrorChart", () => ({
@@ -139,6 +145,7 @@ describe("Recommendation", () => {
     });
 
     afterEach(() => {
+        vi.restoreAllMocks();
         vi.useRealTimers();
         cleanup();
     });
@@ -417,7 +424,7 @@ describe("Recommendation", () => {
         expect(screen.getByRole("status").textContent).toMatch(/rows dropped/i);
     });
 
-    it("hides missing-data warning when drop rate is at most 5%", async () => {
+    it("hides missing-data warning when drop rate is below 5%", async () => {
         aggregateBarErrorMock.mockReturnValueOnce({
             groups: [],
             missing: {
@@ -433,6 +440,33 @@ describe("Recommendation", () => {
         );
         await advanceToChartPhase();
         expect(screen.queryByText(/rows dropped/i)).toBeNull();
+    });
+
+    it("hides missing-data warning when drop rate is exactly 5%", async () => {
+        aggregateBarErrorMock.mockReturnValueOnce({
+            groups: [{ label: "A", mean: 1, sd: 0, n: 19 }],
+            missing: {
+                dropRate: 0.05,
+                droppedRows: 1,
+                missingGroupRows: 0,
+                missingOutcomeRows: 1,
+                totalRows: 20,
+            },
+        });
+        render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.queryByText(/rows dropped/i)).toBeNull();
+    });
+
+    it("shows inferred outcome breadcrumb when outcome was guessed", async () => {
+        vi.spyOn(barErrorMappingModule, "mappingForBarError").mockReturnValueOnce({
+            mapping: { group: "arm", outcome: "bp_change" },
+            inferredOutcome: "bp_change",
+        });
+        render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByText(/Outcome column inferred/i)).toBeTruthy();
+        expect(screen.getByText("bp_change")).toBeTruthy();
     });
 
     it("initializes error toggle from receipt hints", async () => {

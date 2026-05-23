@@ -5,20 +5,21 @@ import type { ErrorBarType, GroupStats } from "./barError.types";
 /** Single source of truth for the normal-approximation 95% CI z-score. */
 export const Z_95 = 1.96;
 
+/** First matching hint wins: ci95 → sem → sd (per test row, top to bottom). */
 const ERROR_TYPE_HINTS: ReadonlyArray<readonly [RegExp, ErrorBarType]> = [
     [/\b(95\s?%?\s?ci|confidence)/i, "ci95"],
     [/\b(sem|standard error)/i, "sem"],
     [/\b(sd|standard deviation)/i, "sd"],
 ];
 
-/**
- * Error bar half-width for one group. Returns 0 when n&lt;2 (insufficient variance).
- * CI95 uses the normal approximation (fine for exploratory charts; n≥30 is ideal).
- */
 /** True when this group has enough data to draw any error bar. */
 export const canDrawErrorBars = (group: GroupStats): boolean =>
     group.n >= 2 && Number.isFinite(group.sd) && group.sd > 0;
 
+/**
+ * Error bar half-width for one group. Returns 0 when n&lt;2 (insufficient variance).
+ * CI95 uses the normal approximation (fine for exploratory charts; n≥30 is ideal).
+ */
 export const computeErrorBar = (group: GroupStats, type: ErrorBarType): number => {
     if (group.n < 2 || !Number.isFinite(group.sd)) {
         return 0;
