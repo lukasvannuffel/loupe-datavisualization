@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { scaleBand, scaleLinear } from "d3-scale";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readDesignTokens } from "../applyDesignTokens";
 import { applyAxes, axisTickCountForWidth } from "../applyAxes";
@@ -24,7 +24,32 @@ const makeCtx = (width: number, height: number) => {
     };
 };
 
+const mockBBox = (width: number, height = 12): DOMRect =>
+    ({
+        width,
+        height,
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: width,
+        bottom: height,
+        toJSON: () => ({}),
+    }) as DOMRect;
+
 describe("applyAxes", () => {
+    let bboxSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+    beforeEach(() => {
+        bboxSpy = vi
+            .spyOn(SVGGraphicsElement.prototype, "getBBox")
+            .mockImplementation(() => mockBBox(20));
+    });
+
+    afterEach(() => {
+        bboxSpy?.mockRestore();
+    });
+
     it("appends x-axis and y-axis groups", () => {
         const ctx = makeCtx(600, 400);
         const xScale = scaleBand<string>().domain(["A", "B"]).range([0, ctx.innerWidth]);
@@ -41,5 +66,50 @@ describe("applyAxes", () => {
         expect(axisTickCountForWidth(400)).toBe(4);
         expect(axisTickCountForWidth(480)).toBe(6);
         expect(axisTickCountForWidth(800)).toBe(6);
+    });
+
+    it("rotates x labels when measured widths overflow the axis", () => {
+        bboxSpy?.mockImplementation(() => mockBBox(100));
+        // innerWidth = 300 - 48 - 16 = 236; 4×100 + 3×8 = 424 > 236
+        const ctx = makeCtx(300, 400);
+        const labels = ["One", "Two", "Three", "Four"];
+        const xScale = scaleBand<string>().domain(labels).range([0, ctx.innerWidth]);
+        const yScale = scaleLinear().domain([0, 10]).range([ctx.innerHeight, 0]);
+        const tokens = readDesignTokens();
+
+        applyAxes(ctx, xScale, yScale, tokens);
+
+        const transforms = [...ctx.svg.querySelectorAll("g.x-axis text")].map((t) =>
+            t.getAttribute("transform"),
+        );
+        expect(transforms.every((t) => t?.includes("rotate(-35"))).toBe(true);
+    });
+
+    it("does not rotate x labels when measured widths fit the axis", () => {
+        const ctx = makeCtx(600, 400);
+        const labels = ["One", "Two", "Three", "Four"];
+        const xScale = scaleBand<string>().domain(labels).range([0, ctx.innerWidth]);
+        const yScale = scaleLinear().domain([0, 10]).range([ctx.innerHeight, 0]);
+        const tokens = readDesignTokens();
+
+        applyAxes(ctx, xScale, yScale, tokens);
+
+        const transforms = [...ctx.svg.querySelectorAll("g.x-axis text")].map((t) =>
+            t.getAttribute("transform"),
+        );
+        expect(transforms.every((t) => !t?.includes("rotate(-35"))).toBe(true);
+    });
+
+    it("returns extraBottomPx when labels are rotated", () => {
+        bboxSpy?.mockImplementation(() => mockBBox(100));
+        const ctx = makeCtx(300, 400);
+        const xScale = scaleBand<string>()
+            .domain(["Alpha", "Beta", "Gamma", "Delta"])
+            .range([0, ctx.innerWidth]);
+        const yScale = scaleLinear().domain([0, 10]).range([ctx.innerHeight, 0]);
+        const tokens = readDesignTokens();
+
+        const { extraBottomPx } = applyAxes(ctx, xScale, yScale, tokens);
+        expect(extraBottomPx).toBeGreaterThan(0);
     });
 });

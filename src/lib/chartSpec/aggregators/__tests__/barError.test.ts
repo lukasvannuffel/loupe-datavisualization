@@ -145,14 +145,18 @@ describe("aggregateBarError", () => {
         expect(groups[0]?.n).toBe(1);
     });
 
-    it("sorts groups alphabetically by label", () => {
+    it("preserves CSV insertion order for group labels", () => {
         const rows = brandRows([
-            { arm: "Z", outcome: "1" },
-            { arm: "A", outcome: "2" },
-            { arm: "M", outcome: "3" },
+            { arm: "Placebo", outcome: "10" },
+            { arm: "High Dose", outcome: "20" },
+            { arm: "Low Dose", outcome: "15" },
+            { arm: "Medium Dose", outcome: "18" },
+            { arm: "Placebo", outcome: "12" },
+            { arm: "High Dose", outcome: "22" },
         ]);
         const labels = aggregateBarError(rows, mapping).groups.map((g) => g.label);
-        expect(labels).toEqual(["A", "M", "Z"]);
+        expect(labels).toEqual(["Placebo", "High Dose", "Low Dose", "Medium Dose"]);
+        expect(labels).not.toEqual(["High Dose", "Low Dose", "Medium Dose", "Placebo"]);
     });
 
     it("never calls fetch during aggregation", () => {

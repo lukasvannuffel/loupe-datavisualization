@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { computeErrorBar } from "@/lib/chartSpec/aggregators/errorBars";
@@ -91,7 +90,6 @@ const installResizeObserver = (size?: { readonly width: number; readonly height:
 };
 
 const stableSpec: BarErrorSpec = spec;
-const stableGroups: readonly GroupStats[] = threeGroups;
 
 describe("BarErrorChart", () => {
     beforeEach(() => {

@@ -38,4 +38,4 @@ export type {
     GroupStats,
     MissingDataInfo,
 } from "./aggregators/barError.types";
-export { computeErrorBar, inferErrorTypeFromReceipt, Z_95 } from "./aggregators/errorBars";
+export { computeErrorBar, inferErrorTypeFromReceipt } from "./aggregators/errorBars";

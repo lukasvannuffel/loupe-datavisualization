@@ -91,18 +91,20 @@ export const aggregateBarError = (rows: PrivateRows, mapping: Mapping): BarError
         buckets.set(groupLabel, bucket);
     }
 
-    const groups: GroupStats[] = Array.from(buckets.entries())
-        .map(([label, values]) => {
-            const m = mean(values);
+    // Insertion order from CSV is intentional — Map iteration preserves it.
+    // Do NOT add .sort() / .toSorted() / localeCompare here: the researcher's
+    // CSV row order is their preferred display order (e.g., Placebo → High Dose).
+    // Manual reorder is LOUPE-15 territory. See LOUPE-11 post-review notes.
+    const groups: GroupStats[] = Array.from(buckets, ([label, values]) => {
+        const m = mean(values);
 
-            return {
-                label,
-                mean: m,
-                n: values.length,
-                sd: sampleStdDev(values, m),
-            };
-        })
-        .sort((a, b) => a.label.localeCompare(b.label));
+        return {
+            label,
+            mean: m,
+            n: values.length,
+            sd: sampleStdDev(values, m),
+        };
+    });
 
     return {
         groups,

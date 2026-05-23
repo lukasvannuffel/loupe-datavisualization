@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Receipt } from "@/lib/chartSpec/types";
 
 import type { GroupStats } from "../barError.types";
-import { canDrawErrorBars, computeErrorBar, inferErrorTypeFromReceipt, Z_95 } from "../errorBars";
+import { canDrawErrorBars, computeErrorBar, inferErrorTypeFromReceipt } from "../errorBars";
 
 const group: GroupStats = { label: "A", mean: 10, sd: 2, n: 4 };
 
@@ -30,14 +30,16 @@ describe("computeErrorBar", () => {
         expect(computeErrorBar(group, "sem")).toBeCloseTo(1, 5);
     });
 
-    it("returns 1.96*sem for CI95 on small group", () => {
-        expect(computeErrorBar(group, "ci95")).toBeCloseTo(Z_95, 5);
+    it("returns t-based CI95 half-width for n=4 with sd=1.13", () => {
+        const small: GroupStats = { label: "S", mean: 10, sd: 1.13, n: 4 };
+        expect(computeErrorBar(small, "ci95")).toBeCloseTo(1.798, 3);
+        expect(computeErrorBar(small, "ci95")).not.toBeCloseTo(1.108, 3);
     });
 
-    it("returns CI95 half-width 3.92 for sd=10 and n=25", () => {
+    it("returns t-based CI95 half-width for sd=10 and n=25", () => {
         const large: GroupStats = { label: "L", mean: 50, sd: 10, n: 25 };
         expect(computeErrorBar(large, "sem")).toBeCloseTo(2, 5);
-        expect(computeErrorBar(large, "ci95")).toBeCloseTo(3.92, 5);
+        expect(computeErrorBar(large, "ci95")).toBeCloseTo(4.128, 2);
     });
 });
 
@@ -123,11 +125,5 @@ describe("inferErrorTypeFromReceipt", () => {
             tests: [{ label: "Report", name: "SD and 95% CI shown" }],
         };
         expect(inferErrorTypeFromReceipt(receipt)).toBe("ci95");
-    });
-});
-
-describe("Z_95", () => {
-    it("is exactly 1.96", () => {
-        expect(Z_95).toBe(1.96);
     });
 });

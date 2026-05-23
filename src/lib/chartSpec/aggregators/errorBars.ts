@@ -1,9 +1,7 @@
 import type { Receipt } from "@/lib/chartSpec/types";
 
 import type { ErrorBarType, GroupStats } from "./barError.types";
-
-/** Single source of truth for the normal-approximation 95% CI z-score. */
-export const Z_95 = 1.96;
+import { tCritical } from "./tCritical";
 
 /** First matching hint wins: ci95 → sem → sd (per test row, top to bottom). */
 const ERROR_TYPE_HINTS: ReadonlyArray<readonly [RegExp, ErrorBarType]> = [
@@ -18,7 +16,7 @@ export const canDrawErrorBars = (group: GroupStats): boolean =>
 
 /**
  * Error bar half-width for one group. Returns 0 when n&lt;2 (insufficient variance).
- * CI95 uses the normal approximation (fine for exploratory charts; n≥30 is ideal).
+ * CI95 uses Student's t: t(0.975, n-1) × SD/√n.
  */
 export const computeErrorBar = (group: GroupStats, type: ErrorBarType): number => {
     if (group.n < 2 || !Number.isFinite(group.sd)) {
@@ -30,7 +28,7 @@ export const computeErrorBar = (group: GroupStats, type: ErrorBarType): number =
         case "sem":
             return group.sd / Math.sqrt(group.n);
         case "ci95":
-            return Z_95 * (group.sd / Math.sqrt(group.n));
+            return tCritical(group.n - 1) * (group.sd / Math.sqrt(group.n));
     }
 };
 
