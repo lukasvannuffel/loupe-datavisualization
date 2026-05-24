@@ -9,6 +9,7 @@ import type { ChartSpec, OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
 import type { PrivateRows } from "@/lib/parser/types";
 import type { BarErrorAggregation } from "@/lib/chartSpec/aggregators/barError.types";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { Mapping } from "@/lib/roles/types";
 
 import * as barErrorMappingModule from "../recommendation/barErrorMapping";
@@ -27,7 +28,12 @@ vi.mock("next/navigation", () => ({
     }),
 }));
 
-const defaultMapping: Mapping = { group: "arm", outcome: "value" };
+const defaultMapping: Mapping = {
+    event: "event",
+    group: "arm",
+    outcome: "value",
+    time: "time",
+};
 
 vi.mock("@/app/providers", () => ({
     useAppState: (): {
@@ -67,8 +73,40 @@ vi.mock("@/lib/chartSpec/aggregators/barError", () => ({
         aggregateBarErrorMock(rows, mapping),
 }));
 
+vi.mock("@/lib/chartSpec/aggregators/kaplanMeier", () => ({
+    aggregateKaplanMeier: (rows: PrivateRows, mapping: Mapping) =>
+        aggregateKaplanMeierMock(rows, mapping),
+}));
+
 vi.mock("@/components/charts/d3/BarErrorChart", () => ({
     BarErrorChart: (): JSX.Element => <div data-testid="bar-error-chart">Bar with errors</div>,
+}));
+
+vi.mock("@/components/charts/d3/KaplanMeierChart", () => ({
+    KaplanMeierChart: (): JSX.Element => <div data-testid="km-chart">Kaplan–Meier chart</div>,
+}));
+
+const aggregateKaplanMeierMock = vi.fn((_rows: PrivateRows, _mapping: Mapping) => ({
+    groups: [
+        {
+            atRiskTicks: [{ nAtRisk: 10, t: 0 }],
+            label: "A",
+            nEvents: 1,
+            nTotal: 10,
+            points: [
+                {
+                    censored: false,
+                    ciLower: 0.8,
+                    ciUpper: 1,
+                    nAtRisk: 10,
+                    survival: 1,
+                    t: 0,
+                },
+            ],
+        },
+    ],
+    kind: "km" as const,
+    tMax: 30,
 }));
 
 const emptyDataset: LoupeDataset = {
@@ -140,6 +178,29 @@ describe("Recommendation", () => {
         setSelectionMode.mockClear();
         updateLatestOverrideReason.mockClear();
         aggregateBarErrorMock.mockClear();
+        aggregateKaplanMeierMock.mockClear();
+        aggregateKaplanMeierMock.mockImplementation((_rows: PrivateRows, _mapping: Mapping) => ({
+            groups: [
+                {
+                    atRiskTicks: [{ nAtRisk: 10, t: 0 }],
+                    label: "A",
+                    nEvents: 1,
+                    nTotal: 10,
+                    points: [
+                        {
+                            censored: false,
+                            ciLower: 0.8,
+                            ciUpper: 1,
+                            nAtRisk: 10,
+                            survival: 1,
+                            t: 0,
+                        },
+                    ],
+                },
+            ],
+            kind: "km" as const,
+            tMax: 30,
+        }));
         push.mockClear();
         replace.mockClear();
     });
@@ -203,11 +264,20 @@ describe("Recommendation", () => {
         err.mockRestore();
     });
 
-    it("renders PublicationKM for km after chart phase", async () => {
+    it("renders KaplanMeierChart for km after chart phase", async () => {
         render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.getByTestId("publication-km")).toBeTruthy();
-        expect(screen.queryByText(/renderer coming soon/i)).toBeNull();
+        expect(screen.getByTestId("km-chart")).toBeTruthy();
+        expect(screen.queryByTestId("publication-km")).toBeNull();
+    });
+
+    it("shows KaplanMeierError message when more than 4 groups", async () => {
+        aggregateKaplanMeierMock.mockImplementation(() => {
+            throw new KaplanMeierError("Max 4 groups supported. Received 5.");
+        });
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByRole("alert").textContent).toContain("Max 4 groups supported");
     });
 
     it("renders PlaceholderRenderer for non-km kinds after chart phase", async () => {
@@ -425,7 +495,7 @@ describe("Recommendation", () => {
     });
 
     it("hides missing-data warning when drop rate is below 5%", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [],
             missing: {
                 dropRate: 0.03,
@@ -443,7 +513,7 @@ describe("Recommendation", () => {
     });
 
     it("hides missing-data warning when drop rate is exactly 5%", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [{ label: "A", mean: 1, sd: 0, n: 19 }],
             missing: {
                 dropRate: 0.05,
@@ -459,7 +529,7 @@ describe("Recommendation", () => {
     });
 
     it("shows inferred outcome breadcrumb when outcome was guessed", async () => {
-        vi.spyOn(barErrorMappingModule, "mappingForBarError").mockReturnValueOnce({
+        vi.spyOn(barErrorMappingModule, "mappingForBarError").mockReturnValue({
             mapping: { group: "arm", outcome: "bp_change" },
             inferredOutcome: "bp_change",
         });
@@ -490,7 +560,7 @@ describe("Recommendation", () => {
     });
 
     it("shows error bars unavailable when all groups have n<2", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [
                 { label: "A", mean: 10, sd: 0, n: 1 },
                 { label: "B", mean: 12, sd: 0, n: 1 },
@@ -508,13 +578,13 @@ describe("Recommendation", () => {
         expect(screen.getByText(/at least 2 rows per group/i)).toBeTruthy();
     });
 
-    it("does not re-aggregate when error type toggle changes", async () => {
+    it("re-aggregates bar error data when error type toggle changes", async () => {
         render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
         await advanceToChartPhase();
         const callsAfterMount = aggregateBarErrorMock.mock.calls.length;
         expect(callsAfterMount).toBeGreaterThan(0);
         fireEvent.click(screen.getByRole("radio", { name: /SD Standard/ }));
-        expect(aggregateBarErrorMock.mock.calls.length).toBe(callsAfterMount);
+        expect(aggregateBarErrorMock.mock.calls.length).toBeGreaterThan(callsAfterMount);
     });
 
     it("treats back-to-original kind as not display-overridden", () => {

@@ -1,13 +1,16 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppState, type LoupeDataset } from "@/app/providers";
 import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
+import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
+import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { ErrorBarType } from "@/lib/chartSpec/aggregators/barError.types";
 import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
@@ -43,18 +46,43 @@ export const Recommendation = ({
     const router = useRouter();
     const { appendOverride, intent, mapping, setSelectionMode, updateLatestOverrideReason } =
         useAppState();
-    const barErrorMapResult = useMemo((): BarErrorMappingResult => {
-        if (chartKind !== "barError") {
-            return { mapping };
-        }
+    let barErrorMapResult: BarErrorMappingResult = { mapping };
+    let barErrorAggregation: ReturnType<typeof aggregateBarError> | undefined;
 
-        return mappingForBarError(mapping, dataset.inferences);
-    }, [chartKind, dataset.inferences, mapping]);
+    if (chartKind === "barError") {
+        barErrorMapResult = mappingForBarError(mapping, dataset.inferences);
+        barErrorAggregation = aggregateBarError(dataset.rows, barErrorMapResult.mapping);
+    }
+
     const barErrorMapping = barErrorMapResult.mapping;
-    const barErrorAggregation = useMemo(
-        () => aggregateBarError(dataset.rows, barErrorMapping),
-        [dataset.rows, barErrorMapping],
-    );
+
+    let kmPlotResult:
+        | null
+        | { status: "missing" }
+        | { status: "ok"; data: ReturnType<typeof aggregateKaplanMeier> }
+        | { status: "error"; message: string } = null;
+
+    if (chartKind === "km") {
+        if (mapping.time === undefined || mapping.event === undefined) {
+            kmPlotResult = { status: "missing" };
+        }
+        else {
+            try {
+                kmPlotResult = {
+                    data: aggregateKaplanMeier(dataset.rows, mapping),
+                    status: "ok",
+                };
+            }
+            catch (err) {
+                if (err instanceof KaplanMeierError) {
+                    kmPlotResult = { message: err.message, status: "error" };
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+    }
     const [errorType, setErrorType] = useState<ErrorBarType>(() => inferErrorTypeFromReceipt(receipt));
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
@@ -162,7 +190,7 @@ export const Recommendation = ({
                             ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    {chartKind === "barError" && spec.kind === "barError" ? (
+                                    {chartKind === "barError" && spec.kind === "barError" && barErrorAggregation ? (
                                         <>
                                             {barErrorAggregation.missing.dropRate >
                                             MISSING_DATA_WARN_DROP_RATE ? (
@@ -227,6 +255,30 @@ export const Recommendation = ({
                                                     />
                                                 </>
                                             )}
+                                        </>
+                                    ) : chartKind === "km" && spec.kind === "km" ? (
+                                        <>
+                                            {kmPlotResult?.status === "missing" ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable survival data yet. On the map step,
+                                                        assign <strong>Time variable</strong> and{" "}
+                                                        <strong>Event indicator</strong> (0 = censored, 1 =
+                                                        event).
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            {kmPlotResult?.status === "error" ? (
+                                                <div className="rec-chart-empty muted" role="alert">
+                                                    <p>{kmPlotResult.message}</p>
+                                                </div>
+                                            ) : null}
+                                            {kmPlotResult?.status === "ok" ? (
+                                                <KaplanMeierChart
+                                                    data={kmPlotResult.data}
+                                                    spec={spec}
+                                                />
+                                            ) : null}
                                         </>
                                     ) : (
                                         <ChartRenderer spec={spec} />

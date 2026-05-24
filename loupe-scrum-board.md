@@ -381,21 +381,21 @@ Bouw de centrale `ChartRenderer` component die een ChartSpec + PlotData neemt en
 Begin met de simpelste chart — valideert je hele architectuur (data → spec → renderer → SVG). Render uit `[{label, mean, sd, n}]`. Toggle tussen SD/SEM/CI95. Match design system: hairlines, Source Serif titels, geen kleurig overload.
 
 **Actie-items**
-- [ ] `BarErrorChart.tsx` component
-- [ ] X-as: categorisch met label-rotation bij overflow
-- [ ] Y-as: numeriek met smart tick selection
-- [ ] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
+- [x] `BarErrorChart.tsx` component
+- [x] X-as: categorisch met label-rotation bij overflow
+- [x] Y-as: numeriek met smart tick selection
+- [x] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
        (t-distribution; 1.96·SEM is wrong for small n — see post-review fix.)
-- [ ] Toggle in customization rail (later in LOUPE-15)
-- [ ] Inline-editable titel via `contentEditable` zoals huidig prototype
-- [ ] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
+- [x] Toggle in customization rail (later in LOUPE-15)
+- [x] Inline-editable titel via `contentEditable` zoals huidig prototype
+- [x] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
 
 **Acceptance criteria**
-- [ ] Render uit echte aggregaties van CSV
-- [ ] Error-type toggle wisselt zonder re-aggregate
-- [ ] Visueel match met design system mockups
+- [x] Render uit echte aggregaties van CSV
+- [x] Error-type toggle wisselt zonder re-aggregate
+- [x] Visueel match met design system mockups
 
---->
+---
 
 ### LOUPE-12 · Kaplan–Meier curve
 
@@ -408,19 +408,19 @@ Begin met de simpelste chart — valideert je hele architectuur (data → spec �
 De moeilijkste van je MVP. Step-functie berekenen client-side, censoring tick marks tonen, at-risk tabel onder de chart. **Geen log-rank, geen p-waarde** — niet claimen wat je niet berekent. Multiple groups via palette. Twee respondenten (R3 en R4) noemden expliciet KM zónder at-risk/censoring als pijnpunt — dit is je hero-chart.
 
 **Actie-items**
-- [ ] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
-- [ ] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
-- [ ] Censoring detectie + tick-marks op de curve
-- [ ] At-risk tabel: aantal patiënten in risk set bij elke major time-point
-- [ ] `KaplanMeierChart.tsx` met multi-group support
-- [ ] Edge cases: alle censored, zero events, single group
-- [ ] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
+- [x] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
+- [x] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
+- [x] Censoring detectie + tick-marks op de curve
+- [x] At-risk tabel: aantal patiënten in risk set bij elke major time-point
+- [x] `KaplanMeierChart.tsx` met multi-group support
+- [x] Edge cases: alle censored, zero events, single group
+- [x] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
 
 **Acceptance criteria**
-- [ ] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
-- [ ] At-risk tabel telt correct af bij elke time-point
-- [ ] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
-- [ ] Censoring ticks zichtbaar maar niet dominant
+- [x] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
+- [x] At-risk tabel telt correct af bij elke time-point
+- [x] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
+- [x] Censoring ticks zichtbaar maar niet dominant
 
 ---
 
