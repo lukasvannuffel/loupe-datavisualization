@@ -3,12 +3,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAppState, type LoupeDataset } from "@/app/providers";
 import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
+import { BoxChart } from "@/components/charts/d3/BoxChart";
 import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
+import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
+import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { ErrorBarType } from "@/lib/chartSpec/aggregators/barError.types";
@@ -83,6 +86,35 @@ export const Recommendation = ({
             }
         }
     }
+
+    let boxPlotResult:
+        | null
+        | { status: "missing" }
+        | { status: "ok"; data: ReturnType<typeof aggregateBoxPlot> }
+        | { status: "error"; message: string } = null;
+
+    if (chartKind === "box") {
+        if (mapping.outcome === undefined) {
+            boxPlotResult = { status: "missing" };
+        }
+        else {
+            try {
+                boxPlotResult = {
+                    data: aggregateBoxPlot(dataset.rows, mapping),
+                    status: "ok",
+                };
+            }
+            catch (err) {
+                if (err instanceof BoxPlotError) {
+                    boxPlotResult = { message: err.message, status: "error" };
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+    }
+
     const [errorType, setErrorType] = useState<ErrorBarType>(() => inferErrorTypeFromReceipt(receipt));
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
@@ -278,6 +310,27 @@ export const Recommendation = ({
                                                     data={kmPlotResult.data}
                                                     spec={spec}
                                                 />
+                                            ) : null}
+                                        </>
+                                    ) : chartKind === "box" && spec.kind === "box" ? (
+                                        <>
+                                            {boxPlotResult?.status === "missing" ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable distribution data yet. On the map
+                                                        step, assign <strong>Outcome</strong> to a numeric
+                                                        column and <strong>Group / arm</strong> to a
+                                                        categorical column.
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            {boxPlotResult?.status === "error" ? (
+                                                <div className="rec-chart-empty muted" role="alert">
+                                                    <p>{boxPlotResult.message}</p>
+                                                </div>
+                                            ) : null}
+                                            {boxPlotResult?.status === "ok" ? (
+                                                <BoxChart data={boxPlotResult.data} spec={spec} />
                                             ) : null}
                                         </>
                                     ) : (

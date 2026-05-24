@@ -79,11 +79,12 @@ export type BarErrorSpec = BaseSpec & {
     annotations: readonly StatAnnotation[];
 };
 
-/** Box plot configuration: outliers, mean marker, group ordering. */
+/** Box plot configuration: outliers, mean marker, notch, group ordering. */
 export type BoxSpec = BaseSpec & {
     readonly kind: "box";
     readonly showOutliers: boolean;
     readonly showMeanMarker: boolean;
+    readonly notched: boolean;
     readonly groupOrder: "alphabetical" | "byMedian" | "manual";
 };
 
@@ -101,6 +102,13 @@ export type ChartSpec = KMSpec | BarErrorSpec | BoxSpec | XYSpec;
 
 export type { AtRiskTick, KMGroup, KMPlotData, KMPoint } from "./aggregators/kaplanMeier.types";
 export { KaplanMeierError } from "./aggregators/kaplanMeier.types";
+export type {
+    BoxPlotData,
+    BoxStats,
+    GroupStats,
+    StripStats,
+} from "./aggregators/boxPlot.types";
+export { BoxPlotError } from "./aggregators/boxPlot.types";
 
 /** Per-group summary statistics for bar-with-error charts. Error magnitude is derived at render time. */
 export type BarErrorGroupStats = {
@@ -114,25 +122,6 @@ export type BarErrorGroupStats = {
 export type BarErrorPlotData = {
     kind: "barError";
     groups: readonly BarErrorGroupStats[];
-};
-
-/** One aggregated box-and-whisker group: five-number summary, optional mean, outlier values, and sample size. */
-export type BoxGroup = {
-    label: string;
-    min: number;
-    q1: number;
-    median: number;
-    q3: number;
-    max: number;
-    outliers: readonly number[];
-    mean?: number;
-    n: number;
-};
-
-/** Box plot aggregates: per-group summaries. No per-patient rows. */
-export type BoxPlotData = {
-    kind: "box";
-    groups: readonly BoxGroup[];
 };
 
 /** One XY observation (aggregated point). */
@@ -162,7 +151,7 @@ export type XYPlotData = {
 export type PlotData =
     | import("./aggregators/kaplanMeier.types").KMPlotData
     | BarErrorPlotData
-    | BoxPlotData
+    | import("./aggregators/boxPlot.types").BoxPlotData
     | XYPlotData;
 
 /** Headline + reasoning shown to the user when a chart type is recommended. */

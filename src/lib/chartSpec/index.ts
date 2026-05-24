@@ -5,8 +5,8 @@ export type {
     BarErrorPlotData,
     BarErrorSpec,
     BaseSpec,
-    BoxGroup,
     BoxPlotData,
+    BoxStats,
     BoxSpec,
     ChartSlug,
     ChartSpec,
@@ -28,10 +28,16 @@ export type {
     XYSeries,
     XYSpec,
 } from "./types";
-export { KaplanMeierError, MANUAL_SELECTION_NOTE, manualSelectionNoteFor } from "./types";
+export {
+    BoxPlotError,
+    KaplanMeierError,
+    MANUAL_SELECTION_NOTE,
+    manualSelectionNoteFor,
+} from "./types";
 export { chartSpecSchema, plotDataSchema, receiptSchema } from "./schemas";
 export { createDefaultChartSpec, defaultBarErrorSpec } from "./factory";
 export { aggregateBarError } from "./aggregators/barError";
+export { aggregateBoxPlot } from "./aggregators/boxPlot";
 export { aggregateKaplanMeier } from "./aggregators/kaplanMeier";
 export type {
     BarErrorAggregation,

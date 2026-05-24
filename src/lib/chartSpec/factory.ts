@@ -63,6 +63,7 @@ const buildBox = (id: string, createdAt: string): BoxSpec => ({
     kind: "box",
     showOutliers: true,
     showMeanMarker: false,
+    notched: false,
     groupOrder: "alphabetical",
 });
 

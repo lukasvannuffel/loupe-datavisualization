@@ -61,6 +61,7 @@ describe("ChartRenderer", () => {
             kind: "box" as const,
             showOutliers: true,
             showMeanMarker: false,
+            notched: false,
             groupOrder: "alphabetical" as const,
         };
         const { unmount: unmountBox } = render(<ChartRenderer spec={boxSpec} />);
