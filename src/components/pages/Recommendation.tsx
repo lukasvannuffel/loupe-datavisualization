@@ -319,8 +319,9 @@ export const Recommendation = ({
                                                     <p>
                                                         No plottable distribution data yet. On the map
                                                         step, assign <strong>Outcome</strong> to a numeric
-                                                        column and <strong>Group / arm</strong> to a
-                                                        categorical column.
+                                                        column. <strong>Group / arm</strong> is optional —
+                                                        without it, all values are shown as a single
+                                                        distribution.
                                                     </p>
                                                 </div>
                                             ) : null}

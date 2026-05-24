@@ -79,13 +79,12 @@ export type BarErrorSpec = BaseSpec & {
     annotations: readonly StatAnnotation[];
 };
 
-/** Box plot configuration: outliers, mean marker, notch, group ordering. */
+/** Box plot configuration: outliers, mean marker, notch. */
 export type BoxSpec = BaseSpec & {
     readonly kind: "box";
     readonly showOutliers: boolean;
     readonly showMeanMarker: boolean;
     readonly notched: boolean;
-    readonly groupOrder: "alphabetical" | "byMedian" | "manual";
 };
 
 /** XY plot: scatter, line, or combined; regression and correlation toggles. */

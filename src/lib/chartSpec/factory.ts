@@ -64,7 +64,6 @@ const buildBox = (id: string, createdAt: string): BoxSpec => ({
     showOutliers: true,
     showMeanMarker: false,
     notched: false,
-    groupOrder: "alphabetical",
 });
 
 const buildXy = (id: string, createdAt: string): XYSpec => ({

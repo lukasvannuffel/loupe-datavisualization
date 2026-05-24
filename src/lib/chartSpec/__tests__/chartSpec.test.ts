@@ -58,7 +58,6 @@ const boxSpec: BoxSpec = {
     showOutliers: true,
     showMeanMarker: true,
     notched: false,
-    groupOrder: "alphabetical",
 };
 
 const sampleBoxGroup = {

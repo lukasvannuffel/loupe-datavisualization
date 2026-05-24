@@ -98,7 +98,6 @@ const boxSpecSchema = z
         showOutliers: z.boolean(),
         showMeanMarker: z.boolean(),
         notched: z.boolean(),
-        groupOrder: z.enum(["alphabetical", "byMedian", "manual"]),
     })
     .strict();
 

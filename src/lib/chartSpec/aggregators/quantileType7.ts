@@ -1,3 +1,8 @@
+// File budget exception: <40 lines (vs typical <30). The required JSDoc on the
+// type-7 algorithm + the divergence note vs R `boxplot()` + the numpy reference
+// is ~10 lines of documentation. The runtime body is ~12 lines, well under
+// budget. Documentation-driven overage is acceptable per CLAUDE.md.
+
 /**
  * Linear-interpolation percentile (numpy.percentile / matplotlib / R type=7
  * default). For a sorted array of length n and probability p ∈ [0, 1]:

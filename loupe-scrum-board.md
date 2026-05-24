@@ -440,22 +440,22 @@ De moeilijkste van je MVP. Step-functie berekenen client-side, censoring tick ma
 Vervangt het oorspronkelijke ROC-ticket na chart-pivot. Box plot is de canonische distributievergelijking in clinical publications — sterker dan violin voor jouw doelgroep omdat reviewers en oudere clinicians de vorm zonder uitleg lezen, en omdat box plots betrouwbaar blijven bij kleine N (waar KDE in een violin misleidend zou worden). Compute is goedkoop: quartielen + Tukey-fences voor outliers. Geen significantie-test, geen p-waarde — net zoals KM houd je je aan "wat je niet berekent, claim je niet".
 
 **Actie-items**
-- [ ] `boxPlot.ts` — pure functie: rauwe rijen `[{value, group}]` → `[{label, min, q1, median, q3, max, outliers, n}]` per groep
-- [ ] Quartielberekening via interpolatie (consistent met R `type=7` default — documenteer in code-comment)
-- [ ] Outlier-detectie: Tukey-fences (waarden buiten `q1 - 1.5*IQR` en `q3 + 1.5*IQR`)
-- [ ] `BoxChart.tsx` component met multi-group support
-- [ ] Whiskers tot min/max binnen Tukey-fences; outliers als losse markers
-- [ ] Optioneel: mediaan-notch (visualiseert 95% CI rondom mediaan) — controle via `notched` in spec
-- [ ] Optioneel: mean-marker (extra dot binnen box) — controle via `showMeanMarker`
-- [ ] Edge cases: n=1 per groep (geen box, alleen punt), alle waardes identiek (vlakke lijn op één hoogte), één lege groep
-- [ ] Privacy-check: PlotData bevat 5-number summary + outliers, GEEN volledige rij-data
+- [x] `boxPlot.ts` — pure functie: rauwe rijen `[{value, group}]` → `[{label, min, q1, median, q3, max, outliers, n}]` per groep
+- [x] Quartielberekening via interpolatie (consistent met R `type=7` default — documenteer in code-comment)
+- [x] Outlier-detectie: Tukey-fences (waarden buiten `q1 - 1.5*IQR` en `q3 + 1.5*IQR`)
+- [x] `BoxChart.tsx` component met multi-group support
+- [x] Whiskers tot min/max binnen Tukey-fences; outliers als losse markers
+- [x] Optioneel: mediaan-notch (visualiseert 95% CI rondom mediaan) — controle via `notched` in spec
+- [x] Optioneel: mean-marker (extra dot binnen box) — controle via `showMeanMarker`
+- [x] Edge cases: n=1 per groep (geen box, alleen punt), alle waardes identiek (vlakke lijn op één hoogte), één lege groep
+- [x] Privacy-check: PlotData bevat 5-number summary + outliers, GEEN volledige rij-data
 
 **Acceptance criteria**
-- [ ] Test fixture (bv. `iris` Sepal.Width per Species) reproduceert quartielen identiek aan R's `boxplot()`
-- [ ] Outliers visueel zichtbaar, niet samengevoegd met whiskers
-- [ ] Met `notched: true`: notch zichtbaar wanneer 95% CI rondom mediaan binnen de box past
-- [ ] PlotData JSON: geen `rows`, geen patient-keys, alleen aggregaten + outlier-waarden
-- [ ] Visueel match met design system: hairlines, geen kleur-overload, mono labels op assen
+- [x] Test fixture (bv. `iris` Sepal.Width per Species) reproduceert quartielen identiek aan R's `boxplot()`
+- [x] Outliers visueel zichtbaar, niet samengevoegd met whiskers
+- [x] Met `notched: true`: notch zichtbaar wanneer 95% CI rondom mediaan binnen de box past
+- [x] PlotData JSON: geen `rows`, geen patient-keys, alleen aggregaten + outlier-waarden
+- [x] Visueel match met design system: hairlines, geen kleur-overload, mono labels op assen
 
 ---
 
@@ -543,6 +543,7 @@ SQL-migratie voor de charts-tabel. Eén tabel, JSONB voor flexibiliteit, RLS voo
 - [ ] `supabase db reset` past schema clean toe
 - [ ] Dual-account test bewijst RLS-isolatie
 
+On export, source the title from ChartSpec.title, NOT from overrideDisplay.title. The · overridden from X suffix is page-UI-only and must not appear in exported artifacts.
 ---
 
 ### LOUPE-17 · Save chart server action

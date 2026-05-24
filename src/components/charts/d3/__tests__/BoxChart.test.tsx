@@ -25,7 +25,6 @@ const boxSpec = (overrides: Partial<BoxSpec> = {}): BoxSpec => ({
     showOutliers: true,
     showMeanMarker: false,
     notched: false,
-    groupOrder: "alphabetical",
     ...overrides,
 });
 

@@ -58,11 +58,14 @@ export const aggregateBoxPlot = (rows: PrivateRows, mapping: Mapping): BoxPlotDa
     }
 
     const buckets = new Map<string, number[]>();
-    const emptyGroupLabels = new Set<string>();
 
     for (const row of rows) {
         const valueRaw = row[valueKey]?.trim() ?? "";
         const value = valueRaw.length === 0 ? NaN : parseNumericCell(valueRaw);
+        if (!Number.isFinite(value)) {
+            continue;
+        }
+
         let label: string | null;
         if (groupKey === undefined) {
             label = DEFAULT_GROUP;
@@ -74,20 +77,16 @@ export const aggregateBoxPlot = (rows: PrivateRows, mapping: Mapping): BoxPlotDa
         if (label === null) {
             continue;
         }
-        if (!Number.isFinite(value)) {
-            emptyGroupLabels.add(label);
-            continue;
-        }
+
         const bucket = buckets.get(label) ?? [];
         bucket.push(value);
         buckets.set(label, bucket);
-        emptyGroupLabels.delete(label);
     }
 
-    for (const label of emptyGroupLabels) {
-        if (!buckets.has(label)) {
-            buckets.set(label, []);
-        }
+    if (buckets.size === 0) {
+        throw new BoxPlotError(
+            "No valid numeric values found in the selected column. Check that the outcome column contains numbers.",
+        );
     }
 
     if (buckets.size > GROUP_CAP) {
@@ -97,8 +96,11 @@ export const aggregateBoxPlot = (rows: PrivateRows, mapping: Mapping): BoxPlotDa
     const groups: GroupStats[] = [];
 
     for (const [label, values] of buckets) {
+        // Defensive: cannot occur in normal flow because empty buckets are not created
+        // during bucketing (LOUPE-13 post-review Fix 3). Retained as a guard against
+        // future refactors that might bypass the validity check.
         if (values.length === 0) {
-            throw new BoxPlotError(`Group ${label} has no valid values.`);
+            throw new BoxPlotError(`Group "${label}" has no valid numeric values.`);
         }
         if (values.length < MIN_N_FOR_BOX) {
             // Strip plot mode publishes raw values for groups with n < 5. Same trade-off

@@ -34,6 +34,27 @@ If a mutation drill cannot be reverted cleanly (e.g., requires a git stash that 
 
 Final commit MUST contain the unmutated code. If a mutation is in the final diff, the drill was not completed.
 
+## Mutation-verify rigor
+
+Three tickets (LOUPE-11, LOUPE-12, LOUPE-13) have shipped with mutation-verify
+comments that referenced abstract mutations not actually executed against the
+test's specific regex/threshold. Each was caught by /code-reviewer post-hoc as
+a "test passes but doesn't prove the property" bug.
+
+Rule: every MUTATION-VERIFY comment in a test must include:
+
+1. The EXACT code change being mutated (file path + line + literal diff,
+   not "add a field"), AND
+2. The EXACT test name that goes red, AND
+3. A 1-line manual verification ("Verified manually: YYYY-MM-DD. REVERTED.")
+
+A comment that says "would red privacy test" is rejected. Either run the
+mutation and document the actual result, or remove the comment.
+
+When in doubt: write the test to assert against the SERIALIZED OUTPUT
+(JSON.stringify) with a substring-match regex, not a quoted-field regex.
+KM's `/patientId/i` pattern is the reference; LOUPE-13 Fix 1 standardizes on it.
+
 ## Architecture
 
 **Loupe** is a medical/scientific data-visualization wizard. Users upload a dataset, map columns to typed roles, get a chart recommendation (AI or manual), and export a reproducible chart with a provenance receipt.

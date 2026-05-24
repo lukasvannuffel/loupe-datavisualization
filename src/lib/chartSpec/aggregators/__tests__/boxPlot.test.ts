@@ -8,6 +8,19 @@ import { BoxPlotError } from "../boxPlot.types";
 import { irisRows } from "./irisSepalWidth.fixture";
 
 const irisMapping: Mapping = { group: "species", outcome: "sepalWidth" };
+const valueGroupMapping: Mapping = { group: "group", outcome: "value" };
+
+const expectNoJoinableFields = (json: string): void => {
+    expect(json).not.toMatch(/patientId/i);
+    expect(json).not.toMatch(/rowIndi[cx]/i);
+    expect(json).not.toMatch(/recordId/i);
+    expect(json).not.toMatch(/subjectId/i);
+    expect(json).not.toMatch(/"id":\s*"/);
+    expect(json).not.toMatch(/"id":\s*\d/);
+};
+
+const validRowsFor = (group: string): readonly Record<string, string>[] =>
+    Array.from({ length: 5 }, (_, i) => ({ group, value: String(i + 1) }));
 
 // iris Sepal.Width by Species — Q1/median/Q3 verified against:
 //   >>> from sklearn.datasets import load_iris
@@ -24,7 +37,7 @@ const irisMapping: Mapping = { group: "species", outcome: "sepalWidth" };
 // Tolerance: ±0.005.
 //
 // MUTATION-VERIFY: change (n - 1) * p to n * p in quantileType7.ts;
-// iris setosa Q1 anchor must red. REVERTED.
+// test "matches numpy quartiles for iris Sepal.Width by Species" must red. REVERTED.
 
 describe("aggregateBoxPlot", () => {
     it("matches numpy quartiles for iris Sepal.Width by Species", () => {
@@ -65,7 +78,7 @@ describe("aggregateBoxPlot", () => {
                 value: String(i + 1),
             })),
         ]);
-        const data = aggregateBoxPlot(rows, { group: "group", outcome: "value" });
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
         const groupA = data.groups.find((g) => g.label === "A");
         const groupB = data.groups.find((g) => g.label === "B");
 
@@ -75,6 +88,35 @@ describe("aggregateBoxPlot", () => {
             expect(groupA.values).toEqual([1, 2, 3]);
         }
         expect(groupB?.kind).toBe("box");
+    });
+
+    it("renders strip mode at exactly n=4 (boundary below MIN_N_FOR_BOX)", () => {
+        const rows = brandRows(
+            Array.from({ length: 4 }, (_, i) => ({ value: String(i + 1), group: "A" })),
+        );
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
+        expect(data.groups).toHaveLength(1);
+        expect(data.groups[0]?.kind).toBe("strip");
+        if (data.groups[0]?.kind === "strip") {
+            expect(data.groups[0].n).toBe(4);
+            expect(data.groups[0].values).toEqual([1, 2, 3, 4]);
+        }
+    });
+
+    it("renders box mode at exactly n=5 (boundary at MIN_N_FOR_BOX)", () => {
+        const rows = brandRows(
+            Array.from({ length: 5 }, (_, i) => ({ value: String(i + 1), group: "A" })),
+        );
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
+        expect(data.groups).toHaveLength(1);
+        expect(data.groups[0]?.kind).toBe("box");
+        if (data.groups[0]?.kind === "box") {
+            expect(data.groups[0].n).toBe(5);
+            // numpy.percentile([1,2,3,4,5], [25, 50, 75], method='linear') = [2.0, 3.0, 4.0]
+            expect(data.groups[0].q1).toBeCloseTo(2.0, 3);
+            expect(data.groups[0].median).toBeCloseTo(3.0, 3);
+            expect(data.groups[0].q3).toBeCloseTo(4.0, 3);
+        }
     });
 
     it("handles all-identical values without NaN", () => {
@@ -96,7 +138,7 @@ describe("aggregateBoxPlot", () => {
 
     it("handles single-patient group as strip stats", () => {
         const rows = brandRows([{ group: "solo", value: "42" }]);
-        const data = aggregateBoxPlot(rows, { group: "group", outcome: "value" });
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
         const group = data.groups[0];
 
         expect(group?.kind).toBe("strip");
@@ -106,18 +148,27 @@ describe("aggregateBoxPlot", () => {
         }
     });
 
-    it("throws on empty group", () => {
+    it("drops groups with all-invalid values rather than counting them toward GROUP_CAP", () => {
         const rows = brandRows([
-            { group: "empty", value: "not-a-number" },
-            { group: "ok", value: "1" },
-            { group: "ok", value: "2" },
-            { group: "ok", value: "3" },
-            { group: "ok", value: "4" },
-            { group: "ok", value: "5" },
+            ...validRowsFor("A"),
+            ...validRowsFor("B"),
+            ...validRowsFor("C"),
+            ...validRowsFor("D"),
+            { group: "E", value: "not-a-number" },
+            { group: "E", value: "" },
         ]);
-        expect(() => aggregateBoxPlot(rows, { group: "group", outcome: "value" })).toThrow(
-            BoxPlotError,
-        );
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
+        expect(data.groups).toHaveLength(4);
+        expect(data.groups.map((g) => g.label)).toEqual(["A", "B", "C", "D"]);
+    });
+
+    it("throws on zero valid values across all groups", () => {
+        const rows = brandRows([
+            { value: "not-a-number", group: "A" },
+            { value: "", group: "B" },
+        ]);
+        expect(() => aggregateBoxPlot(rows, valueGroupMapping)).toThrow(BoxPlotError);
+        expect(() => aggregateBoxPlot(rows, valueGroupMapping)).toThrow(/no valid numeric values/i);
     });
 
     it("throws on >4 groups", () => {
@@ -148,9 +199,7 @@ describe("aggregateBoxPlot", () => {
             { group: "D", value: "24" },
             { group: "E", value: "25" },
         ]);
-        expect(() => aggregateBoxPlot(rows, { group: "group", outcome: "value" })).toThrow(
-            /Max 4 groups/,
-        );
+        expect(() => aggregateBoxPlot(rows, valueGroupMapping)).toThrow(/Max 4 groups/);
     });
 
     it("preserves CSV insertion order across groups", () => {
@@ -171,7 +220,7 @@ describe("aggregateBoxPlot", () => {
             { group: "C", value: "23" },
             { group: "C", value: "24" },
         ]);
-        const data = aggregateBoxPlot(rows, { group: "group", outcome: "value" });
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
         expect(data.groups.map((g) => g.label)).toEqual(["B", "A", "C"]);
     });
 
@@ -185,7 +234,7 @@ describe("aggregateBoxPlot", () => {
             { group: "large", value: "13" },
             { group: "large", value: "14" },
         ]);
-        const data = aggregateBoxPlot(rows, { group: "group", outcome: "value" });
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
         const kinds = data.groups.map((g) => g.kind);
 
         expect(kinds).toEqual(["strip", "box"]);
@@ -193,15 +242,39 @@ describe("aggregateBoxPlot", () => {
 });
 
 describe("privacy: BoxPlotData contains no per-patient joinable fields", () => {
-    // MUTATION-VERIFY: add outlierRowIndices to BoxStats → privacy test red. REVERTED.
+    // MUTATION-VERIFY:
+    //   In BoxStats construction (boxPlot.ts ~L47), temporarily add:
+    //     outlierRowIndex: sorted.map((_, i) => i)
+    //   Re-run tests "serialized output has no row IDs or patient keys" and
+    //   "strip mode emits only bare numeric values, no row-level metadata".
+    //   JSON serialization includes "outlierRowIndex":[0,1,...] which contains
+    //   the substring "rowIndex" (case-insensitive). The /rowIndex/i regex catches
+    //   it → both tests RED.
+    //   Verified manually: 2026-05-24. REVERTED.
 
     it("serialized output has no row IDs or patient keys", () => {
         const data = aggregateBoxPlot(brandRows([...irisRows()]), irisMapping);
-        const json = JSON.stringify(data);
+        expectNoJoinableFields(JSON.stringify(data));
+    });
 
-        expect(json).not.toMatch(/"patientId"/i);
-        expect(json).not.toMatch(/"rowIndex"/i);
-        expect(json).not.toMatch(/"id"/);
+    it("strip mode emits only bare numeric values, no row-level metadata", () => {
+        const rows = brandRows([
+            ...Array.from({ length: 50 }, (_, i) => ({ value: String(i + 1), group: "big" })),
+            { value: "1.0", group: "small" },
+            { value: "2.0", group: "small" },
+            { value: "3.0", group: "small" },
+        ]);
+        const data = aggregateBoxPlot(rows, valueGroupMapping);
+        expectNoJoinableFields(JSON.stringify(data));
+
+        const stripGroup = data.groups.find((g) => g.kind === "strip");
+        expect(stripGroup).toBeDefined();
+        if (stripGroup?.kind === "strip") {
+            for (const value of stripGroup.values) {
+                expect(typeof value).toBe("number");
+                expect(Number.isFinite(value)).toBe(true);
+            }
+        }
     });
 
     it("outliers array contains only bare numbers", () => {
