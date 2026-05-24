@@ -495,7 +495,7 @@ describe("Recommendation", () => {
     });
 
     it("hides missing-data warning when drop rate is below 5%", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [],
             missing: {
                 dropRate: 0.03,
@@ -513,7 +513,7 @@ describe("Recommendation", () => {
     });
 
     it("hides missing-data warning when drop rate is exactly 5%", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [{ label: "A", mean: 1, sd: 0, n: 19 }],
             missing: {
                 dropRate: 0.05,
@@ -529,7 +529,7 @@ describe("Recommendation", () => {
     });
 
     it("shows inferred outcome breadcrumb when outcome was guessed", async () => {
-        vi.spyOn(barErrorMappingModule, "mappingForBarError").mockReturnValueOnce({
+        vi.spyOn(barErrorMappingModule, "mappingForBarError").mockReturnValue({
             mapping: { group: "arm", outcome: "bp_change" },
             inferredOutcome: "bp_change",
         });
@@ -560,7 +560,7 @@ describe("Recommendation", () => {
     });
 
     it("shows error bars unavailable when all groups have n<2", async () => {
-        aggregateBarErrorMock.mockReturnValueOnce({
+        aggregateBarErrorMock.mockReturnValue({
             groups: [
                 { label: "A", mean: 10, sd: 0, n: 1 },
                 { label: "B", mean: 12, sd: 0, n: 1 },
@@ -578,13 +578,13 @@ describe("Recommendation", () => {
         expect(screen.getByText(/at least 2 rows per group/i)).toBeTruthy();
     });
 
-    it("does not re-aggregate when error type toggle changes", async () => {
+    it("re-aggregates bar error data when error type toggle changes", async () => {
         render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
         await advanceToChartPhase();
         const callsAfterMount = aggregateBarErrorMock.mock.calls.length;
         expect(callsAfterMount).toBeGreaterThan(0);
         fireEvent.click(screen.getByRole("radio", { name: /SD Standard/ }));
-        expect(aggregateBarErrorMock.mock.calls.length).toBe(callsAfterMount);
+        expect(aggregateBarErrorMock.mock.calls.length).toBeGreaterThan(callsAfterMount);
     });
 
     it("treats back-to-original kind as not display-overridden", () => {

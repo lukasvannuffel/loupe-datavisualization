@@ -408,19 +408,19 @@ Begin met de simpelste chart — valideert je hele architectuur (data → spec �
 De moeilijkste van je MVP. Step-functie berekenen client-side, censoring tick marks tonen, at-risk tabel onder de chart. **Geen log-rank, geen p-waarde** — niet claimen wat je niet berekent. Multiple groups via palette. Twee respondenten (R3 en R4) noemden expliciet KM zónder at-risk/censoring als pijnpunt — dit is je hero-chart.
 
 **Actie-items**
-- [ ] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
-- [ ] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
-- [ ] Censoring detectie + tick-marks op de curve
-- [ ] At-risk tabel: aantal patiënten in risk set bij elke major time-point
-- [ ] `KaplanMeierChart.tsx` met multi-group support
-- [ ] Edge cases: alle censored, zero events, single group
-- [ ] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
+- [x] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
+- [x] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
+- [x] Censoring detectie + tick-marks op de curve
+- [x] At-risk tabel: aantal patiënten in risk set bij elke major time-point
+- [x] `KaplanMeierChart.tsx` met multi-group support
+- [x] Edge cases: alle censored, zero events, single group
+- [x] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
 
 **Acceptance criteria**
-- [ ] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
-- [ ] At-risk tabel telt correct af bij elke time-point
-- [ ] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
-- [ ] Censoring ticks zichtbaar maar niet dominant
+- [x] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
+- [x] At-risk tabel telt correct af bij elke time-point
+- [x] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
+- [x] Censoring ticks zichtbaar maar niet dominant
 
 ---
 

@@ -5,6 +5,7 @@ import type { Mapping } from "@/lib/roles/types";
 
 import { aggregateKaplanMeier } from "../kaplanMeier";
 import { KaplanMeierError } from "../kaplanMeier.types";
+import { nAtRiskAtTime } from "../nAtRiskAtTime";
 
 const mapping: Mapping = { time: "time", event: "event", group: "arm" };
 
@@ -22,6 +23,7 @@ const syntheticRows = brandRows([
 ]);
 
 describe("aggregateKaplanMeier", () => {
+    // MUTATION-VERIFY: KM formula → S = S × (1 − d/(n+1)) → t=5 anchor red. REVERTED.
     it("matches hand-computed survival on the n=10 synthetic fixture", () => {
         const data = aggregateKaplanMeier(syntheticRows, mapping);
         const group = data.groups[0];
@@ -29,6 +31,20 @@ describe("aggregateKaplanMeier", () => {
         expect(group?.nTotal).toBe(10);
         expect(group?.nEvents).toBe(7);
 
+        // Hand-computed KM curve (n=10, single group).
+        // Times:    [5, 8, 10, 12, 15, 18, 20, 22, 25, 30]
+        // Events:   [1, 1, 0,  1,  0,  1,  1,  0,  1,  1]
+        //
+        // t=5  (event): S = 1.0 × (1 − 1/10)  = 0.9      n was 10
+        // t=8  (event): S = 0.9 × (1 − 1/9)   = 0.8      n was 9
+        // t=10 (cens):  S = 0.8                          n was 8 → 7
+        // t=12 (event): S = 0.8 × (1 − 1/7)   = 0.6857   n was 7
+        // t=15 (cens):  S = 0.6857                       n was 6 → 5
+        // t=18 (event): S = 0.6857 × (1 − 1/5) = 0.5486  n was 5
+        // t=20 (event): S = 0.5486 × (1 − 1/4) = 0.4114  n was 4
+        // t=22 (cens):  S = 0.4114                       n was 3 → 2
+        // t=25 (event): S = 0.4114 × (1 − 1/2) = 0.2057  n was 2
+        // t=30 (event): S = 0.2057 × (1 − 1/1) = 0       n was 1
         const expected: readonly { t: number; survival: number; nAtRisk: number; censored: boolean }[] =
             [
                 { t: 5, survival: 0.9, nAtRisk: 10, censored: false },
@@ -54,6 +70,15 @@ describe("aggregateKaplanMeier", () => {
         }
     });
 
+    it("correctly computes patients at risk at non-tick event times", () => {
+        // At t=12: 10 initial − 1 event (t=5) − 1 event (t=8) − 1 censored (t=10) = 7.
+        const data = aggregateKaplanMeier(syntheticRows, mapping);
+        const point = data.groups[0]?.points.find((p) => p.t === 12);
+        expect(point?.nAtRisk).toBe(7);
+        expect(nAtRiskAtTime(data.groups[0] as NonNullable<(typeof data.groups)[0]>, 12)).toBe(7);
+    });
+
+    // MUTATION-VERIFY: Array.from(buckets) → [...buckets.entries()].sort(localeCompare) → insertion-order test red. REVERTED.
     it("preserves CSV insertion order for group labels", () => {
         const rows = brandRows([
             { arm: "Placebo", time: "5", event: "1" },
@@ -125,6 +150,7 @@ describe("aggregateKaplanMeier", () => {
 });
 
 describe("privacy: KMPlotData contains no per-patient data", () => {
+    // MUTATION-VERIFY: KMGroup.times = rows.map(r => r.time) → privacy test red. REVERTED.
     it("serialized output has no time[] or event[] arrays", () => {
         const largeFixture = brandRows(
             Array.from({ length: 50 }, (_, i) => ({

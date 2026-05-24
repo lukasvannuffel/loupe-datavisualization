@@ -24,7 +24,14 @@ export type ApplyAxesResult = {
     readonly extraBottomPx: number;
 };
 
-export const axisTickCountForWidth = (width: number): number => (width < 480 ? 4 : 6);
+/**
+ * Chooses x-axis tick count based on plot width. <480px gets 4 ticks to avoid
+ * label collisions; ≥480px gets 6. Exported so consumers (like AtRiskTable)
+ * can match their column count to the axis.
+ */
+export function axisTickCountForWidth(widthPx: number): number {
+    return widthPx < 480 ? 4 : 6;
+}
 
 const projectedRotatedHeight = (width: number, height: number): number =>
     width * Math.sin(ROTATION_RAD) + height * Math.cos(ROTATION_RAD);
