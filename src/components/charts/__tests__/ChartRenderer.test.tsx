@@ -61,7 +61,7 @@ describe("ChartRenderer", () => {
             kind: "box" as const,
             showOutliers: true,
             showMeanMarker: false,
-            groupOrder: "alphabetical" as const,
+            notched: false,
         };
         const { unmount: unmountBox } = render(<ChartRenderer spec={boxSpec} />);
         expect(screen.getByTestId("placeholder")).toHaveTextContent("box");

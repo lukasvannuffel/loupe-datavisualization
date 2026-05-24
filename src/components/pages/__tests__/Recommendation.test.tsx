@@ -9,6 +9,8 @@ import type { ChartSpec, OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
 import type { PrivateRows } from "@/lib/parser/types";
 import type { BarErrorAggregation } from "@/lib/chartSpec/aggregators/barError.types";
+import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
+import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { Mapping } from "@/lib/roles/types";
 
@@ -85,6 +87,39 @@ vi.mock("@/components/charts/d3/BarErrorChart", () => ({
 vi.mock("@/components/charts/d3/KaplanMeierChart", () => ({
     KaplanMeierChart: (): JSX.Element => <div data-testid="km-chart">Kaplan–Meier chart</div>,
 }));
+
+vi.mock("@/lib/chartSpec/aggregators/boxPlot", () => ({
+    aggregateBoxPlot: (rows: PrivateRows, mapping: Mapping) =>
+        aggregateBoxPlotMock(rows, mapping),
+}));
+
+vi.mock("@/components/charts/d3/BoxChart", () => ({
+    BoxChart: (): JSX.Element => <div data-testid="box-chart">Box plot chart</div>,
+}));
+
+const boxPlotFixture: BoxPlotData = {
+    kind: "box",
+    yMin: 1,
+    yMax: 5,
+    groups: [
+        {
+            kind: "box",
+            label: "A",
+            n: 10,
+            min: 1,
+            q1: 2,
+            median: 3,
+            q3: 4,
+            max: 5,
+            mean: 3,
+            outliers: [],
+            notchLower: 2.5,
+            notchUpper: 3.5,
+        },
+    ],
+};
+
+const aggregateBoxPlotMock = vi.fn((_rows: PrivateRows, _mapping: Mapping) => boxPlotFixture);
 
 const aggregateKaplanMeierMock = vi.fn((_rows: PrivateRows, _mapping: Mapping) => ({
     groups: [
@@ -178,7 +213,9 @@ describe("Recommendation", () => {
         setSelectionMode.mockClear();
         updateLatestOverrideReason.mockClear();
         aggregateBarErrorMock.mockClear();
+        aggregateBoxPlotMock.mockClear();
         aggregateKaplanMeierMock.mockClear();
+        aggregateBoxPlotMock.mockImplementation(() => boxPlotFixture);
         aggregateKaplanMeierMock.mockImplementation((_rows: PrivateRows, _mapping: Mapping) => ({
             groups: [
                 {
@@ -280,11 +317,20 @@ describe("Recommendation", () => {
         expect(screen.getByRole("alert").textContent).toContain("Max 4 groups supported");
     });
 
-    it("renders PlaceholderRenderer for non-km kinds after chart phase", async () => {
+    it("renders BoxChart for box after chart phase", async () => {
         render(<Recommendation {...chartRenderProps("box", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.queryByTestId("publication-km")).toBeNull();
-        expect(screen.getByText(/Box plot renderer coming soon/i)).toBeTruthy();
+        expect(screen.getByTestId("box-chart")).toBeTruthy();
+        expect(screen.queryByText(/Box plot renderer coming soon/i)).toBeNull();
+    });
+
+    it("shows BoxPlotError message when more than 4 groups", async () => {
+        aggregateBoxPlotMock.mockImplementation(() => {
+            throw new BoxPlotError("Max 4 groups supported. Received 5.");
+        });
+        render(<Recommendation {...chartRenderProps("box", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByRole("alert").textContent).toContain("Max 4 groups supported");
     });
 
     it("does not show override badge when overrides is empty", async () => {
@@ -361,7 +407,7 @@ describe("Recommendation", () => {
         rerender(
             <Recommendation {...chartRenderProps("box", sampleReceipt([event]))} />,
         );
-        expect(screen.getByText(/Box plot renderer coming soon/i)).toBeTruthy();
+        expect(screen.getByTestId("box-chart")).toBeTruthy();
         expect(screen.getByRole("status", { name: /Chart overridden/i })).toBeTruthy();
     });
 

@@ -49,7 +49,7 @@ describe("createDefaultChartSpec", () => {
         }
         if (box.kind === "box") {
             expect(box.showOutliers).toBe(true);
-            expect(box.groupOrder).toBe("alphabetical");
+            expect(box.notched).toBe(false);
         }
         if (xy.kind === "xy") {
             expect(xy.mode).toBe("line");

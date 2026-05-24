@@ -57,7 +57,22 @@ const boxSpec: BoxSpec = {
     kind: "box",
     showOutliers: true,
     showMeanMarker: true,
-    groupOrder: "alphabetical",
+    notched: false,
+};
+
+const sampleBoxGroup = {
+    kind: "box" as const,
+    label: "A",
+    min: 0,
+    q1: 1,
+    median: 2,
+    q3: 3,
+    max: 4,
+    mean: 2,
+    outliers: [] as readonly number[],
+    n: 10,
+    notchLower: 1.5,
+    notchUpper: 2.5,
 };
 
 const xySpecLine: XYSpec = {
@@ -131,17 +146,18 @@ const barErrorPlotData: BarErrorPlotData = {
 
 const boxPlotData: BoxPlotData = {
     kind: "box",
+    yMin: 0,
+    yMax: 4,
+    groups: [sampleBoxGroup],
+};
+
+const boxPlotDataWithStrip: BoxPlotData = {
+    kind: "box",
+    yMin: 1,
+    yMax: 14,
     groups: [
-        {
-            label: "A",
-            min: 0,
-            q1: 1,
-            median: 2,
-            q3: 3,
-            max: 4,
-            outliers: [],
-            n: 10,
-        },
+        sampleBoxGroup,
+        { kind: "strip", label: "Small", n: 2, values: [1, 14] },
     ],
 };
 
@@ -157,24 +173,25 @@ const xyPlotData: XYPlotData = {
 
 const boxPlotDataWithOutliers: BoxPlotData = {
     kind: "box",
+    yMin: 0,
+    yMax: 4.9,
     groups: [
         {
-            label: "A",
+            ...sampleBoxGroup,
             max: 5,
             min: 0,
-            n: 10,
             outliers: [4.5, 4.9],
-            q1: 1,
-            q3: 3,
-            median: 2,
         },
     ],
 };
 
 const boxPlotDataEmptyOutliers: BoxPlotData = {
     kind: "box",
+    yMin: 1,
+    yMax: 5,
     groups: [
         {
+            kind: "box",
             label: "B",
             max: 5,
             min: 1,
@@ -183,6 +200,9 @@ const boxPlotDataEmptyOutliers: BoxPlotData = {
             q1: 2,
             q3: 4,
             median: 3,
+            mean: 3,
+            notchLower: 2.5,
+            notchUpper: 3.5,
         },
     ],
 };
@@ -300,13 +320,22 @@ describe("plotDataSchema round-trip", () => {
         const parsed = plotDataSchema.parse(roundTrip(boxPlotDataWithOutliers));
         expect(parsed).toEqual(boxPlotDataWithOutliers);
         if (parsed.kind === "box") {
-            expect(parsed.groups[0]?.outliers).toEqual([4.5, 4.9]);
+            const group = parsed.groups[0];
+            expect(group?.kind).toBe("box");
+            if (group?.kind === "box") {
+                expect(group.outliers).toEqual([4.5, 4.9]);
+            }
         }
     });
 
     it("preserves box plot data with empty outliers", () => {
         const parsed = plotDataSchema.parse(roundTrip(boxPlotDataEmptyOutliers));
         expect(parsed).toEqual(boxPlotDataEmptyOutliers);
+    });
+
+    it("preserves box plot data with strip group", () => {
+        const parsed = plotDataSchema.parse(roundTrip(boxPlotDataWithStrip));
+        expect(parsed).toEqual(boxPlotDataWithStrip);
     });
 
     it("preserves xy plot data (line-style multi-series)", () => {
@@ -434,16 +463,22 @@ describe("schema rejection — exact paths", () => {
     it("rejects box PlotData when q1 > q3 (five-number summary order)", () => {
         const broken: unknown = {
             kind: "box",
+            yMin: 0,
+            yMax: 10,
             groups: [
                 {
+                    kind: "box",
                     label: "A",
                     min: 0,
                     q1: 5,
                     median: 3,
                     q3: 2,
                     max: 10,
+                    mean: 3,
                     outliers: [],
                     n: 10,
+                    notchLower: 2,
+                    notchUpper: 4,
                 },
             ],
         };
@@ -467,16 +502,11 @@ describe("schema rejection — exact paths", () => {
     it("rejects an unknown key nested on a box group (strict object)", () => {
         const broken: unknown = {
             kind: "box",
+            yMin: 0,
+            yMax: 4,
             groups: [
                 {
-                    label: "A",
-                    min: 0,
-                    q1: 1,
-                    median: 2,
-                    q3: 3,
-                    max: 4,
-                    outliers: [],
-                    n: 10,
+                    ...sampleBoxGroup,
                     patientId: "p1",
                 },
             ],
@@ -537,16 +567,12 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
     it("plotDataSchema rejects an extra `patientId` on a box group", () => {
         const smuggled = {
             kind: "box",
+            yMin: 0,
+            yMax: 4,
             groups: [
                 {
+                    ...sampleBoxGroup,
                     label: "x",
-                    min: 0,
-                    q1: 1,
-                    median: 2,
-                    q3: 3,
-                    max: 4,
-                    outliers: [],
-                    n: 10,
                     patientId: "p1",
                 },
             ],
@@ -566,6 +592,8 @@ describe("privacy — schema rejects smuggled per-patient fields", () => {
     it("plotDataSchema rejects top-level `records` on a box payload", () => {
         const smuggled = {
             kind: "box",
+            yMin: boxPlotDataEmptyOutliers.yMin,
+            yMax: boxPlotDataEmptyOutliers.yMax,
             groups: boxPlotDataEmptyOutliers.groups,
             records: [{ id: "r1" }],
         };

@@ -97,7 +97,7 @@ const boxSpecSchema = z
         kind: z.literal("box"),
         showOutliers: z.boolean(),
         showMeanMarker: z.boolean(),
-        groupOrder: z.enum(["alphabetical", "byMedian", "manual"]),
+        notched: z.boolean(),
     })
     .strict();
 
@@ -173,28 +173,48 @@ const barErrorPlotDataSchema = z
     })
     .strict();
 
-const boxGroupSchema = z
+const boxStatsSchema = z
     .object({
+        kind: z.literal("box"),
         label: nonEmpty(),
+        n: z.number(),
         min: z.number(),
         q1: z.number(),
         median: z.number(),
         q3: z.number(),
         max: z.number(),
+        mean: z.number(),
         outliers: z.array(z.number()).readonly(),
-        mean: z.number().optional(),
-        n: z.number(),
+        notchLower: z.number(),
+        notchUpper: z.number(),
     })
     .strict();
+
+const stripStatsSchema = z
+    .object({
+        kind: z.literal("strip"),
+        label: nonEmpty(),
+        n: z.number(),
+        values: z.array(z.number()).readonly(),
+    })
+    .strict();
+
+const groupStatsSchema = z.discriminatedUnion("kind", [boxStatsSchema, stripStatsSchema]);
 
 const boxPlotDataSchema = z
     .object({
         kind: z.literal("box"),
-        groups: z.array(boxGroupSchema).readonly(),
+        groups: z.array(groupStatsSchema).readonly(),
+        yMin: z.number(),
+        yMax: z.number(),
     })
     .strict()
     .superRefine((data, ctx) => {
         data.groups.forEach((g, i) => {
+            if (g.kind !== "box") {
+                return;
+            }
+
             const ordered =
                 g.min <= g.q1 &&
                 g.q1 <= g.median &&
