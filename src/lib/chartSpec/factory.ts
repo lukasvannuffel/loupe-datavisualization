@@ -71,9 +71,9 @@ const buildXy = (id: string, createdAt: string): XYSpec => ({
     id,
     createdAt,
     kind: "xy",
-    mode: "line",
+    mode: "scatter",
     showRegression: false,
-    showCorrelation: false,
+    showErrorBands: false,
 });
 
 const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => ChartSpec>> = {

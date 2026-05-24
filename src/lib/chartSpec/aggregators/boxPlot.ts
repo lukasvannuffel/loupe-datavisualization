@@ -1,13 +1,13 @@
 import type { PrivateRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
 
+import { MAX_GROUPS } from "@/lib/chartSpec/constants";
 import { parseNumericCell } from "./barError";
 import type { BoxPlotData, BoxStats, GroupStats } from "./boxPlot.types";
 import { BoxPlotError } from "./boxPlot.types";
 import { percentileType7 } from "./quantileType7";
 
 const MIN_N_FOR_BOX = 5;
-const GROUP_CAP = 4;
 const NOTCH_FACTOR = 1.57;
 const DEFAULT_GROUP = "All";
 
@@ -89,8 +89,8 @@ export const aggregateBoxPlot = (rows: PrivateRows, mapping: Mapping): BoxPlotDa
         );
     }
 
-    if (buckets.size > GROUP_CAP) {
-        throw new BoxPlotError(`Max 4 groups supported. Received ${buckets.size}.`);
+    if (buckets.size > MAX_GROUPS) {
+        throw new BoxPlotError(`Max ${MAX_GROUPS} groups supported. Received ${buckets.size}.`);
     }
 
     const groups: GroupStats[] = [];

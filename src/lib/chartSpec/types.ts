@@ -87,13 +87,12 @@ export type BoxSpec = BaseSpec & {
     readonly notched: boolean;
 };
 
-/** XY plot: scatter, line, or combined; regression and correlation toggles. */
+/** XY plot: scatter, line, or combined; regression and error-band toggles. */
 export type XYSpec = BaseSpec & {
     readonly kind: "xy";
-    readonly mode: "scatter" | "line" | "scatterLine";
+    readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
-    readonly regressionType?: "linear" | "loess";
-    readonly showCorrelation: boolean;
+    readonly showErrorBands: boolean;
 };
 
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
@@ -108,6 +107,17 @@ export type {
     StripStats,
 } from "./aggregators/boxPlot.types";
 export { BoxPlotError } from "./aggregators/boxPlot.types";
+export type {
+    LongitudinalData,
+    LongitudinalGroup,
+    LongitudinalPoint,
+    LabeledRegression,
+    RegressionResult,
+    XYGroup,
+    XYPlotData,
+    XYPoint,
+} from "./aggregators/xyPlot.types";
+export { LongitudinalError, XYPlotError } from "./aggregators/xyPlot.types";
 
 /** Per-group summary statistics for bar-with-error charts. Error magnitude is derived at render time. */
 export type BarErrorGroupStats = {
@@ -123,35 +133,13 @@ export type BarErrorPlotData = {
     groups: readonly BarErrorGroupStats[];
 };
 
-/** One XY observation (aggregated point). */
-export type XYPoint = {
-    x: number;
-    y: number;
-};
-
-/** One XY series: label and points only (regression lives on `XYPlotData` when precomputed). */
-export type XYSeries = {
-    label: string;
-    points: readonly XYPoint[];
-};
-
-/** XY aggregates: one or more series; optional global regression line and correlation. No per-patient rows. */
-export type XYPlotData = {
-    kind: "xy";
-    series: readonly XYSeries[];
-    regression?: {
-        slope: number;
-        intercept: number;
-    };
-    correlation?: number;
-};
-
 /** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
 export type PlotData =
     | import("./aggregators/kaplanMeier.types").KMPlotData
     | BarErrorPlotData
     | import("./aggregators/boxPlot.types").BoxPlotData
-    | XYPlotData;
+    | import("./aggregators/xyPlot.types").XYPlotData
+    | import("./aggregators/xyPlot.types").LongitudinalData;
 
 /** Headline + reasoning shown to the user when a chart type is recommended. */
 export type RecommendationBlock = {

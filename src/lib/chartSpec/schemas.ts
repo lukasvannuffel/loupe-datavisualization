@@ -105,10 +105,9 @@ const xySpecSchema = z
     .object({
         ...baseSpecShape,
         kind: z.literal("xy"),
-        mode: z.enum(["scatter", "line", "scatterLine"]),
+        mode: z.enum(["line", "scatter", "both"]),
         showRegression: z.boolean(),
-        regressionType: z.enum(["linear", "loess"]).optional(),
-        showCorrelation: z.boolean(),
+        showErrorBands: z.boolean(),
     })
     .strict();
 
@@ -238,14 +237,19 @@ const xyPointSchema = z
     })
     .strict();
 
-const xyRegressionPlotSchema = z
+const xyRegressionSchema = z
     .object({
         slope: z.number(),
         intercept: z.number(),
+        r2: z.number(),
     })
     .strict();
 
-const xySeriesSchema = z
+const labeledRegressionSchema = xyRegressionSchema.extend({
+    label: nonEmpty(),
+});
+
+const xyGroupSchema = z
     .object({
         label: nonEmpty(),
         points: z.array(xyPointSchema).readonly(),
@@ -255,28 +259,60 @@ const xySeriesSchema = z
 const xyPlotDataSchema = z
     .object({
         kind: z.literal("xy"),
-        series: z.array(xySeriesSchema).readonly(),
-        regression: xyRegressionPlotSchema.optional(),
-        correlation: z.number().optional(),
+        groups: z.array(xyGroupSchema).readonly(),
+        regressions: z.array(labeledRegressionSchema).readonly(),
+        regressionSkipped: z.boolean(),
+        xMin: z.number(),
+        xMax: z.number(),
+        yMin: z.number(),
+        yMax: z.number(),
     })
     .strict()
     .superRefine((data, ctx) => {
-        data.series.forEach((s, i) => {
-            if (s.points.length === 0) {
+        data.groups.forEach((g, i) => {
+            if (g.points.length === 0) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: "each series must have at least one point",
-                    path: ["series", i, "points"],
+                    message: "each group must have at least one point",
+                    path: ["groups", i, "points"],
                 });
             }
         });
     });
+
+const longitudinalPointSchema = z
+    .object({
+        visit: z.number(),
+        mean: z.number(),
+        sem: z.number(),
+        n: z.number(),
+    })
+    .strict();
+
+const longitudinalGroupSchema = z
+    .object({
+        label: nonEmpty(),
+        points: z.array(longitudinalPointSchema).readonly(),
+    })
+    .strict();
+
+const longitudinalPlotDataSchema = z
+    .object({
+        kind: z.literal("longitudinal"),
+        groups: z.array(longitudinalGroupSchema).readonly(),
+        xMin: z.number(),
+        xMax: z.number(),
+        yMin: z.number(),
+        yMax: z.number(),
+    })
+    .strict();
 
 export const plotDataSchema = z.discriminatedUnion("kind", [
     kmPlotDataSchema,
     barErrorPlotDataSchema,
     boxPlotDataSchema,
     xyPlotDataSchema,
+    longitudinalPlotDataSchema,
 ]);
 
 const recommendationBlockSchema = z

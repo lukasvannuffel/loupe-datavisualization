@@ -52,9 +52,9 @@ describe("createDefaultChartSpec", () => {
             expect(box.notched).toBe(false);
         }
         if (xy.kind === "xy") {
-            expect(xy.mode).toBe("line");
+            expect(xy.mode).toBe("scatter");
             expect(xy.showRegression).toBe(false);
-            expect(xy.showCorrelation).toBe(false);
+            expect(xy.showErrorBands).toBe(false);
         }
     });
 });

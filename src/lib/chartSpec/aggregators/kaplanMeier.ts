@@ -9,7 +9,7 @@ import { kmPointCI } from "./greenwood";
 import type { KMGroup, KMPlotData, KMPoint } from "./kaplanMeier.types";
 import { KaplanMeierError } from "./kaplanMeier.types";
 
-const MAX_GROUPS = 4;
+import { MAX_GROUPS } from "@/lib/chartSpec/constants";
 const DEFAULT_GROUP = "All";
 
 type RawRow = { readonly time: number; readonly event: 0 | 1 };

@@ -80,8 +80,7 @@ const xySpecLine: XYSpec = {
     kind: "xy",
     mode: "line",
     showRegression: true,
-    regressionType: "linear",
-    showCorrelation: false,
+    showErrorBands: true,
 };
 
 const xySpecScatter: XYSpec = {
@@ -90,16 +89,16 @@ const xySpecScatter: XYSpec = {
     kind: "xy",
     mode: "scatter",
     showRegression: true,
-    showCorrelation: false,
+    showErrorBands: false,
 };
 
-const xySpecScatterLine: XYSpec = {
+const xySpecBoth: XYSpec = {
     ...baseFields,
-    id: "spec-xy-scatter-line",
+    id: "spec-xy-both",
     kind: "xy",
-    mode: "scatterLine",
+    mode: "both",
     showRegression: false,
-    showCorrelation: true,
+    showErrorBands: false,
 };
 
 const kmPlotData: KMPlotData = {
@@ -163,12 +162,18 @@ const boxPlotDataWithStrip: BoxPlotData = {
 
 const xyPlotData: XYPlotData = {
     kind: "xy",
-    series: [
+    groups: [
         {
             label: "Series A",
             points: [{ x: 0, y: 1 }],
         },
     ],
+    regressions: [],
+    regressionSkipped: false,
+    xMin: 0,
+    xMax: 0,
+    yMin: 1,
+    yMax: 1,
 };
 
 const boxPlotDataWithOutliers: BoxPlotData = {
@@ -209,7 +214,7 @@ const boxPlotDataEmptyOutliers: BoxPlotData = {
 
 const xyPlotDataLine: XYPlotData = {
     kind: "xy",
-    series: [
+    groups: [
         {
             label: "Arm A",
             points: [
@@ -225,23 +230,39 @@ const xyPlotDataLine: XYPlotData = {
             ],
         },
     ],
+    regressions: [],
+    regressionSkipped: false,
+    xMin: 0,
+    xMax: 1,
+    yMin: 1,
+    yMax: 3,
 };
 
 const xyPlotDataScatterRegression: XYPlotData = {
     kind: "xy",
-    series: [
+    groups: [
         {
             label: "Obs",
             points: [
                 { x: 1, y: 4 },
                 { x: 2, y: 7 },
+                { x: 3, y: 5 },
             ],
         },
     ],
-    regression: {
-        intercept: 0.41,
-        slope: 3.42,
-    },
+    regressions: [
+        {
+            label: "Obs",
+            slope: 0.6,
+            intercept: 2.2,
+            r2: 0.6,
+        },
+    ],
+    regressionSkipped: false,
+    xMin: 1,
+    xMax: 3,
+    yMin: 4,
+    yMax: 7,
 };
 
 const receipt: Receipt = {
@@ -279,6 +300,8 @@ const receipt: Receipt = {
 
 const roundTrip = <T>(value: T): unknown => JSON.parse(JSON.stringify(value));
 
+const roundTripXyPlotData = (value: XYPlotData): unknown => JSON.parse(JSON.stringify(value));
+
 const exactPaths = (issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey> }>): string[] =>
     issues.map((i) => i.path.join("."));
 
@@ -300,8 +323,8 @@ describe("chartSpecSchema round-trip", () => {
         expect(chartSpecSchema.parse(roundTrip(xySpecScatter))).toEqual(xySpecScatter);
     });
 
-    it("preserves xy spec (scatterLine mode) across JSON round-trip", () => {
-        expect(chartSpecSchema.parse(roundTrip(xySpecScatterLine))).toEqual(xySpecScatterLine);
+    it("preserves xy spec (both mode) across JSON round-trip", () => {
+        expect(chartSpecSchema.parse(roundTrip(xySpecBoth))).toEqual(xySpecBoth);
     });
 });
 
@@ -310,10 +333,14 @@ describe("plotDataSchema round-trip", () => {
         ["km", kmPlotData],
         ["barError", barErrorPlotData],
         ["box", boxPlotData],
-        ["xy", xyPlotData],
     ])("preserves %s plot data across JSON round-trip", (_kind, fixture) => {
         const parsed = plotDataSchema.parse(roundTrip(fixture));
         expect(parsed).toEqual(fixture);
+    });
+
+    it("preserves xy plot data across JSON round-trip", () => {
+        const parsed = plotDataSchema.parse(roundTripXyPlotData(xyPlotData));
+        expect(parsed).toEqual(xyPlotData);
     });
 
     it("preserves box plot data with outliers (order preserved)", () => {
@@ -339,17 +366,19 @@ describe("plotDataSchema round-trip", () => {
     });
 
     it("preserves xy plot data (line-style multi-series)", () => {
-        const parsed = plotDataSchema.parse(roundTrip(xyPlotDataLine));
+        const parsed = plotDataSchema.parse(roundTripXyPlotData(xyPlotDataLine));
         expect(parsed).toEqual(xyPlotDataLine);
     });
 
-    it("preserves xy plot data (scatter + regression at plot level)", () => {
-        const parsed = plotDataSchema.parse(roundTrip(xyPlotDataScatterRegression));
+    it("preserves xy plot data (scatter + per-group regression)", () => {
+        const parsed = plotDataSchema.parse(roundTripXyPlotData(xyPlotDataScatterRegression));
         expect(parsed).toEqual(xyPlotDataScatterRegression);
         if (parsed.kind === "xy") {
-            expect(parsed.regression).toEqual({
-                slope: 3.42,
-                intercept: 0.41,
+            expect(parsed.regressions[0]).toEqual({
+                label: "Obs",
+                slope: 0.6,
+                intercept: 2.2,
+                r2: 0.6,
             });
         }
     });
@@ -486,16 +515,22 @@ describe("schema rejection — exact paths", () => {
         expect(result.success).toBe(false);
     });
 
-    it("rejects xy PlotData when a series has empty points", () => {
+    it("rejects xy PlotData when a group has empty points", () => {
         const broken: unknown = {
             kind: "xy",
-            series: [{ label: "Empty", points: [] }],
+            groups: [{ label: "Empty", points: [] }],
+            regressions: [],
+            regressionSkipped: false,
+            xMin: 0,
+            xMax: 0,
+            yMin: 0,
+            yMax: 0,
         };
         const result = plotDataSchema.safeParse(broken);
         expect(result.success).toBe(false);
 
         if (!result.success) {
-            expect(exactPaths(result.error.issues)).toContain("series.0.points");
+            expect(exactPaths(result.error.issues)).toContain("groups.0.points");
         }
     });
 

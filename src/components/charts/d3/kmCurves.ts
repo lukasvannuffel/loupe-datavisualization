@@ -4,7 +4,7 @@ import type { Selection } from "d3-selection";
 
 import type { KMGroup } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 
-const DASH_BY_INDEX = ["", "6 3", "2 3", "6 3 2 3"] as const;
+import { DASH_BY_INDEX } from "./lineStyles";
 const CENSOR_TICK_HALF = 4;
 
 const drawPoints = (group: KMGroup): KMGroup["points"] => {

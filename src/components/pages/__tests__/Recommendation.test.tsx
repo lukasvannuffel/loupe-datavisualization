@@ -12,6 +12,7 @@ import type { BarErrorAggregation } from "@/lib/chartSpec/aggregators/barError.t
 import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
 import type { Mapping } from "@/lib/roles/types";
 
 import * as barErrorMappingModule from "../recommendation/barErrorMapping";
@@ -35,6 +36,8 @@ const defaultMapping: Mapping = {
     group: "arm",
     outcome: "value",
     time: "time",
+    x: "x",
+    y: "y",
 };
 
 vi.mock("@/app/providers", () => ({
@@ -95,6 +98,38 @@ vi.mock("@/lib/chartSpec/aggregators/boxPlot", () => ({
 
 vi.mock("@/components/charts/d3/BoxChart", () => ({
     BoxChart: (): JSX.Element => <div data-testid="box-chart">Box plot chart</div>,
+}));
+
+const xyPlotFixture = {
+    kind: "xy" as const,
+    groups: [{ label: "A", points: [{ x: 1, y: 2 }] }],
+    regressions: [] as const,
+    regressionSkipped: false,
+    xMin: 1,
+    xMax: 1,
+    yMin: 2,
+    yMax: 2,
+};
+
+const aggregateXYPlotMock = vi.fn(
+    (_rows: PrivateRows, _mapping: Mapping, _options: { computeRegression: boolean }) =>
+        xyPlotFixture,
+);
+
+vi.mock("@/lib/chartSpec/aggregators/xyPlot", () => ({
+    aggregateXYPlot: (
+        rows: PrivateRows,
+        mapping: Mapping,
+        options: { computeRegression: boolean },
+    ) => aggregateXYPlotMock(rows, mapping, options),
+}));
+
+vi.mock("@/lib/chartSpec/aggregators/longitudinalAggregator", () => ({
+    aggregateLongitudinal: vi.fn(),
+}));
+
+vi.mock("@/components/charts/d3/XYChart", () => ({
+    XYChart: (): JSX.Element => <div data-testid="xy-chart">XY plot chart</div>,
 }));
 
 const boxPlotFixture: BoxPlotData = {
@@ -215,6 +250,8 @@ describe("Recommendation", () => {
         aggregateBarErrorMock.mockClear();
         aggregateBoxPlotMock.mockClear();
         aggregateKaplanMeierMock.mockClear();
+        aggregateXYPlotMock.mockClear();
+        aggregateXYPlotMock.mockImplementation(() => xyPlotFixture);
         aggregateBoxPlotMock.mockImplementation(() => boxPlotFixture);
         aggregateKaplanMeierMock.mockImplementation((_rows: PrivateRows, _mapping: Mapping) => ({
             groups: [
@@ -331,6 +368,15 @@ describe("Recommendation", () => {
         render(<Recommendation {...chartRenderProps("box", sampleReceipt())} />);
         await advanceToChartPhase();
         expect(screen.getByRole("alert").textContent).toContain("Max 4 groups supported");
+    });
+
+    it("shows XYPlotError message when more than 4 groups", async () => {
+        aggregateXYPlotMock.mockImplementation(() => {
+            throw new XYPlotError("Max 4 groups supported. Received 5.");
+        });
+        render(<Recommendation {...chartRenderProps("xy", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByRole("alert").textContent).toMatch(/max.*4.*groups/i);
     });
 
     it("does not show override badge when overrides is empty", async () => {
