@@ -61,6 +61,11 @@ const threeGroups: readonly GroupStats[] = [
     { label: "C", mean: 18, sd: 2, n: 30 },
 ];
 
+const twoGroupBarData: readonly GroupStats[] = [
+    { label: "A", mean: 10, sd: 1, n: 20 },
+    { label: "B", mean: 14, sd: 1.5, n: 25 },
+];
+
 const installResizeObserver = (size?: { readonly width: number; readonly height: number }): void => {
     class MockResizeObserver {
         constructor(cb: ObserverCallback) {
@@ -115,7 +120,7 @@ describe("BarErrorChart", () => {
 
         const group = threeGroups[0];
         const { container, rerender } = render(
-            <BarErrorChart groups={[group]} spec={stableSpec} errorType="sd" />,
+            <BarErrorChart groups={[group]} spec={stableSpec} />,
         );
 
         await waitFor(() => {
@@ -126,7 +131,12 @@ describe("BarErrorChart", () => {
             Number(l.getAttribute("y1")),
         );
 
-        rerender(<BarErrorChart groups={[group]} spec={stableSpec} errorType="ci95" />);
+        rerender(
+            <BarErrorChart
+                groups={[group]}
+                spec={{ ...stableSpec, errorBarType: "ci95" }}
+            />,
+        );
 
         await waitFor(() => {
             const yAfter = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -139,7 +149,7 @@ describe("BarErrorChart", () => {
     it("error bar geometry changes when errorType changes", async () => {
         const group = threeGroups[0];
         const { container, rerender } = render(
-            <BarErrorChart groups={[group]} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
@@ -150,7 +160,7 @@ describe("BarErrorChart", () => {
             Number(l.getAttribute("y1")),
         );
 
-        rerender(<BarErrorChart groups={[group]} spec={spec} errorType="sem" />);
+        rerender(<BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "sem" }} />);
 
         await waitFor(() => {
             const yCoordsSem = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -159,7 +169,7 @@ describe("BarErrorChart", () => {
             expect(yCoordsSem).not.toEqual(yCoordsSd);
         });
 
-        rerender(<BarErrorChart groups={[group]} spec={spec} errorType="ci95" />);
+        rerender(<BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "ci95" }} />);
 
         await waitFor(() => {
             const yCoordsCi = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -172,7 +182,7 @@ describe("BarErrorChart", () => {
     it("renders no error lines for n=1 groups", async () => {
         const single: GroupStats = { label: "solo", mean: 5, sd: 2, n: 1 };
         const { container } = render(
-            <BarErrorChart groups={[single]} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={[single]} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
@@ -188,7 +198,7 @@ describe("BarErrorChart", () => {
         ];
         const maxMean = Math.max(...allNegative.map((c) => c.mean));
 
-        render(<BarErrorChart groups={allNegative} spec={spec} errorType="sd" />);
+        render(<BarErrorChart groups={allNegative} spec={{ ...spec, errorBarType: "sd" }} />);
 
         await waitFor(() => {
             expect(scaleLinearDomainCalls.length).toBeGreaterThan(0);
@@ -201,7 +211,7 @@ describe("BarErrorChart", () => {
 
     it("renders bars, error lines, axis labels, and aria-label", async () => {
         const { container } = render(
-            <BarErrorChart groups={threeGroups} spec={spec} errorType="sem" />,
+            <BarErrorChart groups={threeGroups} spec={{ ...spec, errorBarType: "sem" }} />,
         );
 
         await waitFor(() => {
@@ -224,14 +234,14 @@ describe("BarErrorChart", () => {
         ];
 
         const { container, rerender } = render(
-            <BarErrorChart groups={threeGroups} spec={spec} errorType="sem" />,
+            <BarErrorChart groups={threeGroups} spec={{ ...spec, errorBarType: "sem" }} />,
         );
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(3);
         });
 
-        rerender(<BarErrorChart groups={twoGroups} spec={spec} errorType="sem" />);
+        rerender(<BarErrorChart groups={twoGroups} spec={{ ...spec, errorBarType: "sem" }} />);
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(2);
@@ -239,7 +249,9 @@ describe("BarErrorChart", () => {
     });
 
     it("handles empty groups without crashing", async () => {
-        const { container } = render(<BarErrorChart groups={[]} spec={spec} errorType="sem" />);
+        const { container } = render(
+            <BarErrorChart groups={[]} spec={{ ...spec, errorBarType: "sem" }} />,
+        );
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(0);
@@ -250,7 +262,7 @@ describe("BarErrorChart", () => {
     it("renders negative means upward from the zero baseline", async () => {
         const negative: readonly GroupStats[] = [{ label: "Loss", mean: -5, sd: 1, n: 10 }];
         const { container } = render(
-            <BarErrorChart groups={negative} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={negative} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
@@ -268,4 +280,55 @@ describe("BarErrorChart", () => {
         const g = threeGroups[0];
         expect(computeErrorBar(g, "sem")).toBeCloseTo(g.sd / Math.sqrt(g.n), 5);
     });
+
+    it("okabe-ito palette produces the expected color on group 0 bar", async () => {
+        const paletteSpec: BarErrorSpec = {
+            ...spec,
+            customizations: { palette: "okabe-ito" },
+        };
+        const { container } = render(
+            <BarErrorChart groups={twoGroupBarData} spec={paletteSpec} />,
+        );
+
+        await waitFor(() => {
+            const g0Bar = container.querySelector(
+                '[data-group-index="0"][data-role="bar-rect"]',
+            );
+            expect(g0Bar?.getAttribute("fill")).toMatch(
+                /var\(--palette-okabe-ito-0\)|#0072B2/i,
+            );
+        });
+    });
+
+    // MUTATION-VERIFY:
+    //   palettes.ts:41 — set PALETTE_COLORS["okabe-ito"][0] to "var(--palette-wong-1)".
+    //   Test: "okabe-ito palette produces the expected color on group 0 bar".
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it.each([
+        ["monochrome", 0, /var\(--palette-monochrome-0\)|#000000/i],
+        ["okabe-ito", 0, /var\(--palette-okabe-ito-0\)|#0072B2/i],
+        ["wong", 0, /var\(--palette-wong-0\)|#E69F00/i],
+        ["ibm-design", 0, /var\(--palette-ibm-design-0\)|#648FFF/i],
+        ["tol-vibrant", 0, /var\(--palette-tol-vibrant-0\)|#EE7733/i],
+        ["deuteranopia-tuned", 0, /var\(--palette-deuteranopia-0\)|#005F73/i],
+    ] as const)(
+        "palette %s gives group %i the expected color",
+        async (palette, index, expectedColor) => {
+            const paletteSpec: BarErrorSpec = {
+                ...spec,
+                customizations: { palette },
+            };
+            const { container } = render(
+                <BarErrorChart groups={twoGroupBarData} spec={paletteSpec} />,
+            );
+
+            await waitFor(() => {
+                const bar = container.querySelector(
+                    `[data-group-index="${index}"][data-role="bar-rect"]`,
+                );
+                expect(bar?.getAttribute("fill")).toMatch(expectedColor);
+            });
+        },
+    );
 });

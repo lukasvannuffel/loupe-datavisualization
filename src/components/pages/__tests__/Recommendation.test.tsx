@@ -22,6 +22,7 @@ const push = vi.fn();
 const replace = vi.fn();
 const appendOverride = vi.fn();
 const setSelectionMode = vi.fn();
+const setChartSpec = vi.fn();
 const updateLatestOverrideReason = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -45,12 +46,14 @@ vi.mock("@/app/providers", () => ({
         appendOverride: typeof appendOverride;
         intent: string;
         mapping: Mapping;
+        setChartSpec: typeof setChartSpec;
         setSelectionMode: typeof setSelectionMode;
         updateLatestOverrideReason: typeof updateLatestOverrideReason;
     } => ({
         appendOverride,
         intent: "",
         mapping: defaultMapping,
+        setChartSpec,
         setSelectionMode,
         updateLatestOverrideReason,
     }),
@@ -345,6 +348,22 @@ describe("Recommendation", () => {
         expect(screen.queryByTestId("publication-km")).toBeNull();
     });
 
+    it("shows export-step hint and no customization rail on recommend", async () => {
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByText(/tune colors and labels on the export step/i)).toBeTruthy();
+        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
+        expect(screen.queryByRole("listbox", { name: /chart palette/i })).toBeNull();
+    });
+
+    it("keeps the chart read-only on recommend", async () => {
+        setChartSpec.mockClear();
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(document.querySelector(".chart-labels-host")).toBeNull();
+        expect(setChartSpec).not.toHaveBeenCalled();
+    });
+
     it("shows KaplanMeierError message when more than 4 groups", async () => {
         aggregateKaplanMeierMock.mockImplementation(() => {
             throw new KaplanMeierError("Max 4 groups supported. Received 5.");
@@ -481,12 +500,12 @@ describe("Recommendation", () => {
             <Recommendation {...chartRenderProps("km", sampleReceipt([first, second]))} />,
         );
         expect(screen.queryByRole("status", { name: /Chart overridden/i })).toBeNull();
-        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+        expect(document.querySelector(".rec-chart-title")?.textContent).toBe("Kaplan–Meier");
     });
 
     it("shows AI chart name as title when overrides is empty", () => {
         render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
-        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+        expect(document.querySelector(".rec-chart-title")?.textContent).toBe("Kaplan–Meier");
         expect(document.body.textContent).not.toContain("overridden from");
     });
 
@@ -497,7 +516,7 @@ describe("Recommendation", () => {
         render(
             <Recommendation {...chartRenderProps("barError", sampleReceipt(overrides))} />,
         );
-        const title = screen.getByRole("heading", { level: 3 }).textContent ?? "";
+        const title = document.querySelector(".rec-chart-title")?.textContent ?? "";
         expect(title).toContain("Bar chart with error bars");
         expect(title).toContain("overridden from Kaplan-Meier");
     });
@@ -547,7 +566,7 @@ describe("Recommendation", () => {
             { at: "2026-05-19T14:25:00.000Z", from: "barError", to: "box" },
         ];
         render(<Recommendation {...chartRenderProps("box", sampleReceipt(overrides))} />);
-        const title = screen.getByRole("heading", { level: 3 }).textContent ?? "";
+        const title = document.querySelector(".rec-chart-title")?.textContent ?? "";
         expect(title).toContain("Box plot");
         expect(title).toContain("overridden from Kaplan-Meier");
         expect(title).not.toContain("overridden from Bar chart");
@@ -631,24 +650,20 @@ describe("Recommendation", () => {
         expect(screen.getByText("bp_change")).toBeTruthy();
     });
 
-    it("initializes error toggle from receipt hints", async () => {
-        const receipt: Receipt = {
-            ...sampleReceipt(),
-            tests: [{ label: "Independent samples t-test", name: "95% CI" }],
-        };
-        render(<Recommendation {...chartRenderProps("barError", receipt)} />);
-        await advanceToChartPhase();
-        expect((screen.getByRole("radio", { name: /95% CI/ }) as HTMLInputElement).checked).toBe(
-            true,
-        );
-    });
-
-    it("initializes error toggle to SEM when receipt has no error hint", async () => {
+    it("does not render the customization rail on recommend", async () => {
         render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect((screen.getByRole("radio", { name: /SEM/ }) as HTMLInputElement).checked).toBe(
-            true,
-        );
+        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
+        expect(screen.queryByLabelText("Error bar type")).toBeNull();
+        expect(screen.queryByText(/edit inline/i)).toBeNull();
+    });
+
+    it("keeps the override workflow on recommend", async () => {
+        render(<Recommendation {...chartRenderProps("km", receiptWithBarAlt())} />);
+        await act(async () => {
+            vi.advanceTimersByTime(1100);
+        });
+        expect(screen.getByRole("button", { name: /Use instead/i })).toBeTruthy();
     });
 
     it("shows error bars unavailable when all groups have n<2", async () => {
@@ -670,22 +685,13 @@ describe("Recommendation", () => {
         expect(screen.getByText(/at least 2 rows per group/i)).toBeTruthy();
     });
 
-    it("re-aggregates bar error data when error type toggle changes", async () => {
-        render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
-        await advanceToChartPhase();
-        const callsAfterMount = aggregateBarErrorMock.mock.calls.length;
-        expect(callsAfterMount).toBeGreaterThan(0);
-        fireEvent.click(screen.getByRole("radio", { name: /SD Standard/ }));
-        expect(aggregateBarErrorMock.mock.calls.length).toBeGreaterThan(callsAfterMount);
-    });
-
     it("treats back-to-original kind as not display-overridden", () => {
         const overrides: OverrideEvent[] = [
             { at: "2026-05-19T14:23:00.000Z", from: "km", to: "barError" },
             { at: "2026-05-19T14:25:00.000Z", from: "barError", to: "km" },
         ];
         render(<Recommendation {...chartRenderProps("km", sampleReceipt(overrides))} />);
-        expect(screen.getByRole("heading", { level: 3 }).textContent).toBe("Kaplan–Meier");
+        expect(document.querySelector(".rec-chart-title")?.textContent).toBe("Kaplan–Meier");
         expect(document.body.textContent).not.toContain("overridden from");
         expect(screen.queryByPlaceholderText(/note your reasoning/i)).toBeNull();
         expect(screen.queryByRole("status", { name: /Chart overridden/i })).toBeNull();

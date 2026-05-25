@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAppState } from "@/app/providers";
-import {
-    applyXYLongitudinalRouting,
-    createDefaultChartSpec,
-} from "@/lib/chartSpec/factory";
+import { updateCustomizationPalette } from "@/lib/chartSpec/customizations/patchSpec";
+import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 
 import { Recommendation } from "./Recommendation";
@@ -22,6 +20,7 @@ export const RecommendGate = (): JSX.Element | null => {
         lastRecommendationFromCache,
         mapping,
         receipt,
+        setChartSpec,
         setMapping,
     } = useAppState();
     const [resolvedSpec, setResolvedSpec] = useState<ChartSpec | null>(null);
@@ -42,24 +41,33 @@ export const RecommendGate = (): JSX.Element | null => {
             return;
         }
 
-        const baseSpec = chartSpec ?? createDefaultChartSpec(chartKind);
-
-        if (chartKind === "xy" && baseSpec.kind === "xy" && dataset !== null) {
-            const routed = applyXYLongitudinalRouting(baseSpec, {
-                inferences: dataset.inferences,
-                mapping,
-                rows: dataset.rows,
-            });
-            if (routed.mapping.id !== mapping.id) {
-                setMapping(routed.mapping);
-            }
-            setResolvedSpec(routed.spec);
+        if (chartSpec !== null && chartSpec.kind === chartKind) {
+            setResolvedSpec(chartSpec);
 
             return;
         }
 
-        setResolvedSpec(baseSpec);
-    }, [chartKind, chartSpec, dataset, mapping, setMapping]);
+        const previousPalette = chartSpec?.customizations?.palette;
+
+        const { spec, mapping: nextMapping } = resolveWizardChartSpec({
+            chartKind,
+            chartSpec: null,
+            dataset,
+            mapping,
+        });
+
+        const nextSpec =
+            previousPalette !== undefined
+                ? updateCustomizationPalette(spec, previousPalette)
+                : spec;
+
+        if (nextMapping.id !== mapping.id) {
+            setMapping(nextMapping);
+        }
+
+        setResolvedSpec(nextSpec);
+        setChartSpec(nextSpec);
+    }, [chartKind, chartSpec, dataset, mapping, setChartSpec, setMapping]);
 
     if (!hydrated || !receipt || !chartKind || !resolvedSpec || dataset === null) {
         return null;

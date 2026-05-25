@@ -14,7 +14,7 @@ import {
 import type { ChartSlug } from "@/components/charts/chartPreviews";
 import { clearCache } from "@/lib/ai/recommendCache/cache";
 import type { ChartSpec } from "@/lib/chartSpec";
-import { receiptSchema } from "@/lib/chartSpec/schemas";
+import { chartSpecSchema, receiptSchema } from "@/lib/chartSpec/schemas";
 import type { OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { columnInferenceArraySchema } from "@/lib/parser/inference.schemas";
 import type { ColumnInference } from "@/lib/parser/inference.types";
@@ -279,25 +279,6 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         window.sessionStorage.setItem(CHART_KIND_KEY, JSON.stringify(next));
     }, []);
 
-    // setChartKind inside setReceiptState updater is intentional — required for atomic Receipt+kind transitions. React 18 batching makes this safe; flushSync would be heavier without a real benefit.
-    const appendOverride = useCallback(
-        (event: OverrideEvent): void => {
-            setReceiptState((prev) => {
-                if (prev === null) {
-                    return prev;
-                }
-                const next: Receipt = { ...prev, overrides: [...prev.overrides, event] };
-                if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
-                }
-                setChartKind(event.to);
-
-                return next;
-            });
-        },
-        [setChartKind],
-    );
-
     // Only updates the most recent override event — correct for "why did you override this time."
     const updateLatestOverrideReason = useCallback((reason: string): void => {
         setReceiptState((prev) => {
@@ -413,8 +394,40 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
         setChartSlugState(next);
     }, []);
 
+    const appendOverride = useCallback(
+        (event: OverrideEvent): void => {
+            setReceiptState((prev) => {
+                if (prev === null) {
+                    return prev;
+                }
+                const next: Receipt = { ...prev, overrides: [...prev.overrides, event] };
+                if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(RECEIPT_KEY, JSON.stringify(next));
+                }
+                setChartKind(event.to);
+                setChartSlug(event.to);
+
+                return next;
+            });
+        },
+        [setChartKind, setChartSlug],
+    );
+
     const setChartSpec = useCallback((next: ChartSpec | null): void => {
-        setChartSpecState(next);
+        if (next === null) {
+            setChartSpecState(null);
+
+            return;
+        }
+
+        const parsed = chartSpecSchema.safeParse(next);
+        if (!parsed.success) {
+            console.warn("Rejected invalid chart spec update:", parsed.error.format());
+
+            return;
+        }
+
+        setChartSpecState(parsed.data);
     }, []);
 
     /**

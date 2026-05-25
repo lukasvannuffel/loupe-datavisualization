@@ -148,14 +148,29 @@ describe("BoxChart", () => {
         });
     });
 
-    it("renders box rect with consistent fill and stroke (no palette use)", async () => {
-        const container = await renderAndDraw(twoGroupFixture, boxSpec());
+    it("editorial palette uses paper fill and ink stroke for all boxes", async () => {
+        const container = await renderAndDraw(twoGroupFixture, {
+            ...boxSpec(),
+            customizations: { palette: "editorial" },
+        });
         const boxes = container.querySelectorAll("rect[data-role='box-rect']");
         expect(boxes.length).toBeGreaterThanOrEqual(2);
         for (const box of boxes) {
-            expect(box.getAttribute("fill")).toBe(boxes[0]!.getAttribute("fill"));
+            expect(box.getAttribute("fill-opacity")).toBe("1");
             expect(box.getAttribute("stroke")).toBe(boxes[0]!.getAttribute("stroke"));
         }
+    });
+
+    it("okabe-ito palette tints box fill per group", async () => {
+        const container = await renderAndDraw(twoGroupFixture, {
+            ...boxSpec(),
+            customizations: { palette: "okabe-ito" },
+        });
+        const fills = [...container.querySelectorAll("rect[data-role='box-rect']")].map((box) =>
+            box.getAttribute("fill"),
+        );
+        expect(new Set(fills).size).toBeGreaterThanOrEqual(2);
+        expect(fills[0]).toMatch(/var\(--palette-okabe-ito-0\)|#0072B2/i);
     });
 
     it("renders notch path when notched=true", async () => {

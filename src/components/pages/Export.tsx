@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
     getPublicationChart,
@@ -11,30 +11,75 @@ import type {
     PublicationChartProps,
     StatAnnotation,
 } from "@/components/charts/types";
+import { PALETTE_SWATCH_HEX, resolvePalette } from "@/components/charts/d3/palettes";
+import type { PaletteName } from "@/lib/chartSpec/types";
+import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
+import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { useAppState } from "@/app/providers";
+import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
+import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
+import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
+import type { ChartSpec } from "@/lib/chartSpec/types";
 import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
 import type { ChartConfig, ChatRevision, RailSection } from "./ExportChat/types";
 
+type LegacyPaletteId =
+    | "editorial"
+    | "okabe-ito"
+    | "wong"
+    | "ibm"
+    | "tol-vibrant"
+    | "deuter"
+    | "mono";
+
 type Palette = {
-    id: string;
-    name: string;
-    note: string;
-    a: string;
-    b: string;
+    readonly id: LegacyPaletteId;
+    readonly name: string;
+    readonly note: string;
+    readonly a: string;
+    readonly b: string;
 };
 
-const PALETTES: readonly Palette[] = [
-    { id: "editorial", name: "Editorial", note: "Default · ink + gray", a: "#0E0E0E", b: "#6B6B66" },
-    { id: "okabe-ito", name: "Okabe–Ito", note: "Colorblind-safe", a: "#0072B2", b: "#E69F00" },
-    { id: "wong", name: "Wong", note: "Colorblind-safe", a: "#009E73", b: "#D55E00" },
-    { id: "ibm", name: "IBM Design", note: "Colorblind-safe", a: "#648FFF", b: "#DC267F" },
-    { id: "tol-vibrant", name: "Tol Vibrant", note: "Colorblind-safe", a: "#0077BB", b: "#EE7733" },
-    { id: "deuter", name: "Deuteranopia-tuned", note: "Blue + amber", a: "#1F4E79", b: "#B5651D" },
-    { id: "mono", name: "Monochrome", note: "Print-safe", a: "#0E0E0E", b: "#9A9A93" },
-];
+const LEGACY_PALETTE_SWATCH_KEYS: Record<LegacyPaletteId, PaletteName> = {
+    editorial: "editorial",
+    "okabe-ito": "okabe-ito",
+    wong: "wong",
+    ibm: "ibm-design",
+    "tol-vibrant": "tol-vibrant",
+    deuter: "deuteranopia-tuned",
+    mono: "monochrome",
+};
+
+const LEGACY_PALETTE_META: Record<
+    LegacyPaletteId,
+    { readonly name: string; readonly note: string }
+> = {
+    editorial: { name: "Editorial", note: "Default · ink + gray" },
+    "okabe-ito": { name: "Okabe–Ito", note: "Colorblind-safe" },
+    wong: { name: "Wong", note: "Colorblind-safe" },
+    ibm: { name: "IBM Design", note: "Colorblind-safe" },
+    "tol-vibrant": { name: "Tol Vibrant", note: "Colorblind-safe" },
+    deuter: { name: "Deuteranopia-tuned", note: "Blue + amber" },
+    mono: { name: "Monochrome", note: "Print-safe" },
+};
+
+const PALETTES: readonly Palette[] = (
+    Object.keys(LEGACY_PALETTE_META) as LegacyPaletteId[]
+).map((id) => {
+    const swatch = PALETTE_SWATCH_HEX[LEGACY_PALETTE_SWATCH_KEYS[id]];
+    const meta = LEGACY_PALETTE_META[id];
+
+    return {
+        id,
+        name: meta.name,
+        note: meta.note,
+        a: swatch[0],
+        b: swatch[1],
+    };
+});
 
 type SlugDefaults = {
     title: string;
@@ -381,13 +426,26 @@ const DEFAULT_ANNOTATION_DRAFT: AnnotationDraft = {
     pValue: "",
 };
 
+const isSpecKind = (kind: ChartSlug): kind is ChartSpec["kind"] =>
+    kind === "km" || kind === "barError" || kind === "box" || kind === "xy";
+
 export const Export = (): JSX.Element => {
     const router = useRouter();
-    const { chartSlug: appChartSlug } = useAppState();
+    const {
+        chartKind,
+        chartSlug: appChartSlug,
+        chartSpec,
+        dataset,
+        hydrated,
+        mapping,
+        setChartSpec,
+        setMapping,
+    } = useAppState();
 
     const slug: ChartSlug = appChartSlug ?? "km";
+    const useSpecFigure = dataset !== null && chartSpec !== null && isSpecKind(chartSpec.kind);
     const slugDefaults = SLUG_DEFAULTS[slug];
-    const ChartComponent = useMemo(() => getPublicationChart(slug), [slug]);
+    const ChartComponent = getPublicationChart(slug);
 
     const [dpi, setDpi] = useState<number>(300);
     const [copied, setCopied] = useState<boolean>(false);
@@ -419,6 +477,58 @@ export const Export = (): JSX.Element => {
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
+
+    const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
+
+    useEffect(() => {
+        setLiveSpec(chartSpec);
+    }, [chartSpec]);
+
+    useEffect(() => {
+        if (
+            !hydrated ||
+            chartKind === null ||
+            dataset === null ||
+            (chartSpec !== null && chartSpec.kind === chartKind)
+        ) {
+            return;
+        }
+
+        const { spec, mapping: nextMapping } = resolveWizardChartSpec({
+            chartKind,
+            chartSpec: null,
+            dataset,
+            mapping,
+        });
+
+        if (nextMapping.id !== mapping.id) {
+            setMapping(nextMapping);
+        }
+
+        setChartSpec(spec);
+    }, [chartKind, chartSpec, dataset, hydrated, mapping, setChartSpec, setMapping]);
+
+    const onSpecChange = (updater: SpecUpdater): void => {
+        if (liveSpec === null) {
+            return;
+        }
+
+        const next = updater(liveSpec);
+        setLiveSpec(next);
+        setChartSpec(next);
+    };
+
+    const xyErrorBandsAvailable =
+        liveSpec?.kind === "xy" &&
+        (liveSpec.mode === "line" || (liveSpec.mode === "both" && mapping.id !== undefined));
+
+    const specFigureTitle =
+        useSpecFigure && liveSpec !== null ? resolveChartLabels(liveSpec).title : title;
+
+    const receiptPaletteLabel =
+        useSpecFigure && liveSpec !== null
+            ? resolvePalette(liveSpec)
+            : palette.name.toLowerCase();
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -638,11 +748,27 @@ export const Export = (): JSX.Element => {
                         <div className="export-canvas-head">
                             <div>
                                 <div className="muted export-canvas-eyebrow">{eyebrow}</div>
-                                <div className="serif export-canvas-title">{title}</div>
+                                <div className="serif export-canvas-title">{specFigureTitle}</div>
                             </div>
                             <div className="muted mono export-canvas-meta">{slugDefaults.metaLine}</div>
                         </div>
-                        <ChartComponent {...chartProps} />
+                        {useSpecFigure && liveSpec !== null && dataset !== null ? (
+                            <>
+                                <SpecChartPanel
+                                    chartKind={liveSpec.kind}
+                                    dataset={dataset}
+                                    mapping={mapping}
+                                    spec={liveSpec}
+                                    onSpecChange={onSpecChange}
+                                />
+                                <p className="export-chart-hint muted small">
+                                    <span className="ring ring--xs" />
+                                    Click any axis label or title on the chart to edit inline.
+                                </p>
+                            </>
+                        ) : (
+                            <ChartComponent {...chartProps} />
+                        )}
                         {caption && (
                             <div className="export-caption">
                                 <span className="export-caption-num mono">Figure {figureNumber}.</span>{" "}
@@ -709,9 +835,7 @@ export const Export = (): JSX.Element => {
                             <dt>Sample</dt>
                             <dd>{slugDefaults.metaLine}</dd>
                             <dt>Palette</dt>
-                            <dd>
-                                {palette.name.toLowerCase()} · a={palette.a} · b={palette.b}
-                            </dd>
+                            <dd>{receiptPaletteLabel}</dd>
                             <dt>Software</dt>
                             <dd>Loupe v0.4.2 · client-side</dd>
                             <dt>AI rationale</dt>
@@ -733,7 +857,7 @@ export const Export = (): JSX.Element => {
 
                 </div>
 
-                <aside
+                <div
                     id="customize-sheet"
                     className={"customize-rail" + (mobileRailOpen ? " is-mobile-open" : "")}
                     role={mobileRailOpen ? "dialog" : undefined}
@@ -757,6 +881,16 @@ export const Export = (): JSX.Element => {
                         </p>
                     </div>
 
+                    {useSpecFigure && liveSpec !== null ? (
+                        <CustomizationRail
+                            errorBandsAvailable={xyErrorBandsAvailable}
+                            mapping={mapping}
+                            spec={liveSpec}
+                            onSpecChange={onSpecChange}
+                        />
+                    ) : null}
+
+                    {!useSpecFigure ? (
                     <CustomSection
                         id="colors"
                         label="Colors"
@@ -825,7 +959,9 @@ export const Export = (): JSX.Element => {
                             />
                         </div>
                     </CustomSection>
+                    ) : null}
 
+                    {!useSpecFigure ? (
                     <CustomSection
                         id="titles"
                         label="Titles & caption"
@@ -851,15 +987,17 @@ export const Export = (): JSX.Element => {
                                 onChange={(e) => setEyebrow(e.target.value)}
                             />
                         </div>
-                        <div className="custom-row">
-                            <label>Figure title</label>
-                            <textarea
-                                className="custom-input"
-                                rows={2}
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                            />
-                        </div>
+                        {!useSpecFigure ? (
+                            <div className="custom-row">
+                                <label>Figure title</label>
+                                <textarea
+                                    className="custom-input"
+                                    rows={2}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                />
+                            </div>
+                        ) : null}
                         <div className="custom-row">
                             <label>Caption / methods</label>
                             <textarea
@@ -870,42 +1008,45 @@ export const Export = (): JSX.Element => {
                             />
                         </div>
                     </CustomSection>
+                    ) : null}
 
-                    <CustomSection
-                        id="axes"
-                        label="Axes"
-                        open={openSection}
-                        setOpen={setOpenSection}
-                    >
-                        <div className="custom-row">
-                            <label>X-axis label</label>
-                            <input
-                                className="custom-input"
-                                value={xLabel}
-                                onChange={(e) => setXLabel(e.target.value)}
-                            />
-                        </div>
-                        <div className="custom-row">
-                            <label>Y-axis label</label>
-                            <input
-                                className="custom-input"
-                                value={yLabel}
-                                onChange={(e) => setYLabel(e.target.value)}
-                            />
-                        </div>
-                        <div className="custom-row">
-                            <label className="custom-toggle">
+                    {!useSpecFigure ? (
+                        <CustomSection
+                            id="axes"
+                            label="Axes"
+                            open={openSection}
+                            setOpen={setOpenSection}
+                        >
+                            <div className="custom-row">
+                                <label>X-axis label</label>
                                 <input
-                                    type="checkbox"
-                                    checked={showGrid}
-                                    onChange={(e) => setShowGrid(e.target.checked)}
+                                    className="custom-input"
+                                    value={xLabel}
+                                    onChange={(e) => setXLabel(e.target.value)}
                                 />
-                                <span>Show gridlines</span>
-                            </label>
-                        </div>
-                    </CustomSection>
+                            </div>
+                            <div className="custom-row">
+                                <label>Y-axis label</label>
+                                <input
+                                    className="custom-input"
+                                    value={yLabel}
+                                    onChange={(e) => setYLabel(e.target.value)}
+                                />
+                            </div>
+                            <div className="custom-row">
+                                <label className="custom-toggle">
+                                    <input
+                                        type="checkbox"
+                                        checked={showGrid}
+                                        onChange={(e) => setShowGrid(e.target.checked)}
+                                    />
+                                    <span>Show gridlines</span>
+                                </label>
+                            </div>
+                        </CustomSection>
+                    ) : null}
 
-                    {(supportsTwoSeriesLegend(slug) || supportsKMOverlays(slug)) && (
+                    {!useSpecFigure && (supportsTwoSeriesLegend(slug) || supportsKMOverlays(slug)) ? (
                         <CustomSection
                             id="legend"
                             label="Legend & overlays"
@@ -967,9 +1108,9 @@ export const Export = (): JSX.Element => {
                                 </>
                             )}
                         </CustomSection>
-                    )}
+                    ) : null}
 
-                    {supportsErrorBars(slug) && (
+                    {!useSpecFigure && supportsErrorBars(slug) ? (
                         <CustomSection
                             id="errorBars"
                             label="Error bars"
@@ -1002,9 +1143,9 @@ export const Export = (): JSX.Element => {
                                 Error caps reflect within-group {errorBarType === "ci95" ? "95% CI" : errorBarType.toUpperCase()}. The receipt records the choice.
                             </p>
                         </CustomSection>
-                    )}
+                    ) : null}
 
-                    {supportsAnnotations(slug) && (
+                    {!useSpecFigure && supportsAnnotations(slug) ? (
                         <CustomSection
                             id="annotations"
                             label="Annotations"
@@ -1181,16 +1322,18 @@ export const Export = (): JSX.Element => {
                                 </button>
                             </div>
                         </CustomSection>
-                    )}
+                    ) : null}
 
-                    <button
-                        type="button"
-                        className="btn btn--quiet btn--sm customize-reset"
-                        onClick={onReset}
-                    >
-                        Reset to defaults
-                    </button>
-                </aside>
+                    {!useSpecFigure ? (
+                        <button
+                            type="button"
+                            className="btn btn--quiet btn--sm customize-reset"
+                            onClick={onReset}
+                        >
+                            Reset to defaults
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             {!mobileRailOpen && (

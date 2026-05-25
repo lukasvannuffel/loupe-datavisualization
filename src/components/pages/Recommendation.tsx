@@ -2,33 +2,21 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAppState, type LoupeDataset } from "@/app/providers";
-import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
-import { BoxChart } from "@/components/charts/d3/BoxChart";
-import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
-import { XYChart } from "@/components/charts/d3/XYChart";
-import { ChartRenderer } from "@/components/charts/ChartRenderer";
+import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
+
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
-import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
-import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
-import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
-import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
-import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
-import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
-import { LongitudinalError, XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
-import type { LongitudinalData, XYPlotData } from "@/lib/chartSpec/aggregators/xyPlot.types";
-import type { ErrorBarType } from "@/lib/chartSpec/aggregators/barError.types";
-import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
+import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
+import { patchSpecKind } from "@/lib/chartSpec/customizations/patchSpec";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
 import { getOverrideDisplayState } from "./overrideDisplay";
 import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
 import { ErrorBarsUnavailable } from "./recommendation/ErrorBarsUnavailable";
-import { ErrorTypeToggle } from "./recommendation/ErrorTypeToggle";
 import { MissingDataWarning } from "./recommendation/MissingDataWarning";
 import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
@@ -52,8 +40,27 @@ export const Recommendation = ({
     spec,
 }: RecommendationProps): JSX.Element => {
     const router = useRouter();
-    const { appendOverride, intent, mapping, setSelectionMode, updateLatestOverrideReason } =
-        useAppState();
+    const {
+        appendOverride,
+        intent,
+        mapping,
+        setSelectionMode,
+        updateLatestOverrideReason,
+    } = useAppState();
+    const mergeReceiptErrorType = (next: ChartSpec): ChartSpec => {
+        if (next.kind !== "barError") {
+            return next;
+        }
+
+        return patchSpecKind(next, { errorBarType: inferErrorTypeFromReceipt(receipt) });
+    };
+
+    const [liveSpec, setLiveSpec] = useState<ChartSpec>(() => mergeReceiptErrorType(spec));
+
+    useEffect(() => {
+        setLiveSpec(mergeReceiptErrorType(spec));
+    }, [receipt, spec]);
+
     let barErrorMapResult: BarErrorMappingResult = { mapping };
     let barErrorAggregation: ReturnType<typeof aggregateBarError> | undefined;
 
@@ -64,97 +71,6 @@ export const Recommendation = ({
 
     const barErrorMapping = barErrorMapResult.mapping;
 
-    let kmPlotResult:
-        | null
-        | { status: "missing" }
-        | { status: "ok"; data: ReturnType<typeof aggregateKaplanMeier> }
-        | { status: "error"; message: string } = null;
-
-    if (chartKind === "km") {
-        if (mapping.time === undefined || mapping.event === undefined) {
-            kmPlotResult = { status: "missing" };
-        }
-        else {
-            try {
-                kmPlotResult = {
-                    data: aggregateKaplanMeier(dataset.rows, mapping),
-                    status: "ok",
-                };
-            }
-            catch (err) {
-                if (err instanceof KaplanMeierError) {
-                    kmPlotResult = { message: err.message, status: "error" };
-                }
-                else {
-                    throw err;
-                }
-            }
-        }
-    }
-
-    let boxPlotResult:
-        | null
-        | { status: "missing" }
-        | { status: "ok"; data: ReturnType<typeof aggregateBoxPlot> }
-        | { status: "error"; message: string } = null;
-
-    if (chartKind === "box") {
-        if (mapping.outcome === undefined) {
-            boxPlotResult = { status: "missing" };
-        }
-        else {
-            try {
-                boxPlotResult = {
-                    data: aggregateBoxPlot(dataset.rows, mapping),
-                    status: "ok",
-                };
-            }
-            catch (err) {
-                if (err instanceof BoxPlotError) {
-                    boxPlotResult = { message: err.message, status: "error" };
-                }
-                else {
-                    throw err;
-                }
-            }
-        }
-    }
-
-    let xyPlotResult:
-        | null
-        | { status: "missing" }
-        | { status: "ok"; data: XYPlotData | LongitudinalData }
-        | { status: "error"; message: string } = null;
-
-    if (chartKind === "xy" && spec.kind === "xy") {
-        if (mapping.x === undefined || mapping.y === undefined) {
-            xyPlotResult = { status: "missing" };
-        }
-        else {
-            const useLongitudinal =
-                spec.mode === "line" || (spec.mode === "both" && mapping.id !== undefined);
-            try {
-                xyPlotResult = {
-                    data: useLongitudinal
-                        ? aggregateLongitudinal(dataset.rows, mapping)
-                        : aggregateXYPlot(dataset.rows, mapping, {
-                              computeRegression: spec.showRegression,
-                          }),
-                    status: "ok",
-                };
-            }
-            catch (err) {
-                if (err instanceof XYPlotError || err instanceof LongitudinalError) {
-                    xyPlotResult = { message: err.message, status: "error" };
-                }
-                else {
-                    throw err;
-                }
-            }
-        }
-    }
-
-    const [errorType, setErrorType] = useState<ErrorBarType>(() => inferErrorTypeFromReceipt(receipt));
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
     const transform = receipt.transformations[0];
@@ -261,7 +177,9 @@ export const Recommendation = ({
                             ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    {chartKind === "barError" && spec.kind === "barError" && barErrorAggregation ? (
+                                    {chartKind === "barError" &&
+                                    liveSpec.kind === "barError" &&
+                                    barErrorAggregation ? (
                                         <>
                                             {barErrorAggregation.missing.dropRate >
                                             MISSING_DATA_WARN_DROP_RATE ? (
@@ -312,110 +230,35 @@ export const Recommendation = ({
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <BarErrorChart
-                                                        spec={spec}
-                                                        groups={barErrorAggregation.groups}
-                                                        errorType={errorType}
+                                                    <SpecChartPanel
+                                                        chartKind={chartKind}
+                                                        dataset={dataset}
+                                                        mapping={mapping}
+                                                        spec={liveSpec}
                                                     />
                                                     <ErrorBarsUnavailable
                                                         groups={barErrorAggregation.groups}
                                                     />
-                                                    <ErrorTypeToggle
-                                                        value={errorType}
-                                                        onChange={setErrorType}
-                                                    />
                                                 </>
                                             )}
                                         </>
-                                    ) : chartKind === "km" && spec.kind === "km" ? (
-                                        <>
-                                            {kmPlotResult?.status === "missing" ? (
-                                                <div className="rec-chart-empty muted" role="status">
-                                                    <p>
-                                                        No plottable survival data yet. On the map step,
-                                                        assign <strong>Time variable</strong> and{" "}
-                                                        <strong>Event indicator</strong> (0 = censored, 1 =
-                                                        event).
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                            {kmPlotResult?.status === "error" ? (
-                                                <div className="rec-chart-empty muted" role="alert">
-                                                    <p>{kmPlotResult.message}</p>
-                                                </div>
-                                            ) : null}
-                                            {kmPlotResult?.status === "ok" ? (
-                                                <KaplanMeierChart
-                                                    data={kmPlotResult.data}
-                                                    spec={spec}
-                                                />
-                                            ) : null}
-                                        </>
-                                    ) : chartKind === "box" && spec.kind === "box" ? (
-                                        <>
-                                            {boxPlotResult?.status === "missing" ? (
-                                                <div className="rec-chart-empty muted" role="status">
-                                                    <p>
-                                                        No plottable distribution data yet. On the map
-                                                        step, assign <strong>Outcome</strong> to a numeric
-                                                        column. <strong>Group / arm</strong> is optional —
-                                                        without it, all values are shown as a single
-                                                        distribution.
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                            {boxPlotResult?.status === "error" ? (
-                                                <div className="rec-chart-empty muted" role="alert">
-                                                    <p>{boxPlotResult.message}</p>
-                                                </div>
-                                            ) : null}
-                                            {boxPlotResult?.status === "ok" ? (
-                                                <BoxChart data={boxPlotResult.data} spec={spec} />
-                                            ) : null}
-                                        </>
-                                    ) : chartKind === "xy" && spec.kind === "xy" ? (
-                                        <>
-                                            {xyPlotResult?.status === "missing" ? (
-                                                <div className="rec-chart-empty muted" role="status">
-                                                    <p>
-                                                        No plottable X–Y data yet. On the map step,
-                                                        assign <strong>X axis</strong> and{" "}
-                                                        <strong>Y axis</strong> to numeric columns.
-                                                        Optional <strong>Group</strong> splits series;
-                                                        map <strong>ID</strong> for longitudinal visit
-                                                        means.
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                            {xyPlotResult?.status === "error" ? (
-                                                <div className="rec-chart-empty muted" role="alert">
-                                                    <p>{xyPlotResult.message}</p>
-                                                </div>
-                                            ) : null}
-                                            {xyPlotResult?.status === "ok" ? (
-                                                <XYChart
-                                                    data={xyPlotResult.data}
-                                                    mode={spec.mode}
-                                                    showRegression={spec.showRegression}
-                                                    showErrorBands={spec.showErrorBands}
-                                                />
-                                            ) : null}
-                                        </>
                                     ) : (
-                                        <ChartRenderer spec={spec} />
+                                        <SpecChartPanel
+                                            chartKind={chartKind}
+                                            dataset={dataset}
+                                            mapping={mapping}
+                                            spec={liveSpec}
+                                        />
                                     )}
+                                    <p className="rec-chart-hint muted small">
+                                        Tune colors and labels on the export step.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="rec-chart-frame-loading">
                                     <RingLoader />
                                 </div>
                             )}
-                        </div>
-                        <div className="rec-chart-hint">
-                            <span>
-                                <span className="ring ring--xs" />
-                                Click any axis label, title, or legend to edit inline.
-                            </span>
                         </div>
                     </div>
 

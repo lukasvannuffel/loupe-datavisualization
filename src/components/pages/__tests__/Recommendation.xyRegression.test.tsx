@@ -259,13 +259,13 @@ describe("Recommendation XY regression", () => {
             />,
         );
 
+        await advanceToChartPhase();
+
         expect(aggregateXYPlotMock).toHaveBeenCalledWith(
             datasetWithRows.rows,
             defaultMapping,
             { computeRegression: true },
         );
-
-        await advanceToChartPhase();
 
         await act(async () => {
             await Promise.resolve();
