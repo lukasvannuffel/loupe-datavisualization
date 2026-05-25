@@ -5,6 +5,7 @@ import { useAppState, type LoupeDataset } from "@/app/providers";
 import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
 import { BoxChart } from "@/components/charts/d3/BoxChart";
 import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
+import { XYChart } from "@/components/charts/d3/XYChart";
 import { ChartRenderer } from "@/components/charts/ChartRenderer";
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
@@ -14,6 +15,10 @@ import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
 import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
+import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
+import { LongitudinalError, XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
+import type { LongitudinalData, XYPlotData } from "@/lib/chartSpec/aggregators/xyPlot.types";
 import type { ErrorBarType } from "@/lib/chartSpec/aggregators/barError.types";
 import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
@@ -107,6 +112,40 @@ export const Recommendation = ({
             catch (err) {
                 if (err instanceof BoxPlotError) {
                     boxPlotResult = { message: err.message, status: "error" };
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+    }
+
+    let xyPlotResult:
+        | null
+        | { status: "missing" }
+        | { status: "ok"; data: XYPlotData | LongitudinalData }
+        | { status: "error"; message: string } = null;
+
+    if (chartKind === "xy" && spec.kind === "xy") {
+        if (mapping.x === undefined || mapping.y === undefined) {
+            xyPlotResult = { status: "missing" };
+        }
+        else {
+            const useLongitudinal =
+                spec.mode === "line" || (spec.mode === "both" && mapping.id !== undefined);
+            try {
+                xyPlotResult = {
+                    data: useLongitudinal
+                        ? aggregateLongitudinal(dataset.rows, mapping)
+                        : aggregateXYPlot(dataset.rows, mapping, {
+                              computeRegression: spec.showRegression,
+                          }),
+                    status: "ok",
+                };
+            }
+            catch (err) {
+                if (err instanceof XYPlotError || err instanceof LongitudinalError) {
+                    xyPlotResult = { message: err.message, status: "error" };
                 }
                 else {
                     throw err;
@@ -332,6 +371,34 @@ export const Recommendation = ({
                                             ) : null}
                                             {boxPlotResult?.status === "ok" ? (
                                                 <BoxChart data={boxPlotResult.data} spec={spec} />
+                                            ) : null}
+                                        </>
+                                    ) : chartKind === "xy" && spec.kind === "xy" ? (
+                                        <>
+                                            {xyPlotResult?.status === "missing" ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable X–Y data yet. On the map step,
+                                                        assign <strong>X axis</strong> and{" "}
+                                                        <strong>Y axis</strong> to numeric columns.
+                                                        Optional <strong>Group</strong> splits series;
+                                                        map <strong>ID</strong> for longitudinal visit
+                                                        means.
+                                                    </p>
+                                                </div>
+                                            ) : null}
+                                            {xyPlotResult?.status === "error" ? (
+                                                <div className="rec-chart-empty muted" role="alert">
+                                                    <p>{xyPlotResult.message}</p>
+                                                </div>
+                                            ) : null}
+                                            {xyPlotResult?.status === "ok" ? (
+                                                <XYChart
+                                                    data={xyPlotResult.data}
+                                                    mode={spec.mode}
+                                                    showRegression={spec.showRegression}
+                                                    showErrorBands={spec.showErrorBands}
+                                                />
                                             ) : null}
                                         </>
                                     ) : (

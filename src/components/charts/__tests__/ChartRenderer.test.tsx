@@ -73,7 +73,7 @@ describe("ChartRenderer", () => {
             kind: "xy" as const,
             mode: "line" as const,
             showRegression: false,
-            showCorrelation: false,
+            showErrorBands: false,
         };
         render(<ChartRenderer spec={xySpec} />);
         expect(screen.getByTestId("placeholder")).toHaveTextContent("xy");
