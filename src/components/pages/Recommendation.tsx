@@ -3,14 +3,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAppState, type LoupeDataset } from "@/app/providers";
 import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
-import { CustomizationRail } from "@/components/customization/CustomizationRail";
+
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
 import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
-import { patchSpecKind, type SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
+import { patchSpecKind } from "@/lib/chartSpec/customizations/patchSpec";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
@@ -44,7 +44,6 @@ export const Recommendation = ({
         appendOverride,
         intent,
         mapping,
-        setChartSpec,
         setSelectionMode,
         updateLatestOverrideReason,
     } = useAppState();
@@ -61,19 +60,6 @@ export const Recommendation = ({
     useEffect(() => {
         setLiveSpec(mergeReceiptErrorType(spec));
     }, [receipt, spec]);
-
-    const onSpecChange = (updater: SpecUpdater): void => {
-        setLiveSpec((prev) => {
-            const next = updater(prev);
-            setChartSpec(next);
-
-            return next;
-        });
-    };
-
-    const xyErrorBandsAvailable =
-        liveSpec.kind === "xy" &&
-        (liveSpec.mode === "line" || (liveSpec.mode === "both" && mapping.id !== undefined));
 
     let barErrorMapResult: BarErrorMappingResult = { mapping };
     let barErrorAggregation: ReturnType<typeof aggregateBarError> | undefined;
@@ -191,95 +177,82 @@ export const Recommendation = ({
                             ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    <div className="rec-chart-strip">
-                                        <div className="rec-chart-main">
-                                            {chartKind === "barError" &&
-                                            liveSpec.kind === "barError" &&
-                                            barErrorAggregation ? (
-                                                <>
-                                                    {barErrorAggregation.missing.dropRate >
-                                                    MISSING_DATA_WARN_DROP_RATE ? (
-                                                        <MissingDataWarning info={barErrorAggregation.missing} />
-                                                    ) : null}
-                                                    {barErrorMapResult.inferredOutcome !== undefined ? (
-                                                        <p
-                                                            className="rec-inferred-outcome muted small"
-                                                            role="status"
-                                                        >
-                                                            Outcome column inferred:{" "}
-                                                            <strong className="mono">
-                                                                {barErrorMapResult.inferredOutcome}
-                                                            </strong>
-                                                            {" "}
-                                                            — confirm on the map step.
+                                    {chartKind === "barError" &&
+                                    liveSpec.kind === "barError" &&
+                                    barErrorAggregation ? (
+                                        <>
+                                            {barErrorAggregation.missing.dropRate >
+                                            MISSING_DATA_WARN_DROP_RATE ? (
+                                                <MissingDataWarning info={barErrorAggregation.missing} />
+                                            ) : null}
+                                            {barErrorMapResult.inferredOutcome !== undefined ? (
+                                                <p
+                                                    className="rec-inferred-outcome muted small"
+                                                    role="status"
+                                                >
+                                                    Outcome column inferred:{" "}
+                                                    <strong className="mono">
+                                                        {barErrorMapResult.inferredOutcome}
+                                                    </strong>
+                                                    {" "}
+                                                    — confirm on the map step.
+                                                </p>
+                                            ) : null}
+                                            {barErrorAggregation.groups.length === 0 ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable groups yet. On the map step, assign{" "}
+                                                        <strong>Group / arm</strong> and{" "}
+                                                        <strong>Outcome</strong> to categorical and numeric
+                                                        columns (e.g. treatment + blood pressure change).
+                                                    </p>
+                                                    {barErrorMapping.outcome === undefined ||
+                                                    barErrorMapping.group === undefined ? (
+                                                        <p className="small">
+                                                            Missing:{" "}
+                                                            {barErrorMapping.group === undefined
+                                                                ? "group"
+                                                                : ""}
+                                                            {barErrorMapping.group === undefined &&
+                                                            barErrorMapping.outcome === undefined
+                                                                ? " · "
+                                                                : ""}
+                                                            {barErrorMapping.outcome === undefined
+                                                                ? "outcome"
+                                                                : ""}
                                                         </p>
-                                                    ) : null}
-                                                    {barErrorAggregation.groups.length === 0 ? (
-                                                        <div className="rec-chart-empty muted" role="status">
-                                                            <p>
-                                                                No plottable groups yet. On the map step, assign{" "}
-                                                                <strong>Group / arm</strong> and{" "}
-                                                                <strong>Outcome</strong> to categorical and numeric
-                                                                columns (e.g. treatment + blood pressure change).
-                                                            </p>
-                                                            {barErrorMapping.outcome === undefined ||
-                                                            barErrorMapping.group === undefined ? (
-                                                                <p className="small">
-                                                                    Missing:{" "}
-                                                                    {barErrorMapping.group === undefined
-                                                                        ? "group"
-                                                                        : ""}
-                                                                    {barErrorMapping.group === undefined &&
-                                                                    barErrorMapping.outcome === undefined
-                                                                        ? " · "
-                                                                        : ""}
-                                                                    {barErrorMapping.outcome === undefined
-                                                                        ? "outcome"
-                                                                        : ""}
-                                                                </p>
-                                                            ) : (
-                                                                <p className="small">
-                                                                    Rows may use non-numeric outcomes (check decimal
-                                                                    commas) or missing values in those columns.
-                                                                </p>
-                                                            )}
-                                                        </div>
                                                     ) : (
-                                                        <>
-                                                            <SpecChartPanel
-                                                                chartKind={chartKind}
-                                                                dataset={dataset}
-                                                                mapping={mapping}
-                                                                spec={liveSpec}
-                                                                onSpecChange={onSpecChange}
-                                                            />
-                                                            <ErrorBarsUnavailable
-                                                                groups={barErrorAggregation.groups}
-                                                            />
-                                                        </>
+                                                        <p className="small">
+                                                            Rows may use non-numeric outcomes (check decimal
+                                                            commas) or missing values in those columns.
+                                                        </p>
                                                     )}
-                                                </>
+                                                </div>
                                             ) : (
-                                                <SpecChartPanel
-                                                    chartKind={chartKind}
-                                                    dataset={dataset}
-                                                    mapping={mapping}
-                                                    spec={liveSpec}
-                                                    onSpecChange={onSpecChange}
-                                                />
+                                                <>
+                                                    <SpecChartPanel
+                                                        chartKind={chartKind}
+                                                        dataset={dataset}
+                                                        mapping={mapping}
+                                                        spec={liveSpec}
+                                                    />
+                                                    <ErrorBarsUnavailable
+                                                        groups={barErrorAggregation.groups}
+                                                    />
+                                                </>
                                             )}
-                                            <p className="rec-chart-hint muted small">
-                                                <span className="ring ring--xs" />
-                                                Click any axis label or title on the chart to edit inline.
-                                            </p>
-                                        </div>
-                                        <CustomizationRail
-                                            errorBandsAvailable={xyErrorBandsAvailable}
+                                        </>
+                                    ) : (
+                                        <SpecChartPanel
+                                            chartKind={chartKind}
+                                            dataset={dataset}
                                             mapping={mapping}
                                             spec={liveSpec}
-                                            onSpecChange={onSpecChange}
                                         />
-                                    </div>
+                                    )}
+                                    <p className="rec-chart-hint muted small">
+                                        Tune colors and labels on the export step.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="rec-chart-frame-loading">

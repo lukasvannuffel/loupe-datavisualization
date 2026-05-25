@@ -348,11 +348,20 @@ describe("Recommendation", () => {
         expect(screen.queryByTestId("publication-km")).toBeNull();
     });
 
-    it("shows palette selector beside chart after chart phase", async () => {
+    it("shows export-step hint and no customization rail on recommend", async () => {
         render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.getByRole("listbox", { name: /chart palette/i })).toBeTruthy();
-        expect(screen.getAllByRole("option")).toHaveLength(7);
+        expect(screen.getByText(/tune colors and labels on the export step/i)).toBeTruthy();
+        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
+        expect(screen.queryByRole("listbox", { name: /chart palette/i })).toBeNull();
+    });
+
+    it("keeps the chart read-only on recommend", async () => {
+        setChartSpec.mockClear();
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(document.querySelector(".chart-labels-host")).toBeNull();
+        expect(setChartSpec).not.toHaveBeenCalled();
     });
 
     it("shows KaplanMeierError message when more than 4 groups", async () => {
@@ -641,12 +650,12 @@ describe("Recommendation", () => {
         expect(screen.getByText("bp_change")).toBeTruthy();
     });
 
-    it("renders customization rail with bar error controls on recommend", async () => {
+    it("does not render the customization rail on recommend", async () => {
         render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.getByRole("complementary", { name: /customize chart/i })).toBeTruthy();
-        expect(screen.getByLabelText("Error bar type")).toBeTruthy();
-        expect(screen.getByText(/edit inline/i)).toBeTruthy();
+        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
+        expect(screen.queryByLabelText("Error bar type")).toBeNull();
+        expect(screen.queryByText(/edit inline/i)).toBeNull();
     });
 
     it("keeps the override workflow on recommend", async () => {

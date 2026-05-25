@@ -81,7 +81,7 @@ vi.mock("@/components/charts/SpecChartPanel", () => ({
         const labels = resolveChartLabels(spec);
 
         return (
-            <svg aria-label="Spec chart mock">
+            <svg aria-label="Spec chart mock" data-palette={spec.customizations?.palette ?? "editorial"}>
                 <text
                     data-role="chart-title"
                     role="button"
@@ -153,6 +153,27 @@ describe("Export customization rail", () => {
         expect(okabeOption.getAttribute("aria-selected")).toBe("true");
     });
 
+    it("selecting okabe-ito palette updates the live chart spec", async () => {
+        renderExport();
+        fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
+
+        await waitFor(() => {
+            expect(document.querySelector('[data-palette]')?.getAttribute("data-palette")).toBe(
+                "okabe-ito",
+            );
+        });
+    });
+
+    it("shows live palette name in the receipt when using spec figure", async () => {
+        renderExport();
+        fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
+
+        await waitFor(() => {
+            const paletteEntry = screen.getByText("okabe-ito");
+            expect(paletteEntry.closest("dd")).toBeTruthy();
+        });
+    });
+
     it("inline-edit on the rendered title persists to the spec", async () => {
         renderExport();
 
@@ -168,8 +189,8 @@ describe("Export customization rail", () => {
     });
 
     // MUTATION-VERIFY:
-    //   In Export.tsx, temporarily comment out the <CustomizationRail /> render (lines ~760-767).
+    //   In Export.tsx, comment out <CustomizationRail ... /> (lines 818-825).
     //   Test: "renders the customization rail on /export".
-    //   queryByRole("complementary", { name: /customize chart/i }) returns null → RED.
+    //   findByRole("complementary", { name: /customize chart/i }) rejects → RED.
     //   Verified manually: 2026-05-25. REVERTED.
 });

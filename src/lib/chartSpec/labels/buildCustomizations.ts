@@ -58,7 +58,15 @@ export const buildCustomizations = (spec: ChartSpec, mapping: Mapping = {}): Cus
 
 /** Attach derived customizations and sync legacy `title` / axis label fields. */
 export const attachCustomizations = (spec: ChartSpec, mapping: Mapping = {}): ChartSpec => {
-    const customizations = buildCustomizations(spec, mapping);
+    const derived = buildCustomizations(spec, mapping);
+    const customizations: Customizations = {
+        ...derived,
+        ...spec.customizations,
+        axes: {
+            ...derived.axes,
+            ...spec.customizations?.axes,
+        },
+    };
 
     return {
         ...spec,

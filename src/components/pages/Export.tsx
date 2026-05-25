@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -11,12 +11,14 @@ import type {
     PublicationChartProps,
     StatAnnotation,
 } from "@/components/charts/types";
+import { resolvePalette } from "@/components/charts/d3/palettes";
 import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
 import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { useAppState } from "@/app/providers";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
+import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
@@ -391,7 +393,16 @@ const isSpecKind = (kind: ChartSlug): kind is ChartSpec["kind"] =>
 
 export const Export = (): JSX.Element => {
     const router = useRouter();
-    const { chartSlug: appChartSlug, chartSpec, dataset, mapping, setChartSpec } = useAppState();
+    const {
+        chartKind,
+        chartSlug: appChartSlug,
+        chartSpec,
+        dataset,
+        hydrated,
+        mapping,
+        setChartSpec,
+        setMapping,
+    } = useAppState();
 
     const slug: ChartSlug = appChartSlug ?? "km";
     const useSpecFigure = dataset !== null && chartSpec !== null && isSpecKind(chartSpec.kind);
@@ -430,23 +441,52 @@ export const Export = (): JSX.Element => {
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
 
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
+    const liveSpecRef = useRef(liveSpec);
+    liveSpecRef.current = liveSpec;
 
     useEffect(() => {
         setLiveSpec(chartSpec);
+        liveSpecRef.current = chartSpec;
     }, [chartSpec]);
 
-    const onSpecChange = (updater: SpecUpdater): void => {
-        setLiveSpec((prev) => {
+    useEffect(() => {
+        if (
+            !hydrated ||
+            chartKind === null ||
+            dataset === null ||
+            (chartSpec !== null && chartSpec.kind === chartKind)
+        ) {
+            return;
+        }
+
+        const { spec, mapping: nextMapping } = resolveWizardChartSpec({
+            chartKind,
+            chartSpec: null,
+            dataset,
+            mapping,
+        });
+
+        if (nextMapping.id !== mapping.id) {
+            setMapping(nextMapping);
+        }
+
+        setChartSpec(spec);
+    }, [chartKind, chartSpec, dataset, hydrated, mapping, setChartSpec, setMapping]);
+
+    const onSpecChange = useCallback(
+        (updater: SpecUpdater): void => {
+            const prev = liveSpecRef.current;
             if (prev === null) {
-                return prev;
+                return;
             }
 
             const next = updater(prev);
+            liveSpecRef.current = next;
+            setLiveSpec(next);
             setChartSpec(next);
-
-            return next;
-        });
-    };
+        },
+        [setChartSpec],
+    );
 
     const xyErrorBandsAvailable =
         liveSpec?.kind === "xy" &&
@@ -454,6 +494,11 @@ export const Export = (): JSX.Element => {
 
     const specFigureTitle =
         useSpecFigure && liveSpec !== null ? resolveChartLabels(liveSpec).title : title;
+
+    const receiptPaletteLabel =
+        useSpecFigure && liveSpec !== null
+            ? resolvePalette(liveSpec)
+            : palette.name.toLowerCase();
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -760,9 +805,7 @@ export const Export = (): JSX.Element => {
                             <dt>Sample</dt>
                             <dd>{slugDefaults.metaLine}</dd>
                             <dt>Palette</dt>
-                            <dd>
-                                {palette.name.toLowerCase()} · a={palette.a} · b={palette.b}
-                            </dd>
+                            <dd>{receiptPaletteLabel}</dd>
                             <dt>Software</dt>
                             <dd>Loupe v0.4.2 · client-side</dd>
                             <dt>AI rationale</dt>
@@ -891,6 +934,7 @@ export const Export = (): JSX.Element => {
                     </CustomSection>
                     ) : null}
 
+                    {!useSpecFigure ? (
                     <CustomSection
                         id="titles"
                         label="Titles & caption"
@@ -937,6 +981,7 @@ export const Export = (): JSX.Element => {
                             />
                         </div>
                     </CustomSection>
+                    ) : null}
 
                     {!useSpecFigure ? (
                         <CustomSection
@@ -974,7 +1019,7 @@ export const Export = (): JSX.Element => {
                         </CustomSection>
                     ) : null}
 
-                    {(supportsTwoSeriesLegend(slug) || supportsKMOverlays(slug)) && (
+                    {!useSpecFigure && (supportsTwoSeriesLegend(slug) || supportsKMOverlays(slug)) ? (
                         <CustomSection
                             id="legend"
                             label="Legend & overlays"
@@ -1036,7 +1081,7 @@ export const Export = (): JSX.Element => {
                                 </>
                             )}
                         </CustomSection>
-                    )}
+                    ) : null}
 
                     {!useSpecFigure && supportsErrorBars(slug) ? (
                         <CustomSection
@@ -1073,7 +1118,7 @@ export const Export = (): JSX.Element => {
                         </CustomSection>
                     ) : null}
 
-                    {supportsAnnotations(slug) && (
+                    {!useSpecFigure && supportsAnnotations(slug) ? (
                         <CustomSection
                             id="annotations"
                             label="Annotations"
@@ -1250,15 +1295,17 @@ export const Export = (): JSX.Element => {
                                 </button>
                             </div>
                         </CustomSection>
-                    )}
+                    ) : null}
 
-                    <button
-                        type="button"
-                        className="btn btn--quiet btn--sm customize-reset"
-                        onClick={onReset}
-                    >
-                        Reset to defaults
-                    </button>
+                    {!useSpecFigure ? (
+                        <button
+                            type="button"
+                            className="btn btn--quiet btn--sm customize-reset"
+                            onClick={onReset}
+                        >
+                            Reset to defaults
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
