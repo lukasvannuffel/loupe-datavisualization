@@ -94,13 +94,14 @@ export const drawRegressionLine = (
         .attr("opacity", 0.6);
 
     g.append("text")
-        .attr("data-role", "xy-r2")
+        .attr("data-role", "xy-regression-label")
         .attr("x", xScale(x1) - 4)
-        .attr("y", yScale(y1) - 6)
+        .attr("y", yScale(y1) - 4)
         .attr("text-anchor", "end")
         .attr("fill", INK)
-        .attr("font-size", 10)
-        .text(`r²=${regression.r2.toFixed(2)}`);
+        .attr("font-size", 11)
+        .attr("opacity", 0.8)
+        .text(`r² = ${regression.r2.toFixed(2)}`);
 };
 
 export const drawXYErrorBand = (

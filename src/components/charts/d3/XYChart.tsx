@@ -23,7 +23,7 @@ const AXIS_PADDING_RATIO = 0.05;
 type Props = {
     readonly data: XYPlotData | LongitudinalData;
     readonly mode: "line" | "scatter" | "both";
-    readonly showRegression?: boolean;
+    readonly showRegression: boolean;
     readonly showErrorBands?: boolean;
 };
 
@@ -33,7 +33,7 @@ const isLongitudinal = (d: XYPlotData | LongitudinalData): d is LongitudinalData
 export const XYChart = ({
     data,
     mode,
-    showRegression = false,
+    showRegression,
     showErrorBands = false,
 }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
