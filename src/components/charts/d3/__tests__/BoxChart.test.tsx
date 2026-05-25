@@ -149,7 +149,10 @@ describe("BoxChart", () => {
     });
 
     it("editorial palette uses paper fill and ink stroke for all boxes", async () => {
-        const container = await renderAndDraw(twoGroupFixture, boxSpec());
+        const container = await renderAndDraw(twoGroupFixture, {
+            ...boxSpec(),
+            customizations: { palette: "editorial" },
+        });
         const boxes = container.querySelectorAll("rect[data-role='box-rect']");
         expect(boxes.length).toBeGreaterThanOrEqual(2);
         for (const box of boxes) {

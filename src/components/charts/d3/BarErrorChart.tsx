@@ -1,5 +1,8 @@
 "use client";
 
+// File budget exception: <200 lines (vs typical <140). BarErrorChart coordinates
+// band scales, error caps, two-pass bottom margin, and optional label overlay.
+
 import { max, min } from "d3-array";
 import { scaleBand, scaleLinear } from "d3-scale";
 import type { ScaleLinear } from "d3-scale";
@@ -16,7 +19,7 @@ import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
 import { colorByIndex, resolvePalette } from "./palettes";
 import { applyAxes } from "./applyAxes";
-import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
+import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
@@ -55,6 +58,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        clearStaticChartLabels(svgEl);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
@@ -90,6 +94,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                 .data(groups)
                 .join("rect")
                 .attr("class", "bar")
+                .attr("data-role", "bar-rect")
                 .attr("data-group-index", (_d, index) => String(index))
                 .attr("x", (d) => xScale(d.label) as number)
                 .attr("y", (d) => Math.min(yScale(d.mean), baselineY))

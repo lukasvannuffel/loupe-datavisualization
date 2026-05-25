@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
     getPublicationChart,
@@ -11,7 +11,8 @@ import type {
     PublicationChartProps,
     StatAnnotation,
 } from "@/components/charts/types";
-import { resolvePalette } from "@/components/charts/d3/palettes";
+import { PALETTE_SWATCH_HEX, resolvePalette } from "@/components/charts/d3/palettes";
+import type { PaletteName } from "@/lib/chartSpec/types";
 import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
 import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
@@ -25,23 +26,60 @@ import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
 import type { ChartConfig, ChatRevision, RailSection } from "./ExportChat/types";
 
+type LegacyPaletteId =
+    | "editorial"
+    | "okabe-ito"
+    | "wong"
+    | "ibm"
+    | "tol-vibrant"
+    | "deuter"
+    | "mono";
+
 type Palette = {
-    id: string;
-    name: string;
-    note: string;
-    a: string;
-    b: string;
+    readonly id: LegacyPaletteId;
+    readonly name: string;
+    readonly note: string;
+    readonly a: string;
+    readonly b: string;
 };
 
-const PALETTES: readonly Palette[] = [
-    { id: "editorial", name: "Editorial", note: "Default · ink + gray", a: "#0E0E0E", b: "#6B6B66" },
-    { id: "okabe-ito", name: "Okabe–Ito", note: "Colorblind-safe", a: "#0072B2", b: "#E69F00" },
-    { id: "wong", name: "Wong", note: "Colorblind-safe", a: "#009E73", b: "#D55E00" },
-    { id: "ibm", name: "IBM Design", note: "Colorblind-safe", a: "#648FFF", b: "#DC267F" },
-    { id: "tol-vibrant", name: "Tol Vibrant", note: "Colorblind-safe", a: "#0077BB", b: "#EE7733" },
-    { id: "deuter", name: "Deuteranopia-tuned", note: "Blue + amber", a: "#1F4E79", b: "#B5651D" },
-    { id: "mono", name: "Monochrome", note: "Print-safe", a: "#0E0E0E", b: "#9A9A93" },
-];
+const LEGACY_PALETTE_SWATCH_KEYS: Record<LegacyPaletteId, PaletteName> = {
+    editorial: "editorial",
+    "okabe-ito": "okabe-ito",
+    wong: "wong",
+    ibm: "ibm-design",
+    "tol-vibrant": "tol-vibrant",
+    deuter: "deuteranopia-tuned",
+    mono: "monochrome",
+};
+
+const LEGACY_PALETTE_META: Record<
+    LegacyPaletteId,
+    { readonly name: string; readonly note: string }
+> = {
+    editorial: { name: "Editorial", note: "Default · ink + gray" },
+    "okabe-ito": { name: "Okabe–Ito", note: "Colorblind-safe" },
+    wong: { name: "Wong", note: "Colorblind-safe" },
+    ibm: { name: "IBM Design", note: "Colorblind-safe" },
+    "tol-vibrant": { name: "Tol Vibrant", note: "Colorblind-safe" },
+    deuter: { name: "Deuteranopia-tuned", note: "Blue + amber" },
+    mono: { name: "Monochrome", note: "Print-safe" },
+};
+
+const PALETTES: readonly Palette[] = (
+    Object.keys(LEGACY_PALETTE_META) as LegacyPaletteId[]
+).map((id) => {
+    const swatch = PALETTE_SWATCH_HEX[LEGACY_PALETTE_SWATCH_KEYS[id]];
+    const meta = LEGACY_PALETTE_META[id];
+
+    return {
+        id,
+        name: meta.name,
+        note: meta.note,
+        a: swatch[0],
+        b: swatch[1],
+    };
+});
 
 type SlugDefaults = {
     title: string;
@@ -407,7 +445,7 @@ export const Export = (): JSX.Element => {
     const slug: ChartSlug = appChartSlug ?? "km";
     const useSpecFigure = dataset !== null && chartSpec !== null && isSpecKind(chartSpec.kind);
     const slugDefaults = SLUG_DEFAULTS[slug];
-    const ChartComponent = useMemo(() => getPublicationChart(slug), [slug]);
+    const ChartComponent = getPublicationChart(slug);
 
     const [dpi, setDpi] = useState<number>(300);
     const [copied, setCopied] = useState<boolean>(false);
@@ -441,12 +479,9 @@ export const Export = (): JSX.Element => {
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
 
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
-    const liveSpecRef = useRef(liveSpec);
-    liveSpecRef.current = liveSpec;
 
     useEffect(() => {
         setLiveSpec(chartSpec);
-        liveSpecRef.current = chartSpec;
     }, [chartSpec]);
 
     useEffect(() => {
@@ -473,20 +508,15 @@ export const Export = (): JSX.Element => {
         setChartSpec(spec);
     }, [chartKind, chartSpec, dataset, hydrated, mapping, setChartSpec, setMapping]);
 
-    const onSpecChange = useCallback(
-        (updater: SpecUpdater): void => {
-            const prev = liveSpecRef.current;
-            if (prev === null) {
-                return;
-            }
+    const onSpecChange = (updater: SpecUpdater): void => {
+        if (liveSpec === null) {
+            return;
+        }
 
-            const next = updater(prev);
-            liveSpecRef.current = next;
-            setLiveSpec(next);
-            setChartSpec(next);
-        },
-        [setChartSpec],
-    );
+        const next = updater(liveSpec);
+        setLiveSpec(next);
+        setChartSpec(next);
+    };
 
     const xyErrorBandsAvailable =
         liveSpec?.kind === "xy" &&

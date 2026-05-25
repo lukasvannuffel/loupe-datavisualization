@@ -107,6 +107,12 @@ afterEach(() => {
 });
 
 describe("ChartLegend", () => {
+    // MUTATION-VERIFY:
+    //   ChartLegend.tsx:81 — change `if (groups.length < 2)` to `if (true)` (always return null).
+    //   Test: "renders for charts with 2+ groups".
+    //   Legend list absent → test RED.
+    //   Verified manually: 2026-05-25. REVERTED.
+
     it("renders for charts with 2+ groups", () => {
         render(
             <ChartLegend

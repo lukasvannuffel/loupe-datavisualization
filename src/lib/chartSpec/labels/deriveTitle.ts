@@ -16,7 +16,7 @@ export const deriveTitle = (input: DeriveTitleInput): string => {
         case "box":
             return `${yLabel} by ${xLabel}`;
         case "km":
-            return `Survival probability over ${xLabel}`;
+            return `${yLabel} over ${xLabel}`;
         case "xy": {
             if (mode === "line") {
                 return `${yLabel} over ${xLabel}`;

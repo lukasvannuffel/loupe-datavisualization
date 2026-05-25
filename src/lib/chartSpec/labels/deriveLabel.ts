@@ -44,8 +44,8 @@ const KNOWN_UNITS = new Set([
 
 const UNIT_DISPLAY = new Map<string, string>([
     ["mmhg", "mmHg"],
-    ["mmol", "mmol/L"],
-    ["mg", "mg/dL"],
+    ["mmol", "mmol"],
+    ["mg", "mg"],
     ["kg", "kg"],
     ["g", "g"],
     ["l", "L"],

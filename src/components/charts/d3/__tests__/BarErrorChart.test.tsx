@@ -61,6 +61,11 @@ const threeGroups: readonly GroupStats[] = [
     { label: "C", mean: 18, sd: 2, n: 30 },
 ];
 
+const twoGroupBarData: readonly GroupStats[] = [
+    { label: "A", mean: 10, sd: 1, n: 20 },
+    { label: "B", mean: 14, sd: 1.5, n: 25 },
+];
+
 const installResizeObserver = (size?: { readonly width: number; readonly height: number }): void => {
     class MockResizeObserver {
         constructor(cb: ObserverCallback) {
@@ -276,24 +281,54 @@ describe("BarErrorChart", () => {
         expect(computeErrorBar(g, "sem")).toBeCloseTo(g.sd / Math.sqrt(g.n), 5);
     });
 
-    it.each([
-        "editorial",
-        "okabe-ito",
-        "wong",
-        "ibm-design",
-        "tol-vibrant",
-        "deuteranopia-tuned",
-        "monochrome",
-    ] as const)("palette %s renders without error", async (palette) => {
+    it("okabe-ito palette produces the expected color on group 0 bar", async () => {
         const paletteSpec: BarErrorSpec = {
             ...spec,
-            customizations: { palette },
+            customizations: { palette: "okabe-ito" },
         };
-        expect(() =>
-            render(<BarErrorChart groups={threeGroups} spec={paletteSpec} />),
-        ).not.toThrow();
+        const { container } = render(
+            <BarErrorChart groups={twoGroupBarData} spec={paletteSpec} />,
+        );
+
         await waitFor(() => {
-            expect(document.querySelectorAll("rect.bar").length).toBeGreaterThan(0);
+            const g0Bar = container.querySelector(
+                '[data-group-index="0"][data-role="bar-rect"]',
+            );
+            expect(g0Bar?.getAttribute("fill")).toMatch(
+                /var\(--palette-okabe-ito-0\)|#0072B2/i,
+            );
         });
     });
+
+    // MUTATION-VERIFY:
+    //   palettes.ts:41 — set PALETTE_COLORS["okabe-ito"][0] to "var(--palette-wong-1)".
+    //   Test: "okabe-ito palette produces the expected color on group 0 bar".
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it.each([
+        ["monochrome", 0, /var\(--palette-monochrome-0\)|#000000/i],
+        ["okabe-ito", 0, /var\(--palette-okabe-ito-0\)|#0072B2/i],
+        ["wong", 0, /var\(--palette-wong-0\)|#E69F00/i],
+        ["ibm-design", 0, /var\(--palette-ibm-design-0\)|#648FFF/i],
+        ["tol-vibrant", 0, /var\(--palette-tol-vibrant-0\)|#EE7733/i],
+        ["deuteranopia-tuned", 0, /var\(--palette-deuteranopia-0\)|#005F73/i],
+    ] as const)(
+        "palette %s gives group %i the expected color",
+        async (palette, index, expectedColor) => {
+            const paletteSpec: BarErrorSpec = {
+                ...spec,
+                customizations: { palette },
+            };
+            const { container } = render(
+                <BarErrorChart groups={twoGroupBarData} spec={paletteSpec} />,
+            );
+
+            await waitFor(() => {
+                const bar = container.querySelector(
+                    `[data-group-index="${index}"][data-role="bar-rect"]`,
+                );
+                expect(bar?.getAttribute("fill")).toMatch(expectedColor);
+            });
+        },
+    );
 });

@@ -25,7 +25,7 @@ export type RoutedChartSpec = {
     readonly mapping: Mapping;
 };
 
-const DEFAULT_PALETTE_ID = "editorial";
+const DEFAULT_PALETTE_ID = "monochrome";
 const DEFAULT_STROKE_WEIGHT = 1.5;
 
 const newId = (): string => {

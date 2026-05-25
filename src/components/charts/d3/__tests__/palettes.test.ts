@@ -5,9 +5,9 @@ import { createDefaultChartSpec } from "@/lib/chartSpec";
 import { colorByIndex, resolvePalette } from "../palettes";
 
 describe("colorByIndex", () => {
-    it("defaults to editorial palette when palette is unset", () => {
-        expect(colorByIndex(undefined, 0, 2)).toBe("var(--ink)");
-        expect(colorByIndex(undefined, 1, 2)).toBe("var(--palette-editorial-gray)");
+    it("defaults to monochrome palette when palette is unset", () => {
+        expect(colorByIndex(undefined, 0, 2)).toBe("var(--palette-monochrome-0)");
+        expect(colorByIndex(undefined, 1, 2)).toBe("var(--palette-monochrome-1)");
     });
 
     it("editorial 2-group uses ink and gray", () => {
@@ -31,16 +31,15 @@ describe("colorByIndex", () => {
     });
 
     // MUTATION-VERIFY:
-    //   In palettes.ts, set PALETTE_COLORS['okabe-ito'][1] to PALETTE_COLORS['okabe-ito'][0].
+    //   palettes.ts:30 — set PALETTE_COLORS["okabe-ito"][1] to PALETTE_COLORS["okabe-ito"][0].
     //   Test: "okabe-ito palette gives distinct colors per group index".
-    //   expect(g0).not.toBe(g1) fails → RED.
     //   Verified manually: 2026-05-25. REVERTED.
 });
 
 describe("resolvePalette", () => {
-    it("returns editorial when customizations.palette is unset", () => {
+    it("returns monochrome when customizations.palette is unset", () => {
         const spec = createDefaultChartSpec("barError");
-        expect(resolvePalette(spec)).toBe("editorial");
+        expect(resolvePalette(spec)).toBe("monochrome");
     });
 
     it("returns stored palette from customizations", () => {

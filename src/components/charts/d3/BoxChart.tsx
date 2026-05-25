@@ -16,7 +16,7 @@ import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BoxSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes } from "./applyAxes";
-import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
+import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
@@ -64,6 +64,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        clearStaticChartLabels(svgEl);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);

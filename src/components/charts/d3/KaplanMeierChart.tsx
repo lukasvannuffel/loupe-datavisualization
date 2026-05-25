@@ -15,7 +15,7 @@ import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { KMSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes, axisTickCountForWidth } from "./applyAxes";
-import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
+import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { AtRiskTable } from "./atRiskTable";
 import { ChartLabelLayer } from "./ChartLabelLayer";
@@ -64,6 +64,7 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
         const margin = LABEL_MARGIN;
         const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
         const innerHeight = Math.max(0, chartHeight - margin.top - margin.bottom);
+        clearStaticChartLabels(svgEl);
         svg.selectAll("g.chart-plot, g.chart-axes").remove();
 
         const plotG = svg

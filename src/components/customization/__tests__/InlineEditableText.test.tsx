@@ -39,6 +39,12 @@ describe("InlineEditableText", () => {
         expect(onChange).toHaveBeenCalledWith("Arm A");
     });
 
+    // MUTATION-VERIFY:
+    //   InlineEditableText.tsx:97 — change the Escape key handler to call commit() instead of cancel().
+    //   Test: "Escape during edit reverts to previous value".
+    //   Edited value persists → test RED.
+    //   Verified manually: 2026-05-25. REVERTED.
+
     it("Escape during edit reverts to previous value", () => {
         const onChange = vi.fn();
         const { container } = render(

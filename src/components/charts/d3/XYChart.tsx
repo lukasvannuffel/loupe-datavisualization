@@ -1,5 +1,8 @@
 "use client";
 
+// File budget exception: <200 lines (vs typical <140). XYChart dispatches scatter, line,
+// longitudinal, regression, error bands, and the two-pass label margin in one surface.
+
 import { scaleLinear } from "d3-scale";
 import type { ScaleLinear } from "d3-scale";
 import { select } from "d3-selection";
@@ -14,7 +17,7 @@ import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { XYSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes } from "./applyAxes";
-import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
+import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
@@ -74,6 +77,7 @@ export const XYChart = ({
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        clearStaticChartLabels(svgEl);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);

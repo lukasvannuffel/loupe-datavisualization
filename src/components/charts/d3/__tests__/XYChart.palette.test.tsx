@@ -81,7 +81,7 @@ describe("XYChart palette", () => {
         vi.unstubAllGlobals();
     });
 
-    it("defaults to editorial palette with ink and gray for two groups", async () => {
+    it("defaults to monochrome palette with distinct grays for two groups", async () => {
         const { container } = render(
             <XYChart
                 data={twoGroupData}
@@ -95,8 +95,8 @@ describe("XYChart palette", () => {
         await waitFor(() => {
             const g0 = container.querySelector('[data-group-index="0"] [data-role="xy-marker"]');
             const g1 = container.querySelector('[data-group-index="1"] [data-role="xy-marker"]');
-            expect(g0?.getAttribute("fill")).toMatch(/var\(--ink\)|#000/i);
-            expect(g1?.getAttribute("fill")).toMatch(/var\(--palette-editorial-gray\)|#7a7a7a/i);
+            expect(g0?.getAttribute("fill")).toMatch(/var\(--palette-monochrome-0\)|#000000/i);
+            expect(g1?.getAttribute("fill")).toMatch(/var\(--palette-monochrome-1\)|#404040/i);
         });
     });
 

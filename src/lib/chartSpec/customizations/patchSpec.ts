@@ -2,14 +2,33 @@ import type { ChartSpec, PaletteName } from "../types";
 
 export type SpecUpdater = (prev: ChartSpec) => ChartSpec;
 
-export const updateCustomizationTitle = (spec: ChartSpec, title: string): ChartSpec => ({
-    ...spec,
-    title,
-    customizations: {
-        ...spec.customizations,
-        title,
-    },
-});
+export const updateCustomizationTitle = (spec: ChartSpec, title: string): ChartSpec => {
+    const trimmed = title.trim();
+
+    if (trimmed.length === 0) {
+        if (spec.customizations?.title === undefined) {
+            return spec;
+        }
+
+        const customRest = { ...spec.customizations };
+        delete customRest.title;
+        const hasCustomizations = Object.keys(customRest).length > 0;
+
+        return {
+            ...spec,
+            customizations: hasCustomizations ? customRest : undefined,
+        };
+    }
+
+    return {
+        ...spec,
+        title: trimmed,
+        customizations: {
+            ...spec.customizations,
+            title: trimmed,
+        },
+    };
+};
 
 export const updateAxisLabel = (
     spec: ChartSpec,

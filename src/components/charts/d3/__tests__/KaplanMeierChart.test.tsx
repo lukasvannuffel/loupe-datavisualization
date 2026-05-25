@@ -4,11 +4,15 @@ import { scaleLinear } from "d3-scale";
 import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { attachCustomizations } from "@/lib/chartSpec/labels/buildCustomizations";
 import type { KMGroup, KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { KMSpec } from "@/lib/chartSpec/types";
 
+import { X_AXIS_LABEL_GAP_PX, xAxisLabelY } from "../chartLabelLayout";
 import { KaplanMeierChart } from "../KaplanMeierChart";
 import { axisTickCountForWidth } from "../applyAxes";
+import { marginWithLabels } from "../applyChartLabels";
+import { DEFAULT_MARGIN } from "../chart.types";
 
 type ObserverCallback = (entries: ResizeObserverEntry[]) => void;
 
@@ -61,6 +65,23 @@ const plotData = (groupCount: number): KMPlotData => ({
     tMax: 30,
     groups: Array.from({ length: groupCount }, (_, i) => makeGroup(`G${i + 1}`, i === 0 ? 1 : 0)),
 });
+
+const defaultKMSpec = (): KMSpec => {
+    const spec = attachCustomizations(
+        {
+            ...kmSpec,
+            id: "km-label-spec",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        },
+        { time: "time_months", event: "event" },
+    );
+
+    if (spec.kind !== "km") {
+        throw new Error("expected km spec");
+    }
+
+    return spec;
+};
 
 const twoGroupFixtureWithCensoring: KMPlotData = {
     kind: "km",
@@ -156,8 +177,117 @@ describe("KaplanMeierChart", () => {
         });
     });
 
+    it("renders exactly one x-axis label on KM chart", async () => {
+        const spec = defaultKMSpec();
+        const { container, rerender } = render(
+            <KaplanMeierChart data={plotData(2)} spec={spec} />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll('[data-role="axis-label-x"]').length).toBe(1);
+        });
+
+        rerender(
+            <KaplanMeierChart
+                data={plotData(2)}
+                spec={{ ...spec, showGrid: !spec.showGrid }}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll('[data-role="axis-label-x"]').length).toBe(1);
+        });
+    });
+
+    // MUTATION-VERIFY:
+    //   KaplanMeierChart.tsx:67 — comment out the clearStaticChartLabels(svgEl) call.
+    //   Test: "renders exactly one x-axis label on KM chart".
+    //   Second redraw appends a second axis-label text → length 2 → RED.
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it("places x-axis label below tick numbers", async () => {
+        const spec = defaultKMSpec();
+        const onSpecChange = (): void => undefined;
+        const { container } = render(
+            <KaplanMeierChart
+                data={plotData(2)}
+                spec={spec}
+                onSpecChange={onSpecChange}
+            />,
+        );
+
+        const chartHeight = 240;
+        const margin = marginWithLabels(DEFAULT_MARGIN);
+        const innerHeight = Math.max(
+            0,
+            chartHeight - margin.top - margin.bottom,
+        );
+
+        await waitFor(() => {
+            const axisGroup = container.querySelector("g.x-axis");
+            expect(axisGroup).toBeTruthy();
+
+            const transform = axisGroup?.getAttribute("transform") ?? "";
+            const match = /translate\([^,]+,\s*([\d.]+)\)/.exec(transform);
+            expect(match).toBeTruthy();
+            const axisLineY = Number(match![1]);
+
+            const tickTexts = container.querySelectorAll("g.x-axis text");
+            expect(tickTexts.length).toBeGreaterThan(0);
+
+            let maxTickBottom = axisLineY;
+            tickTexts.forEach((tick) => {
+                const tickY = Number(tick.getAttribute("y") ?? 0);
+                const dy = tick.getAttribute("dy") ?? "0";
+                const dyEm = dy.includes("em") ? Number.parseFloat(dy) * 10 : 0;
+                maxTickBottom = Math.max(maxTickBottom, axisLineY + tickY + dyEm);
+            });
+
+            const xLabelY = Number(
+                container.querySelector('[data-role="axis-label-x"]')?.getAttribute("y"),
+            );
+            const expectedMinY = xAxisLabelY(margin, innerHeight, 0);
+
+            expect(xLabelY).toBe(expectedMinY);
+            expect(xLabelY).toBeGreaterThanOrEqual(
+                maxTickBottom + X_AXIS_LABEL_GAP_PX,
+            );
+        });
+    });
+
+    // MUTATION-VERIFY:
+    //   chartLabelLayout.ts:4 — set LINEAR_X_TICK_OVERFLOW_PX to 0.
+    //   Test: "places x-axis label below tick numbers".
+    //   xLabelY overlaps tick band → second expect fails → RED.
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it("chart title and x-axis label have distinct text content", async () => {
+        const spec = defaultKMSpec();
+        const onSpecChange = (): void => undefined;
+        const { container } = render(
+            <KaplanMeierChart
+                data={plotData(2)}
+                spec={spec}
+                onSpecChange={onSpecChange}
+            />,
+        );
+
+        await waitFor(() => {
+            const title = container.querySelector('[data-role="chart-title"]')?.textContent;
+            const xLabel = container.querySelector('[data-role="axis-label-x"]')?.textContent;
+            expect(title).toBeTruthy();
+            expect(xLabel).toBeTruthy();
+            expect(title).not.toBe(xLabel);
+        });
+    });
+
     it("editorial palette with more than two groups uses ink for all curves", async () => {
-        const { container } = render(<KaplanMeierChart data={plotData(4)} spec={kmSpec} />);
+        const { container } = render(
+            <KaplanMeierChart
+                data={plotData(4)}
+                spec={{ ...kmSpec, customizations: { palette: "editorial" } }}
+            />,
+        );
         await waitFor(() => {
             expect(container.querySelectorAll("path.km-curve").length).toBe(4);
         });

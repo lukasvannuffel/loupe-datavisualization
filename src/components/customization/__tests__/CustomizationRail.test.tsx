@@ -87,6 +87,30 @@ describe("CustomizationRail", () => {
         expect(next.customizations?.palette).toBe("wong");
     });
 
+    it("box rail shows notched and showMeanMarker checkboxes", () => {
+        const spec = createDefaultChartSpec("box", {
+            id: "box-rail-toggles",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        render(
+            <CustomizationRail
+                mapping={{ group: "arm", outcome: "value" }}
+                spec={spec}
+                onSpecChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByLabelText("Show notch (95% CI of median)")).toBeTruthy();
+        expect(screen.getByLabelText("Show mean marker")).toBeTruthy();
+    });
+
+    // MUTATION-VERIFY:
+    //   CustomizationRail.tsx:56 — comment out the `{spec.kind === "box" ? <BoxRail .../> : null}` line.
+    //   Test: "box rail shows notched and showMeanMarker checkboxes".
+    //   Box toggles missing from document → test RED.
+    //   Verified manually: 2026-05-25. REVERTED.
+
     it("updateCustomizationTitle writes into spec.customizations", () => {
         const spec = createDefaultChartSpec("barError", {
             id: "bar-rail-title",

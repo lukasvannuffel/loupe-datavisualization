@@ -4,6 +4,17 @@ import "./palettes.module.css";
 
 export type { PaletteName };
 
+/** Swatch preview hex — must match `palettes.module.css` indices 0 and 1. */
+export const PALETTE_SWATCH_HEX: Record<PaletteName, readonly [string, string]> = {
+    editorial: ["#0e0e0e", "#7a7a7a"],
+    "okabe-ito": ["#0072b2", "#e69f00"],
+    wong: ["#e69f00", "#56b4e9"],
+    "ibm-design": ["#648fff", "#785ef0"],
+    "tol-vibrant": ["#ee7733", "#0077bb"],
+    "deuteranopia-tuned": ["#005f73", "#ee9b00"],
+    monochrome: ["#000000", "#404040"],
+};
+
 const EDITORIAL_INK = "var(--ink)";
 const EDITORIAL_GRAY = "var(--palette-editorial-gray)";
 
@@ -47,14 +58,14 @@ const PALETTE_COLORS: Record<Exclude<PaletteName, "editorial">, readonly string[
 };
 
 export const resolvePalette = (spec: ChartSpec): PaletteName =>
-    spec.customizations?.palette ?? "editorial";
+    spec.customizations?.palette ?? "monochrome";
 
 export const colorByIndex = (
     palette: PaletteName | undefined,
     index: 0 | 1 | 2 | 3,
     groupCount: number,
 ): string => {
-    const resolved = palette ?? "editorial";
+    const resolved = palette ?? "monochrome";
 
     if (resolved === "editorial") {
         if (groupCount === 2) {

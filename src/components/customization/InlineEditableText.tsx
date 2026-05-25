@@ -69,7 +69,26 @@ export const InlineEditableText = ({
     };
 
     if (value.length === 0 && mode === "display") {
-        return null;
+        return (
+            <rect
+                data-role={dataRole}
+                fill="transparent"
+                height={height}
+                style={{ cursor: "text", pointerEvents: "all" }}
+                width={width}
+                x={foreignX}
+                y={foreignY}
+                onClick={startEditing}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        startEditing();
+                    }
+                }}
+                role="button"
+                tabIndex={0}
+            />
+        );
     }
 
     if (mode === "editing") {

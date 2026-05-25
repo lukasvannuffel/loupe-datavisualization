@@ -81,7 +81,7 @@ vi.mock("@/components/charts/SpecChartPanel", () => ({
         const labels = resolveChartLabels(spec);
 
         return (
-            <svg aria-label="Spec chart mock" data-palette={spec.customizations?.palette ?? "editorial"}>
+            <svg aria-label="Spec chart mock" data-palette={spec.customizations?.palette ?? "monochrome"}>
                 <text
                     data-role="chart-title"
                     role="button"

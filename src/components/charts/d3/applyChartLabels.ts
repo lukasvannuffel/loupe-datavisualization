@@ -5,6 +5,8 @@ import type { ResolvedChartLabels } from "@/lib/chartSpec/labels/resolveChartLab
 import type { DesignTokens } from "./applyDesignTokens";
 import type { ChartDrawContext, Margin } from "./chart.types";
 
+import { xAxisLabelY } from "./chartLabelLayout";
+
 export const LABEL_MARGIN_EXTRA = {
     top: 32,
     left: 32,
@@ -17,6 +19,15 @@ export const marginWithLabels = (base: Margin): Margin => ({
     bottom: base.bottom + LABEL_MARGIN_EXTRA.bottom,
     left: base.left + LABEL_MARGIN_EXTRA.left,
 });
+
+/** Remove static labels from the D3 SVG before redraw (overlay layer owns labels when editable). */
+export const clearStaticChartLabels = (svg: Element): void => {
+    select(svg)
+        .selectAll(
+            '[data-role="chart-title"], [data-role="axis-label-x"], [data-role="axis-label-y"]',
+        )
+        .remove();
+};
 
 type ApplyChartLabelsArgs = {
     readonly ctx: ChartDrawContext;
@@ -46,7 +57,7 @@ export const applyChartLabels = ({
     }
 
     if (labels.xLabel.length > 0) {
-        const xY = ctx.margin.top + ctx.innerHeight + extraBottomPx + 18;
+        const xY = xAxisLabelY(ctx.margin, ctx.innerHeight, extraBottomPx);
         svg.append("text")
             .attr("data-role", "axis-label-x")
             .attr("x", ctx.margin.left + ctx.innerWidth / 2)

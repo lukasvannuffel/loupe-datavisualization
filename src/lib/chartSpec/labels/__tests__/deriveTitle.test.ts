@@ -33,6 +33,16 @@ describe("deriveTitle", () => {
         ).toBe("Survival probability over Time (months)");
     });
 
+    it("KM title updates when Y-axis label is edited via customizations", () => {
+        expect(
+            deriveTitle({
+                chartKind: "km",
+                xLabel: "Time (months)",
+                yLabel: "OS probability",
+            }),
+        ).toBe("OS probability over Time (months)");
+    });
+
     it("xy line: y over x", () => {
         expect(
             deriveTitle({
