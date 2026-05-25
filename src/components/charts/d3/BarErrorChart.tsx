@@ -37,6 +37,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
+    const palette = resolvePalette(spec);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -158,7 +159,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [dims, editable, groups, labels, spec.customizations?.palette, spec.errorBarType, spec]);
+    }, [dims, editable, groups, labels, palette, spec.errorBarType, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
@@ -168,8 +169,6 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
         dims !== null && editable
             ? chartLabelLayout(dims, labelMargin, innerWidth, innerHeight, extraBottomPx)
             : null;
-
-    const palette = resolvePalette(spec);
 
     return (
         <div className="chart-with-legend" style={{ width: "100%" }}>

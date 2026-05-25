@@ -14,7 +14,7 @@ import {
 import type { ChartSlug } from "@/components/charts/chartPreviews";
 import { clearCache } from "@/lib/ai/recommendCache/cache";
 import type { ChartSpec } from "@/lib/chartSpec";
-import { receiptSchema } from "@/lib/chartSpec/schemas";
+import { chartSpecSchema, receiptSchema } from "@/lib/chartSpec/schemas";
 import type { OverrideEvent, Receipt } from "@/lib/chartSpec/types";
 import { columnInferenceArraySchema } from "@/lib/parser/inference.schemas";
 import type { ColumnInference } from "@/lib/parser/inference.types";
@@ -414,7 +414,20 @@ export const AppStateProvider = ({ children }: { children: ReactNode }): JSX.Ele
     );
 
     const setChartSpec = useCallback((next: ChartSpec | null): void => {
-        setChartSpecState(next);
+        if (next === null) {
+            setChartSpecState(null);
+
+            return;
+        }
+
+        const parsed = chartSpecSchema.safeParse(next);
+        if (!parsed.success) {
+            console.warn("Rejected invalid chart spec update:", parsed.error.format());
+
+            return;
+        }
+
+        setChartSpecState(parsed.data);
     }, []);
 
     /**

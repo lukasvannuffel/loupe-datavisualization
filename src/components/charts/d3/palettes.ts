@@ -1,8 +1,10 @@
-import type { ChartSpec, PaletteName } from "@/lib/chartSpec/types";
+import type { PaletteName } from "@/lib/chartSpec/types";
+import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
 
 import "./palettes.module.css";
 
 export type { PaletteName };
+export { resolvePalette };
 
 /** Swatch preview hex — must match `palettes.module.css` indices 0 and 1. */
 export const PALETTE_SWATCH_HEX: Record<PaletteName, readonly [string, string]> = {
@@ -56,9 +58,6 @@ const PALETTE_COLORS: Record<Exclude<PaletteName, "editorial">, readonly string[
         "var(--palette-wong-3)",
     ],
 };
-
-export const resolvePalette = (spec: ChartSpec): PaletteName =>
-    spec.customizations?.palette ?? "monochrome";
 
 export const colorByIndex = (
     palette: PaletteName | undefined,

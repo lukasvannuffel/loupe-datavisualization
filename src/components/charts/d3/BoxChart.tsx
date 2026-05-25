@@ -43,6 +43,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const hasStripGroup = data.groups.some((group) => group.kind === "strip");
     const labels = resolveChartLabels(spec);
+    const palette = resolvePalette(spec);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -163,7 +164,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, spec.customizations?.palette, spec]);
+    }, [data, dims, editable, labels, palette, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
@@ -179,8 +180,6 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
                   extraBottomPx,
               )
             : null;
-
-    const palette = resolvePalette(spec);
 
     return (
         <div data-testid="box-chart" style={{ width: "100%" }}>

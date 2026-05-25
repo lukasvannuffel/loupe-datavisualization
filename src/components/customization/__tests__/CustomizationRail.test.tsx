@@ -111,13 +111,13 @@ describe("CustomizationRail", () => {
     //   Box toggles missing from document → test RED.
     //   Verified manually: 2026-05-25. REVERTED.
 
-    it("updateCustomizationTitle writes into spec.customizations", () => {
+    it("updateCustomizationTitle writes into spec.customizations only", () => {
         const spec = createDefaultChartSpec("barError", {
             id: "bar-rail-title",
             createdAt: "2026-05-20T10:00:00.000Z",
         });
         const next = updateCustomizationTitle(spec, "My custom title");
         expect(next.customizations?.title).toBe("My custom title");
-        expect(next.title).toBe("My custom title");
+        expect(next.title).toBe(spec.title);
     });
 });

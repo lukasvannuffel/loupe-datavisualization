@@ -40,6 +40,7 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
+    const palette = resolvePalette(spec);
     const editable = onSpecChange !== undefined;
 
     useEffect(() => {
@@ -135,7 +136,7 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
         }
 
         setExtraBottomPx(axisResult.extraBottomPx);
-    }, [data, dims, editable, labels, spec.customizations?.palette, spec.showGrid]);
+    }, [data, dims, editable, labels, palette, spec.showGrid]);
 
     const marginLeft = LABEL_MARGIN.left;
     const innerWidth =
@@ -157,8 +158,6 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
                   extraBottomPx,
               )
             : null;
-
-    const palette = resolvePalette(spec);
 
     return (
         <div style={{ width: "100%" }}>

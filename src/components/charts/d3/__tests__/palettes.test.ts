@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultChartSpec } from "@/lib/chartSpec";
 
-import { colorByIndex, resolvePalette } from "../palettes";
+import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
+
+import { colorByIndex } from "../palettes";
 
 describe("colorByIndex", () => {
     it("defaults to monochrome palette when palette is unset", () => {

@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, render, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppStateProvider, useAppState, type SelectionMode } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
 import { brandRows } from "@/lib/parser/types";
+import { createDefaultChartSpec } from "@/lib/chartSpec";
 import type { Receipt } from "@/lib/chartSpec/types";
 
 const VALID: ColumnInference = {
@@ -241,6 +242,66 @@ describe("AppStateProvider appendOverride", () => {
         const { result: reloaded } = renderHook(() => useAppState(), { wrapper });
         expect(reloaded.current.receipt?.overrides).toEqual([EVENT_1]);
         expect(reloaded.current.chartKind).toBe("box");
+    });
+});
+
+describe("AppStateProvider setChartSpec validation", () => {
+    it("rejects spec updates with empty customizations.title (validation at write)", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        const initial = createDefaultChartSpec("barError", {
+            id: "provider-spec",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        act(() => {
+            result.current.setChartSpec(initial);
+        });
+
+        act(() => {
+            result.current.setChartSpec({
+                ...initial,
+                customizations: {
+                    ...initial.customizations,
+                    title: "",
+                },
+            });
+        });
+
+        expect(result.current.chartSpec?.customizations?.title).toBe(
+            initial.customizations?.title,
+        );
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    // MUTATION-VERIFY:
+    //   providers.tsx setChartSpec — remove chartSpecSchema.safeParse guard (assign next directly).
+    //   Test: "rejects spec updates with empty customizations.title (validation at write)".
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it("accepts spec updates with valid customizations.title", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        const initial = createDefaultChartSpec("barError", {
+            id: "provider-spec-valid",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        act(() => {
+            result.current.setChartSpec(initial);
+        });
+
+        act(() => {
+            result.current.setChartSpec({
+                ...initial,
+                customizations: {
+                    ...initial.customizations,
+                    title: "Valid title",
+                },
+            });
+        });
+
+        expect(result.current.chartSpec?.customizations?.title).toBe("Valid title");
     });
 });
 

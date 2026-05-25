@@ -56,6 +56,7 @@ export const XYChart = ({
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const longitudinal = isLongitudinal(data);
     const labels = resolveChartLabels(spec);
+    const palette = resolvePalette(spec);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -150,7 +151,7 @@ export const XYChart = ({
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, longitudinal, mode, showErrorBands, showRegression, spec.customizations?.palette, spec]);
+    }, [data, dims, editable, labels, longitudinal, mode, palette, showErrorBands, showRegression, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
@@ -166,8 +167,6 @@ export const XYChart = ({
                   extraBottomPx,
               )
             : null;
-
-    const palette = resolvePalette(spec);
 
     return (
         <div className="chart-with-legend" data-testid="xy-chart" style={{ width: "100%" }}>

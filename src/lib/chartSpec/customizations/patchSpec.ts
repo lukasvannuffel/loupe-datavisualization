@@ -22,7 +22,6 @@ export const updateCustomizationTitle = (spec: ChartSpec, title: string): ChartS
 
     return {
         ...spec,
-        title: trimmed,
         customizations: {
             ...spec.customizations,
             title: trimmed,
@@ -36,7 +35,6 @@ export const updateAxisLabel = (
     label: string,
 ): ChartSpec => ({
     ...spec,
-    ...(axis === "x" ? { xLabel: label } : { yLabel: label }),
     customizations: {
         ...spec.customizations,
         axes: {
