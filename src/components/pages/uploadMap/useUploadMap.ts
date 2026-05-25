@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAppState, type ColumnRole } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import { brandRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
 import { autoMapColumns } from "@/lib/roles";
 
@@ -42,13 +43,16 @@ export const useUploadMap = (): UploadMapApi => {
             return;
         }
         autoMapped.current = true;
-        const seeded = autoMapColumns(dataset);
+        const seeded = autoMapColumns(dataset.inferences);
         if (Object.keys(seeded).length > 0) {
             setMapping(seeded);
         }
     }, [hydrated, dataset, mapping, setMapping]);
 
-    const inferences = useMemo<readonly ColumnInference[]>(() => dataset ?? [], [dataset]);
+    const inferences = useMemo<readonly ColumnInference[]>(
+        () => dataset?.inferences ?? [],
+        [dataset],
+    );
 
     const onRenameColumns = (
         pairs: ReadonlyArray<{ readonly oldName: string; readonly newName: string }>,
@@ -59,10 +63,22 @@ export const useUploadMap = (): UploadMapApi => {
 
         const renameMap = new Map<string, string>(pairs.map((p) => [p.oldName, p.newName]));
 
-        const updatedInferences = dataset.map((i) => {
+        const updatedInferences = dataset.inferences.map((i) => {
             const next = renameMap.get(i.name);
 
             return next !== undefined ? { ...i, name: next } : i;
+        });
+
+        const updatedRows = dataset.rows.map((row) => {
+            const nextRow: Record<string, string> = { ...row };
+            for (const [oldName, newName] of renameMap) {
+                if (oldName in nextRow) {
+                    nextRow[newName] = nextRow[oldName];
+                    delete nextRow[oldName];
+                }
+            }
+
+            return nextRow;
         });
 
         const updatedMapping: Mapping = { ...mapping };
@@ -79,7 +95,7 @@ export const useUploadMap = (): UploadMapApi => {
             }
         }
 
-        setDataset(updatedInferences);
+        setDataset(updatedInferences, brandRows(updatedRows));
         setMapping(updatedMapping);
     };
 

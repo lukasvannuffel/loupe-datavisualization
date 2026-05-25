@@ -69,12 +69,16 @@ const MOCK_RECEIPT: Receipt = {
     transformations: [],
 };
 
-const seedDataset = (dataset: readonly ColumnInference[] | null): void => {
+const seedDataset = (
+    dataset: readonly ColumnInference[] | null,
+    rows: ReadonlyArray<Readonly<Record<string, string>>> = [],
+): void => {
     if (dataset === null) {
         window.sessionStorage.clear();
         return;
     }
     window.sessionStorage.setItem("loupe.dataset", JSON.stringify(dataset));
+    window.sessionStorage.setItem("loupe.datasetRows", JSON.stringify(rows));
 };
 
 const renderPage = (): void => {

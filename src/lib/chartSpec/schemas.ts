@@ -55,6 +55,36 @@ const statAnnotationSchema = z.discriminatedUnion("kind", [
         .strict(),
 ]);
 
+const axisCustomizationSchema = z
+    .object({
+        label: nonEmpty().optional(),
+    })
+    .strict();
+
+const paletteNameSchema = z.enum([
+    "editorial",
+    "okabe-ito",
+    "wong",
+    "ibm-design",
+    "tol-vibrant",
+    "deuteranopia-tuned",
+    "monochrome",
+]);
+
+const customizationsSchema = z
+    .object({
+        title: nonEmpty().optional(),
+        axes: z
+            .object({
+                x: axisCustomizationSchema.optional(),
+                y: axisCustomizationSchema.optional(),
+            })
+            .strict()
+            .optional(),
+        palette: paletteNameSchema.optional(),
+    })
+    .strict();
+
 const baseSpecShape = {
     version: z.literal(1),
     id: nonEmpty(),
@@ -79,6 +109,7 @@ const kmSpecSchema = z
         showAtRisk: z.boolean(),
         showStats: z.boolean(),
         timeUnit: z.enum(["days", "weeks", "months", "years"]),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -88,6 +119,7 @@ const barErrorSpecSchema = z
         kind: z.literal("barError"),
         errorBarType: z.enum(["sd", "sem", "ci95"]),
         annotations: z.array(statAnnotationSchema).readonly(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -97,7 +129,8 @@ const boxSpecSchema = z
         kind: z.literal("box"),
         showOutliers: z.boolean(),
         showMeanMarker: z.boolean(),
-        groupOrder: z.enum(["alphabetical", "byMedian", "manual"]),
+        notched: z.boolean(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -105,10 +138,10 @@ const xySpecSchema = z
     .object({
         ...baseSpecShape,
         kind: z.literal("xy"),
-        mode: z.enum(["scatter", "line", "scatterLine"]),
+        mode: z.enum(["line", "scatter", "both"]),
         showRegression: z.boolean(),
-        regressionType: z.enum(["linear", "loess"]).optional(),
-        showCorrelation: z.boolean(),
+        showErrorBands: z.boolean(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -123,18 +156,19 @@ const survivalUnit = z.number().min(0).max(1);
 
 const kmPointSchema = z
     .object({
-        time: z.number(),
+        t: z.number(),
         survival: survivalUnit,
-        atRisk: z.number(),
-        censored: z.number(),
+        nAtRisk: z.number(),
+        censored: z.boolean(),
+        ciLower: z.number(),
+        ciUpper: z.number(),
     })
     .strict();
 
-const kmCiSchema = z
+const atRiskTickSchema = z
     .object({
-        time: z.number(),
-        lower: z.number(),
-        upper: z.number(),
+        t: z.number(),
+        nAtRisk: z.number(),
     })
     .strict();
 
@@ -142,8 +176,9 @@ const kmGroupSchema = z
     .object({
         label: nonEmpty(),
         points: z.array(kmPointSchema).readonly(),
-        median: z.number().optional(),
-        ci: z.array(kmCiSchema).readonly().optional(),
+        atRiskTicks: z.array(atRiskTickSchema).readonly(),
+        nTotal: z.number(),
+        nEvents: z.number(),
     })
     .strict();
 
@@ -151,14 +186,15 @@ const kmPlotDataSchema = z
     .object({
         kind: z.literal("km"),
         groups: z.array(kmGroupSchema).readonly(),
+        tMax: z.number(),
     })
     .strict();
 
-const barErrorCategorySchema = z
+const barErrorGroupStatsSchema = z
     .object({
         label: nonEmpty(),
         mean: z.number(),
-        error: z.number(),
+        sd: z.number(),
         n: z.number(),
     })
     .strict();
@@ -166,32 +202,52 @@ const barErrorCategorySchema = z
 const barErrorPlotDataSchema = z
     .object({
         kind: z.literal("barError"),
-        categories: z.array(barErrorCategorySchema).readonly(),
+        groups: z.array(barErrorGroupStatsSchema).readonly(),
     })
     .strict();
 
-const boxGroupSchema = z
+const boxStatsSchema = z
     .object({
+        kind: z.literal("box"),
         label: nonEmpty(),
+        n: z.number(),
         min: z.number(),
         q1: z.number(),
         median: z.number(),
         q3: z.number(),
         max: z.number(),
+        mean: z.number(),
         outliers: z.array(z.number()).readonly(),
-        mean: z.number().optional(),
-        n: z.number(),
+        notchLower: z.number(),
+        notchUpper: z.number(),
     })
     .strict();
+
+const stripStatsSchema = z
+    .object({
+        kind: z.literal("strip"),
+        label: nonEmpty(),
+        n: z.number(),
+        values: z.array(z.number()).readonly(),
+    })
+    .strict();
+
+const groupStatsSchema = z.discriminatedUnion("kind", [boxStatsSchema, stripStatsSchema]);
 
 const boxPlotDataSchema = z
     .object({
         kind: z.literal("box"),
-        groups: z.array(boxGroupSchema).readonly(),
+        groups: z.array(groupStatsSchema).readonly(),
+        yMin: z.number(),
+        yMax: z.number(),
     })
     .strict()
     .superRefine((data, ctx) => {
         data.groups.forEach((g, i) => {
+            if (g.kind !== "box") {
+                return;
+            }
+
             const ordered =
                 g.min <= g.q1 &&
                 g.q1 <= g.median &&
@@ -215,14 +271,19 @@ const xyPointSchema = z
     })
     .strict();
 
-const xyRegressionPlotSchema = z
+const xyRegressionSchema = z
     .object({
         slope: z.number(),
         intercept: z.number(),
+        r2: z.number(),
     })
     .strict();
 
-const xySeriesSchema = z
+const labeledRegressionSchema = xyRegressionSchema.extend({
+    label: nonEmpty(),
+});
+
+const xyGroupSchema = z
     .object({
         label: nonEmpty(),
         points: z.array(xyPointSchema).readonly(),
@@ -232,28 +293,60 @@ const xySeriesSchema = z
 const xyPlotDataSchema = z
     .object({
         kind: z.literal("xy"),
-        series: z.array(xySeriesSchema).readonly(),
-        regression: xyRegressionPlotSchema.optional(),
-        correlation: z.number().optional(),
+        groups: z.array(xyGroupSchema).readonly(),
+        regressions: z.array(labeledRegressionSchema).readonly(),
+        regressionSkipped: z.boolean(),
+        xMin: z.number(),
+        xMax: z.number(),
+        yMin: z.number(),
+        yMax: z.number(),
     })
     .strict()
     .superRefine((data, ctx) => {
-        data.series.forEach((s, i) => {
-            if (s.points.length === 0) {
+        data.groups.forEach((g, i) => {
+            if (g.points.length === 0) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
-                    message: "each series must have at least one point",
-                    path: ["series", i, "points"],
+                    message: "each group must have at least one point",
+                    path: ["groups", i, "points"],
                 });
             }
         });
     });
+
+const longitudinalPointSchema = z
+    .object({
+        visit: z.number(),
+        mean: z.number(),
+        sem: z.number(),
+        n: z.number(),
+    })
+    .strict();
+
+const longitudinalGroupSchema = z
+    .object({
+        label: nonEmpty(),
+        points: z.array(longitudinalPointSchema).readonly(),
+    })
+    .strict();
+
+const longitudinalPlotDataSchema = z
+    .object({
+        kind: z.literal("longitudinal"),
+        groups: z.array(longitudinalGroupSchema).readonly(),
+        xMin: z.number(),
+        xMax: z.number(),
+        yMin: z.number(),
+        yMax: z.number(),
+    })
+    .strict();
 
 export const plotDataSchema = z.discriminatedUnion("kind", [
     kmPlotDataSchema,
     barErrorPlotDataSchema,
     boxPlotDataSchema,
     xyPlotDataSchema,
+    longitudinalPlotDataSchema,
 ]);
 
 const recommendationBlockSchema = z

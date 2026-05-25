@@ -46,6 +46,28 @@ export type StatAnnotation =
 /** Discriminator subset: the four chart types V1 ships with full Spec + PlotData. */
 export type SpecKind = Extract<ChartSlug, "km" | "barError" | "box" | "xy">;
 
+export type AxisCustomization = {
+    readonly label?: string;
+};
+
+export type PaletteName =
+    | "editorial"
+    | "okabe-ito"
+    | "wong"
+    | "ibm-design"
+    | "tol-vibrant"
+    | "deuteranopia-tuned"
+    | "monochrome";
+
+export type Customizations = {
+    readonly title?: string;
+    readonly axes?: {
+        readonly x?: AxisCustomization;
+        readonly y?: AxisCustomization;
+    };
+    readonly palette?: PaletteName;
+};
+
 /** Frame, typography, palette and stroke options shared by every Spec. */
 export type BaseSpec = {
     version: 1;
@@ -70,6 +92,7 @@ export type KMSpec = BaseSpec & {
     showAtRisk: boolean;
     showStats: boolean;
     timeUnit: "days" | "weeks" | "months" | "years";
+    readonly customizations?: Customizations;
 };
 
 /** Categorical means with uncertainty: error-bar family + optional significance annotations. */
@@ -77,115 +100,72 @@ export type BarErrorSpec = BaseSpec & {
     kind: "barError";
     errorBarType: "sd" | "sem" | "ci95";
     annotations: readonly StatAnnotation[];
+    readonly customizations?: Customizations;
 };
 
-/** Box plot configuration: outliers, mean marker, group ordering. */
+/** Box plot configuration: outliers, mean marker, notch. */
 export type BoxSpec = BaseSpec & {
     readonly kind: "box";
     readonly showOutliers: boolean;
     readonly showMeanMarker: boolean;
-    readonly groupOrder: "alphabetical" | "byMedian" | "manual";
+    readonly notched: boolean;
+    readonly customizations?: Customizations;
 };
 
-/** XY plot: scatter, line, or combined; regression and correlation toggles. */
+/** XY plot: scatter, line, or combined; regression and error-band toggles. */
 export type XYSpec = BaseSpec & {
     readonly kind: "xy";
-    readonly mode: "scatter" | "line" | "scatterLine";
+    readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
-    readonly regressionType?: "linear" | "loess";
-    readonly showCorrelation: boolean;
+    readonly showErrorBands: boolean;
+    readonly customizations?: Customizations;
 };
 
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */
 export type ChartSpec = KMSpec | BarErrorSpec | BoxSpec | XYSpec;
 
-/** Single step on a Kaplan–Meier curve at one event/censoring time. Aggregated, never per-patient. */
-export type KMPoint = {
-    time: number;
-    survival: number;
-    atRisk: number;
-    censored: number;
+export type { AtRiskTick, KMGroup, KMPlotData, KMPoint } from "./aggregators/kaplanMeier.types";
+export { KaplanMeierError } from "./aggregators/kaplanMeier.types";
+export type {
+    BoxPlotData,
+    BoxStats,
+    GroupStats,
+    StripStats,
+} from "./aggregators/boxPlot.types";
+export { BoxPlotError } from "./aggregators/boxPlot.types";
+export type {
+    LongitudinalData,
+    LongitudinalGroup,
+    LongitudinalPoint,
+    LabeledRegression,
+    RegressionResult,
+    XYGroup,
+    XYPlotData,
+    XYPoint,
+} from "./aggregators/xyPlot.types";
+export { LongitudinalError, XYPlotError } from "./aggregators/xyPlot.types";
+
+/** Per-group summary statistics for bar-with-error charts. Error magnitude is derived at render time. */
+export type BarErrorGroupStats = {
+    readonly label: string;
+    readonly mean: number;
+    readonly sd: number;
+    readonly n: number;
 };
 
-/** Pointwise confidence band around a KM curve at a given time. */
-export type KMConfidenceInterval = {
-    time: number;
-    lower: number;
-    upper: number;
-};
-
-/** One survival curve: label + step points + optional median + optional CI band. No raw rows. */
-export type KMGroup = {
-    label: string;
-    points: readonly KMPoint[];
-    median?: number;
-    ci?: readonly KMConfidenceInterval[];
-};
-
-/** Survival aggregates ready to render: per-group step points + at-risk counts. No per-patient rows. */
-export type KMPlotData = {
-    kind: "km";
-    groups: readonly KMGroup[];
-};
-
-/** One bar: category mean, sample size, and a single error magnitude (SD/SEM/CI half-width). */
-export type BarErrorCategory = {
-    label: string;
-    mean: number;
-    error: number;
-    n: number;
-};
-
-/** Bar-with-error aggregates: per-category summary statistics. No per-patient rows. */
+/** Bar-with-error aggregates: per-group means and spread inputs. No per-patient rows. */
 export type BarErrorPlotData = {
     kind: "barError";
-    categories: readonly BarErrorCategory[];
-};
-
-/** One aggregated box-and-whisker group: five-number summary, optional mean, outlier values, and sample size. */
-export type BoxGroup = {
-    label: string;
-    min: number;
-    q1: number;
-    median: number;
-    q3: number;
-    max: number;
-    outliers: readonly number[];
-    mean?: number;
-    n: number;
-};
-
-/** Box plot aggregates: per-group summaries. No per-patient rows. */
-export type BoxPlotData = {
-    kind: "box";
-    groups: readonly BoxGroup[];
-};
-
-/** One XY observation (aggregated point). */
-export type XYPoint = {
-    x: number;
-    y: number;
-};
-
-/** One XY series: label and points only (regression lives on `XYPlotData` when precomputed). */
-export type XYSeries = {
-    label: string;
-    points: readonly XYPoint[];
-};
-
-/** XY aggregates: one or more series; optional global regression line and correlation. No per-patient rows. */
-export type XYPlotData = {
-    kind: "xy";
-    series: readonly XYSeries[];
-    regression?: {
-        slope: number;
-        intercept: number;
-    };
-    correlation?: number;
+    groups: readonly BarErrorGroupStats[];
 };
 
 /** Discriminated chart-input data. Every variant is aggregated; per-patient fields are forbidden. */
-export type PlotData = KMPlotData | BarErrorPlotData | BoxPlotData | XYPlotData;
+export type PlotData =
+    | import("./aggregators/kaplanMeier.types").KMPlotData
+    | BarErrorPlotData
+    | import("./aggregators/boxPlot.types").BoxPlotData
+    | import("./aggregators/xyPlot.types").XYPlotData
+    | import("./aggregators/xyPlot.types").LongitudinalData;
 
 /** Headline + reasoning shown to the user when a chart type is recommended. */
 export type RecommendationBlock = {

@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, render, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppStateProvider, useAppState, type SelectionMode } from "@/app/providers";
 import type { ColumnInference } from "@/lib/parser/inference.types";
+import { brandRows } from "@/lib/parser/types";
+import { createDefaultChartSpec } from "@/lib/chartSpec";
 import type { Receipt } from "@/lib/chartSpec/types";
 
 const VALID: ColumnInference = {
@@ -33,9 +35,13 @@ beforeEach(() => {
 describe("AppStateProvider hydration", () => {
     it("accepts a well-formed persisted dataset", () => {
         window.sessionStorage.setItem("loupe.dataset", JSON.stringify([VALID]));
+        window.sessionStorage.setItem("loupe.datasetRows", JSON.stringify([{ age: "1" }]));
         const { result } = renderHook(() => useAppState(), { wrapper });
         expect(result.current.hydrated).toBe(true);
-        expect(result.current.dataset).toEqual([VALID]);
+        expect(result.current.dataset).toEqual({
+            inferences: [VALID],
+            rows: brandRows([{ age: "1" }]),
+        });
     });
 
     it("drops a malformed persisted dataset and removes the key", () => {
@@ -236,5 +242,144 @@ describe("AppStateProvider appendOverride", () => {
         const { result: reloaded } = renderHook(() => useAppState(), { wrapper });
         expect(reloaded.current.receipt?.overrides).toEqual([EVENT_1]);
         expect(reloaded.current.chartKind).toBe("box");
+    });
+});
+
+describe("AppStateProvider setChartSpec validation", () => {
+    it("rejects spec updates with empty customizations.title (validation at write)", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        const initial = createDefaultChartSpec("barError", {
+            id: "provider-spec",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        act(() => {
+            result.current.setChartSpec(initial);
+        });
+
+        act(() => {
+            result.current.setChartSpec({
+                ...initial,
+                customizations: {
+                    ...initial.customizations,
+                    title: "",
+                },
+            });
+        });
+
+        expect(result.current.chartSpec?.customizations?.title).toBe(
+            initial.customizations?.title,
+        );
+        expect(warnSpy).toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
+    // MUTATION-VERIFY:
+    //   providers.tsx setChartSpec — remove chartSpecSchema.safeParse guard (assign next directly).
+    //   Test: "rejects spec updates with empty customizations.title (validation at write)".
+    //   Verified manually: 2026-05-25. REVERTED.
+
+    it("accepts spec updates with valid customizations.title", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        const initial = createDefaultChartSpec("barError", {
+            id: "provider-spec-valid",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        act(() => {
+            result.current.setChartSpec(initial);
+        });
+
+        act(() => {
+            result.current.setChartSpec({
+                ...initial,
+                customizations: {
+                    ...initial.customizations,
+                    title: "Valid title",
+                },
+            });
+        });
+
+        expect(result.current.chartSpec?.customizations?.title).toBe("Valid title");
+    });
+});
+
+describe("AppStateProvider updateLatestOverrideReason", () => {
+    const SAMPLE_RECEIPT: Receipt = {
+        alternatives: [],
+        intent: "Compare arms",
+        overrides: [],
+        recommendation: {
+            because: "Because.",
+            becauseTitle: "Because",
+            chartName: "Kaplan–Meier curve",
+            handles: "Handles.",
+            handlesTitle: "Handles",
+            headline: "Headline.",
+        },
+        selectionMode: "ai",
+        tests: [],
+        testsTitle: "Tests",
+        transformations: [],
+    };
+
+    const EVENT_1 = {
+        at: "2026-05-19T14:23:00.000Z",
+        from: "km" as const,
+        to: "box" as const,
+    };
+
+    const EVENT_2 = {
+        at: "2026-05-19T14:25:00.000Z",
+        from: "box" as const,
+        to: "xy" as const,
+    };
+
+    it("updates only the last override entry reason", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.appendOverride(EVENT_2));
+        act(() => result.current.updateLatestOverrideReason("test reason"));
+        expect(result.current.receipt?.overrides[0]?.reason).toBeUndefined();
+        expect(result.current.receipt?.overrides[1]?.reason).toBe("test reason");
+    });
+
+    it("no-ops when overrides is empty", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => result.current.setReceipt(SAMPLE_RECEIPT));
+        act(() => result.current.updateLatestOverrideReason("test reason"));
+        expect(result.current.receipt?.overrides).toEqual([]);
+    });
+
+    it("omits reason when cleared to empty string", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.updateLatestOverrideReason("note"));
+        act(() => result.current.updateLatestOverrideReason(""));
+        expect(result.current.receipt?.overrides[0]?.reason).toBeUndefined();
+        const stored = window.sessionStorage.getItem("loupe.receipt");
+        expect(JSON.parse(stored!).overrides[0].reason).toBeUndefined();
+    });
+
+    it("persists reason to sessionStorage", () => {
+        const { result } = renderHook(() => useAppState(), { wrapper });
+        act(() => {
+            result.current.setReceipt(SAMPLE_RECEIPT);
+            result.current.setChartKind("km");
+        });
+        act(() => result.current.appendOverride(EVENT_1));
+        act(() => result.current.updateLatestOverrideReason("persisted reason"));
+        const stored = window.sessionStorage.getItem("loupe.receipt");
+        expect(stored).not.toBeNull();
+        expect(JSON.parse(stored!).overrides[0].reason).toBe("persisted reason");
     });
 });

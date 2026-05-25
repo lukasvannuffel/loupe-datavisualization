@@ -1,3 +1,9 @@
+import type { ColumnInference } from "@/lib/parser/inference.types";
+import type { PrivateRows } from "@/lib/parser/types";
+import { detectLongitudinal } from "@/lib/recommendation/detectLongitudinal";
+import type { Mapping } from "@/lib/roles/types";
+
+import { attachCustomizations } from "./labels/buildCustomizations";
 import type {
     BarErrorSpec,
     BaseSpec,
@@ -7,6 +13,17 @@ import type {
     SpecKind,
     XYSpec,
 } from "./types";
+
+export type ChartSpecFactoryContext = {
+    readonly rows: PrivateRows;
+    readonly inferences: readonly ColumnInference[];
+    readonly mapping: Mapping;
+};
+
+export type RoutedChartSpec = {
+    readonly spec: ChartSpec;
+    readonly mapping: Mapping;
+};
 
 const DEFAULT_PALETTE_ID = "monochrome";
 const DEFAULT_STROKE_WEIGHT = 1.5;
@@ -63,7 +80,7 @@ const buildBox = (id: string, createdAt: string): BoxSpec => ({
     kind: "box",
     showOutliers: true,
     showMeanMarker: false,
-    groupOrder: "alphabetical",
+    notched: false,
 });
 
 const buildXy = (id: string, createdAt: string): XYSpec => ({
@@ -71,9 +88,12 @@ const buildXy = (id: string, createdAt: string): XYSpec => ({
     id,
     createdAt,
     kind: "xy",
-    mode: "line",
-    showRegression: false,
-    showCorrelation: false,
+    mode: "scatter",
+    // LOUPE-14 close-out: default on for scatter (and both when chosen later).
+    // Recommendation copy promises regression lines; keep spec.showRegression true here.
+    // Line mode must set showRegression false explicitly (visit means — LOUPE-15 rail).
+    showRegression: true,
+    showErrorBands: false,
 });
 
 const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => ChartSpec>> = {
@@ -84,6 +104,49 @@ const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => Ch
 };
 
 /**
+ * LOUPE-14: route repeated-measures CSVs to line mode + longitudinal aggregation.
+ * The LLM defaults XY to scatter; this local heuristic overrides mode when structure matches.
+ */
+export const applyXYLongitudinalRouting = (
+    spec: XYSpec,
+    context: ChartSpecFactoryContext,
+): RoutedChartSpec => {
+    const xColumn = context.mapping.x;
+    const yColumn = context.mapping.y;
+    if (xColumn === undefined || yColumn === undefined) {
+        return { mapping: context.mapping, spec };
+    }
+
+    const detection = detectLongitudinal(
+        context.rows,
+        context.inferences,
+        xColumn,
+        yColumn,
+        context.mapping.group ?? null,
+    );
+
+    if (!detection.isLongitudinal) {
+        const scatterSpec: XYSpec =
+            spec.mode === "scatter" && !spec.showRegression
+                ? { ...spec, showRegression: true }
+                : spec;
+
+        return { mapping: context.mapping, spec: scatterSpec };
+    }
+
+    return {
+        mapping: {
+            ...context.mapping,
+            id: detection.idColumn,
+        },
+        spec: {
+            ...spec,
+            mode: "line",
+        },
+    };
+};
+
+/**
  * Build a minimal, schema-valid `ChartSpec` for the given kind. Used when the
  * user picks a chart manually (no AI recommendation) so we still have a fully
  * typed spec to seed the editor / export with sensible defaults.
@@ -91,8 +154,48 @@ const FACTORIES: Readonly<Record<SpecKind, (id: string, createdAt: string) => Ch
  * Pure aside from `id` (UUID) and `createdAt` (now ISO) — caller may pin both
  * via the optional second arg for deterministic tests.
  */
+const finalizeSpec = (spec: ChartSpec, mapping: Mapping): ChartSpec =>
+    attachCustomizations(spec, mapping);
+
 export const createDefaultChartSpec = (
     kind: SpecKind,
     seed?: { readonly id?: string; readonly createdAt?: string },
-): ChartSpec =>
-    FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
+    context?: ChartSpecFactoryContext,
+): ChartSpec => {
+    const mapping = context?.mapping ?? {};
+    const base = FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
+    const spec =
+        base.kind === "xy" && context !== undefined
+            ? applyXYLongitudinalRouting(base, context).spec
+            : base;
+
+    return finalizeSpec(spec, mapping);
+};
+
+/** Like `createDefaultChartSpec` but returns mapping updates when longitudinal routing fires. */
+export const createRoutedChartSpec = (
+    kind: SpecKind,
+    context: ChartSpecFactoryContext,
+    seed?: { readonly id?: string; readonly createdAt?: string },
+): RoutedChartSpec => {
+    const spec = FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
+    if (spec.kind === "xy") {
+        const routed = applyXYLongitudinalRouting(spec, context);
+        return {
+            mapping: routed.mapping,
+            spec: finalizeSpec(routed.spec, context.mapping),
+        };
+    }
+
+    return { mapping: context.mapping, spec: finalizeSpec(spec, context.mapping) };
+};
+
+/** Minimal default `BarErrorSpec` for renderer smoke tests and pages without a saved spec. */
+export const defaultBarErrorSpec = (): BarErrorSpec => {
+    const spec = createDefaultChartSpec("barError");
+    if (spec.kind !== "barError") {
+        throw new Error("createDefaultChartSpec(barError) returned unexpected kind");
+    }
+
+    return spec;
+};

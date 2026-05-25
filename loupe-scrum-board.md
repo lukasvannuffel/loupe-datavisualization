@@ -370,7 +370,7 @@ Bouw de centrale `ChartRenderer` component die een ChartSpec + PlotData neemt en
 
 ---
 
-### LOUPE-11 · Bar chart met error bars
+<### LOUPE-11 · Bar chart met error bars
 
 **Prioriteit:** P0
 **Einddatum:** 23 mei 2026
@@ -381,18 +381,19 @@ Bouw de centrale `ChartRenderer` component die een ChartSpec + PlotData neemt en
 Begin met de simpelste chart — valideert je hele architectuur (data → spec → renderer → SVG). Render uit `[{label, mean, sd, n}]`. Toggle tussen SD/SEM/CI95. Match design system: hairlines, Source Serif titels, geen kleurig overload.
 
 **Actie-items**
-- [ ] `BarErrorChart.tsx` component
-- [ ] X-as: categorisch met label-rotation bij overflow
-- [ ] Y-as: numeriek met smart tick selection
-- [ ] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± 1.96·SEM
-- [ ] Toggle in customization rail (later in LOUPE-15)
-- [ ] Inline-editable titel via `contentEditable` zoals huidig prototype
-- [ ] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
+- [x] `BarErrorChart.tsx` component
+- [x] X-as: categorisch met label-rotation bij overflow
+- [x] Y-as: numeriek met smart tick selection
+- [x] Error-bar berekening: SD direct, SEM = SD/√n, CI95 = mean ± t(0.975, n-1) × SD/√n
+       (t-distribution; 1.96·SEM is wrong for small n — see post-review fix.)
+- [x] Toggle in customization rail (later in LOUPE-15)
+- [x] Inline-editable titel via `contentEditable` zoals huidig prototype
+- [x] Aggregator functie: rauwe rijen → `[{label, mean, sd, n}]`
 
 **Acceptance criteria**
-- [ ] Render uit echte aggregaties van CSV
-- [ ] Error-type toggle wisselt zonder re-aggregate
-- [ ] Visueel match met design system mockups
+- [x] Render uit echte aggregaties van CSV
+- [x] Error-type toggle wisselt zonder re-aggregate
+- [x] Visueel match met design system mockups
 
 ---
 
@@ -407,19 +408,19 @@ Begin met de simpelste chart — valideert je hele architectuur (data → spec �
 De moeilijkste van je MVP. Step-functie berekenen client-side, censoring tick marks tonen, at-risk tabel onder de chart. **Geen log-rank, geen p-waarde** — niet claimen wat je niet berekent. Multiple groups via palette. Twee respondenten (R3 en R4) noemden expliciet KM zónder at-risk/censoring als pijnpunt — dit is je hero-chart.
 
 **Actie-items**
-- [ ] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
-- [ ] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
-- [ ] Censoring detectie + tick-marks op de curve
-- [ ] At-risk tabel: aantal patiënten in risk set bij elke major time-point
-- [ ] `KaplanMeierChart.tsx` met multi-group support
-- [ ] Edge cases: alle censored, zero events, single group
-- [ ] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
+- [x] `kaplanMeier.ts` — pure functie: rauwe rijen `[{time, event, group}]` → step points per groep
+- [x] Stappenformule: S(t) = ∏(1 - dᵢ/nᵢ) over events tot t
+- [x] Censoring detectie + tick-marks op de curve
+- [x] At-risk tabel: aantal patiënten in risk set bij elke major time-point
+- [x] `KaplanMeierChart.tsx` met multi-group support
+- [x] Edge cases: alle censored, zero events, single group
+- [x] Privacy-check: PlotData bevat `[{t, survival, nAtRisk, censored}]` per groep, GEEN per-patient data
 
 **Acceptance criteria**
-- [ ] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
-- [ ] At-risk tabel telt correct af bij elke time-point
-- [ ] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
-- [ ] Censoring ticks zichtbaar maar niet dominant
+- [x] Test fixture met bekende KM-curve (Lung cancer dataset uit `survival` R-package) reproduceert visueel correct
+- [x] At-risk tabel telt correct af bij elke time-point
+- [x] PlotData JSON heeft geen veld dat individuele patiënten kan re-identificeren
+- [x] Censoring ticks zichtbaar maar niet dominant
 
 ---
 
@@ -439,22 +440,22 @@ De moeilijkste van je MVP. Step-functie berekenen client-side, censoring tick ma
 Vervangt het oorspronkelijke ROC-ticket na chart-pivot. Box plot is de canonische distributievergelijking in clinical publications — sterker dan violin voor jouw doelgroep omdat reviewers en oudere clinicians de vorm zonder uitleg lezen, en omdat box plots betrouwbaar blijven bij kleine N (waar KDE in een violin misleidend zou worden). Compute is goedkoop: quartielen + Tukey-fences voor outliers. Geen significantie-test, geen p-waarde — net zoals KM houd je je aan "wat je niet berekent, claim je niet".
 
 **Actie-items**
-- [ ] `boxPlot.ts` — pure functie: rauwe rijen `[{value, group}]` → `[{label, min, q1, median, q3, max, outliers, n}]` per groep
-- [ ] Quartielberekening via interpolatie (consistent met R `type=7` default — documenteer in code-comment)
-- [ ] Outlier-detectie: Tukey-fences (waarden buiten `q1 - 1.5*IQR` en `q3 + 1.5*IQR`)
-- [ ] `BoxChart.tsx` component met multi-group support
-- [ ] Whiskers tot min/max binnen Tukey-fences; outliers als losse markers
-- [ ] Optioneel: mediaan-notch (visualiseert 95% CI rondom mediaan) — controle via `notched` in spec
-- [ ] Optioneel: mean-marker (extra dot binnen box) — controle via `showMeanMarker`
-- [ ] Edge cases: n=1 per groep (geen box, alleen punt), alle waardes identiek (vlakke lijn op één hoogte), één lege groep
-- [ ] Privacy-check: PlotData bevat 5-number summary + outliers, GEEN volledige rij-data
+- [x] `boxPlot.ts` — pure functie: rauwe rijen `[{value, group}]` → `[{label, min, q1, median, q3, max, outliers, n}]` per groep
+- [x] Quartielberekening via interpolatie (consistent met R `type=7` default — documenteer in code-comment)
+- [x] Outlier-detectie: Tukey-fences (waarden buiten `q1 - 1.5*IQR` en `q3 + 1.5*IQR`)
+- [x] `BoxChart.tsx` component met multi-group support
+- [x] Whiskers tot min/max binnen Tukey-fences; outliers als losse markers
+- [x] Optioneel: mediaan-notch (visualiseert 95% CI rondom mediaan) — controle via `notched` in spec
+- [x] Optioneel: mean-marker (extra dot binnen box) — controle via `showMeanMarker`
+- [x] Edge cases: n=1 per groep (geen box, alleen punt), alle waardes identiek (vlakke lijn op één hoogte), één lege groep
+- [x] Privacy-check: PlotData bevat 5-number summary + outliers, GEEN volledige rij-data
 
 **Acceptance criteria**
-- [ ] Test fixture (bv. `iris` Sepal.Width per Species) reproduceert quartielen identiek aan R's `boxplot()`
-- [ ] Outliers visueel zichtbaar, niet samengevoegd met whiskers
-- [ ] Met `notched: true`: notch zichtbaar wanneer 95% CI rondom mediaan binnen de box past
-- [ ] PlotData JSON: geen `rows`, geen patient-keys, alleen aggregaten + outlier-waarden
-- [ ] Visueel match met design system: hairlines, geen kleur-overload, mono labels op assen
+- [x] Test fixture (bv. `iris` Sepal.Width per Species) reproduceert quartielen identiek aan R's `boxplot()`
+- [x] Outliers visueel zichtbaar, niet samengevoegd met whiskers
+- [x] Met `notched: true`: notch zichtbaar wanneer 95% CI rondom mediaan binnen de box past
+- [x] PlotData JSON: geen `rows`, geen patient-keys, alleen aggregaten + outlier-waarden
+- [x] Visueel match met design system: hairlines, geen kleur-overload, mono labels op assen
 
 ---
 
@@ -469,23 +470,23 @@ Vervangt het oorspronkelijke ROC-ticket na chart-pivot. Box plot is de canonisch
 Vervangt het oorspronkelijke Forest-ticket na chart-pivot. Twee gebruiksvormen in één primitive: longitudinaal verloop (mean per visit per arm) en correlatie tussen twee continue variabelen. Mode-toggle (`line | scatter | both`) bepaalt rendering zonder data te hertransformeren. Optioneel: lineaire regressielijn voor scatter, error-bands voor line. Dit is je dekking voor "trend over time" en "correlation" — twee use cases die in elk klinisch artikel terugkomen.
 
 **Actie-items**
-- [ ] `xyPlot.ts` — pure functie: rauwe rijen `[{x, y, group?}]` → `[{label, points: [{x, y}]}]` per groep
-- [ ] Optionele regressie-helper: `computeLinearRegression(points)` → `{slope, intercept, r2}` via ordinary least squares
-- [ ] Optionele aggregator voor longitudinaal: rauwe rijen `[{visit, value, patientId, group}]` → mean per visit per groep met SD/SEM voor error-bands
-- [ ] `XYChart.tsx` met `mode` switch (line / scatter / both)
-- [ ] **Line mode:** smooth lijnen (D3 `curveMonotoneX`), optioneel error-bands als semi-transparent gevulde area
-- [ ] **Scatter mode:** punten op coordinaten, optioneel regressielijn over volledige x-range
-- [ ] **Both mode:** lijn door points + zichtbare punten op de lijn
-- [ ] Multi-group support: kleurpalet uit design system, dashed alternatief voor B-arm (consistent met KM-conventie)
-- [ ] Edge cases: één punt per groep, alle x-waardes identiek, single group, regressie op n<3 (skip, toon warning in receipt)
-- [ ] Privacy-check: PlotData bevat aggregaten of paired (x,y) observations — geen patient-IDs of indexeerbare keys
+- [x] `xyPlot.ts` — pure functie: rauwe rijen `[{x, y, group?}]` → `[{label, points: [{x, y}]}]` per groep
+- [x] Optionele regressie-helper: `computeLinearRegression(points)` → `{slope, intercept, r2}` via ordinary least squares
+- [x] Optionele aggregator voor longitudinaal: rauwe rijen `[{visit, value, patientId, group}]` → mean per visit per groep met SD/SEM voor error-bands
+- [x] `XYChart.tsx` met `mode` switch (line / scatter / both)
+- [x] **Line mode:** smooth lijnen (D3 `curveMonotoneX`), optioneel error-bands als semi-transparent gevulde area
+- [x] **Scatter mode:** punten op coordinaten, optioneel regressielijn over volledige x-range
+- [x] **Both mode:** lijn door points + zichtbare punten op de lijn
+- [x] Multi-group support: kleurpalet uit design system, dashed alternatief voor B-arm (consistent met KM-conventie)
+- [x] Edge cases: één punt per groep, alle x-waardes identiek, single group, regressie op n<3 (skip, toon warning in receipt)
+- [x] Privacy-check: PlotData bevat aggregaten of paired (x,y) observations — geen patient-IDs of indexeerbare keys
 
 **Acceptance criteria**
-- [ ] Line mode: longitudinale fixture (mean per cycle per arm) rendert correct met optionele SEM-bands
-- [ ] Scatter mode: bivariate fixture rendert met regressielijn + r² annotatie wanneer `showRegression: true`
-- [ ] Both mode: lijn + punten tegelijk zichtbaar, geen visuele clutter
-- [ ] Regressie-output binnen ±0.001 van bekende OLS-implementatie (bv. `scipy.stats.linregress` op iris)
-- [ ] PlotData JSON: geen `patientId`, `subjectId`, of vergelijkbare indexeerbare velden
+- [x] Line mode: longitudinale fixture (mean per cycle per arm) rendert correct met optionele SEM-bands
+- [x] Scatter mode: bivariate fixture rendert met regressielijn + r² annotatie wanneer `showRegression: true`
+- [x] Both mode: lijn + punten tegelijk zichtbaar, geen visuele clutter
+- [x] Regressie-output binnen ±0.001 van bekende OLS-implementatie (bv. `scipy.stats.linregress` op iris)
+- [x] PlotData JSON: geen `patientId`, `subjectId`, of vergelijkbare indexeerbare velden
 
 ---
 
@@ -542,6 +543,7 @@ SQL-migratie voor de charts-tabel. Eén tabel, JSONB voor flexibiliteit, RLS voo
 - [ ] `supabase db reset` past schema clean toe
 - [ ] Dual-account test bewijst RLS-isolatie
 
+On export, source the title from ChartSpec.title, NOT from overrideDisplay.title. The · overridden from X suffix is page-UI-only and must not appear in exported artifacts.
 ---
 
 ### LOUPE-17 · Save chart server action

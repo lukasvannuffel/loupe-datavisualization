@@ -1,31 +1,76 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAppState } from "@/app/providers";
-import { ChartRenderer } from "@/components/charts/ChartRenderer";
+import { useAppState, type LoupeDataset } from "@/app/providers";
+import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
+
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
+import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
 import type { ChartSlug } from "@/components/charts/chartPreviews";
+import { inferErrorTypeFromReceipt } from "@/lib/chartSpec/aggregators/errorBars";
+import { patchSpecKind } from "@/lib/chartSpec/customizations/patchSpec";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
+import { getOverrideDisplayState } from "./overrideDisplay";
+import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
+import { ErrorBarsUnavailable } from "./recommendation/ErrorBarsUnavailable";
+import { MissingDataWarning } from "./recommendation/MissingDataWarning";
 import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
 
+/** Exclusive threshold: exactly 5% drop rate does not show MissingDataWarning. */
+const MISSING_DATA_WARN_DROP_RATE = 0.05;
+
 export type RecommendationProps = {
     readonly chartKind: ChartSpec["kind"];
+    readonly dataset: LoupeDataset;
     readonly fromCache: boolean;
     readonly receipt: Receipt;
+    readonly spec: ChartSpec;
 };
 
 export const Recommendation = ({
     chartKind,
+    dataset,
     fromCache,
     receipt,
+    spec,
 }: RecommendationProps): JSX.Element => {
     const router = useRouter();
-    const { appendOverride, intent, setSelectionMode } = useAppState();
+    const {
+        appendOverride,
+        intent,
+        mapping,
+        setSelectionMode,
+        updateLatestOverrideReason,
+    } = useAppState();
+    const mergeReceiptErrorType = (next: ChartSpec): ChartSpec => {
+        if (next.kind !== "barError") {
+            return next;
+        }
+
+        return patchSpecKind(next, { errorBarType: inferErrorTypeFromReceipt(receipt) });
+    };
+
+    const [liveSpec, setLiveSpec] = useState<ChartSpec>(() => mergeReceiptErrorType(spec));
+
+    useEffect(() => {
+        setLiveSpec(mergeReceiptErrorType(spec));
+    }, [receipt, spec]);
+
+    let barErrorMapResult: BarErrorMappingResult = { mapping };
+    let barErrorAggregation: ReturnType<typeof aggregateBarError> | undefined;
+
+    if (chartKind === "barError") {
+        barErrorMapResult = mappingForBarError(mapping, dataset.inferences);
+        barErrorAggregation = aggregateBarError(dataset.rows, barErrorMapResult.mapping);
+    }
+
+    const barErrorMapping = barErrorMapResult.mapping;
+
     const primaryAlt = receipt.alternatives[0];
     const AltPreview = primaryAlt !== undefined ? CHART_PREVIEWS[primaryAlt.slug] : null;
     const transform = receipt.transformations[0];
@@ -33,7 +78,7 @@ export const Recommendation = ({
     const words = text.split(/(\s+)/);
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
-    const hasOverrides = receipt.overrides.length > 0;
+    const { isDisplayOverridden, title } = getOverrideDisplayState(receipt, chartKind);
 
     useEffect(() => {
         let cancelled = false;
@@ -62,7 +107,6 @@ export const Recommendation = ({
         appendOverride({
             at: new Date().toISOString(),
             from: chartKind,
-            reason: "from AI alternatives",
             to: primaryAlt.slug,
         });
     };
@@ -115,13 +159,13 @@ export const Recommendation = ({
                             <div>
                                 <Eyebrow>Recommended figure</Eyebrow>
                                 <h3 className="rec-chart-title" contentEditable suppressContentEditableWarning>
-                                    {receipt.recommendation.chartName}
+                                    {title}
                                 </h3>
                             </div>
                             <span className="muted mono rec-chart-tag">FIG · DRAFT</span>
                         </div>
                         <div className="rec-chart-frame">
-                            {hasOverrides ? (
+                            {isDisplayOverridden ? (
                                 <span
                                     role="status"
                                     className="rec-override-badge mono muted"
@@ -133,7 +177,82 @@ export const Recommendation = ({
                             ) : null}
                             {phase >= 2 ? (
                                 <div className="rec-chart-reveal">
-                                    <ChartRenderer kind={chartKind} />
+                                    {chartKind === "barError" &&
+                                    liveSpec.kind === "barError" &&
+                                    barErrorAggregation ? (
+                                        <>
+                                            {barErrorAggregation.missing.dropRate >
+                                            MISSING_DATA_WARN_DROP_RATE ? (
+                                                <MissingDataWarning info={barErrorAggregation.missing} />
+                                            ) : null}
+                                            {barErrorMapResult.inferredOutcome !== undefined ? (
+                                                <p
+                                                    className="rec-inferred-outcome muted small"
+                                                    role="status"
+                                                >
+                                                    Outcome column inferred:{" "}
+                                                    <strong className="mono">
+                                                        {barErrorMapResult.inferredOutcome}
+                                                    </strong>
+                                                    {" "}
+                                                    — confirm on the map step.
+                                                </p>
+                                            ) : null}
+                                            {barErrorAggregation.groups.length === 0 ? (
+                                                <div className="rec-chart-empty muted" role="status">
+                                                    <p>
+                                                        No plottable groups yet. On the map step, assign{" "}
+                                                        <strong>Group / arm</strong> and{" "}
+                                                        <strong>Outcome</strong> to categorical and numeric
+                                                        columns (e.g. treatment + blood pressure change).
+                                                    </p>
+                                                    {barErrorMapping.outcome === undefined ||
+                                                    barErrorMapping.group === undefined ? (
+                                                        <p className="small">
+                                                            Missing:{" "}
+                                                            {barErrorMapping.group === undefined
+                                                                ? "group"
+                                                                : ""}
+                                                            {barErrorMapping.group === undefined &&
+                                                            barErrorMapping.outcome === undefined
+                                                                ? " · "
+                                                                : ""}
+                                                            {barErrorMapping.outcome === undefined
+                                                                ? "outcome"
+                                                                : ""}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="small">
+                                                            Rows may use non-numeric outcomes (check decimal
+                                                            commas) or missing values in those columns.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <SpecChartPanel
+                                                        chartKind={chartKind}
+                                                        dataset={dataset}
+                                                        mapping={mapping}
+                                                        spec={liveSpec}
+                                                    />
+                                                    <ErrorBarsUnavailable
+                                                        groups={barErrorAggregation.groups}
+                                                    />
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <SpecChartPanel
+                                            chartKind={chartKind}
+                                            dataset={dataset}
+                                            mapping={mapping}
+                                            spec={liveSpec}
+                                        />
+                                    )}
+                                    <p className="rec-chart-hint muted small">
+                                        Tune colors and labels on the export step.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="rec-chart-frame-loading">
@@ -141,20 +260,16 @@ export const Recommendation = ({
                                 </div>
                             )}
                         </div>
-                        <div className="rec-chart-hint">
-                            <span>
-                                <span className="ring ring--xs" />
-                                Click any axis label, title, or legend to edit inline.
-                            </span>
-                        </div>
                     </div>
 
                     <RecommendationWhy
                         AltPreview={AltPreview}
+                        isDisplayOverridden={isDisplayOverridden}
                         onUseAlt={onUseAlt}
                         phase={phase}
                         primaryAlt={primaryAlt}
                         receipt={receipt}
+                        updateLatestOverrideReason={updateLatestOverrideReason}
                     />
                 </div>
             </div>
