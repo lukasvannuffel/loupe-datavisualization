@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAppState } from "@/app/providers";
+import { brandRows } from "@/lib/parser/types";
 import {
     applyXYLongitudinalRouting,
     createDefaultChartSpec,
 } from "@/lib/chartSpec/factory";
+import { attachCustomizations } from "@/lib/chartSpec/labels/buildCustomizations";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 
 import { Recommendation } from "./Recommendation";
@@ -42,7 +44,12 @@ export const RecommendGate = (): JSX.Element | null => {
             return;
         }
 
-        const baseSpec = chartSpec ?? createDefaultChartSpec(chartKind);
+        const rows = dataset?.rows ?? brandRows([]);
+        const baseSpec = chartSpec ?? createDefaultChartSpec(chartKind, undefined, {
+            inferences: dataset?.inferences ?? [],
+            mapping,
+            rows,
+        });
 
         if (chartKind === "xy" && baseSpec.kind === "xy" && dataset !== null) {
             const routed = applyXYLongitudinalRouting(baseSpec, {
@@ -53,12 +60,12 @@ export const RecommendGate = (): JSX.Element | null => {
             if (routed.mapping.id !== mapping.id) {
                 setMapping(routed.mapping);
             }
-            setResolvedSpec(routed.spec);
+            setResolvedSpec(attachCustomizations(routed.spec, mapping));
 
             return;
         }
 
-        setResolvedSpec(baseSpec);
+        setResolvedSpec(attachCustomizations(baseSpec, mapping));
     }, [chartKind, chartSpec, dataset, mapping, setMapping]);
 
     if (!hydrated || !receipt || !chartKind || !resolvedSpec || dataset === null) {

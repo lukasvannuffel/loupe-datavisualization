@@ -115,7 +115,7 @@ describe("BarErrorChart", () => {
 
         const group = threeGroups[0];
         const { container, rerender } = render(
-            <BarErrorChart groups={[group]} spec={stableSpec} errorType="sd" />,
+            <BarErrorChart groups={[group]} spec={stableSpec} />,
         );
 
         await waitFor(() => {
@@ -126,7 +126,12 @@ describe("BarErrorChart", () => {
             Number(l.getAttribute("y1")),
         );
 
-        rerender(<BarErrorChart groups={[group]} spec={stableSpec} errorType="ci95" />);
+        rerender(
+            <BarErrorChart
+                groups={[group]}
+                spec={{ ...stableSpec, errorBarType: "ci95" }}
+            />,
+        );
 
         await waitFor(() => {
             const yAfter = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -139,7 +144,7 @@ describe("BarErrorChart", () => {
     it("error bar geometry changes when errorType changes", async () => {
         const group = threeGroups[0];
         const { container, rerender } = render(
-            <BarErrorChart groups={[group]} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
@@ -150,7 +155,7 @@ describe("BarErrorChart", () => {
             Number(l.getAttribute("y1")),
         );
 
-        rerender(<BarErrorChart groups={[group]} spec={spec} errorType="sem" />);
+        rerender(<BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "sem" }} />);
 
         await waitFor(() => {
             const yCoordsSem = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -159,7 +164,7 @@ describe("BarErrorChart", () => {
             expect(yCoordsSem).not.toEqual(yCoordsSd);
         });
 
-        rerender(<BarErrorChart groups={[group]} spec={spec} errorType="ci95" />);
+        rerender(<BarErrorChart groups={[group]} spec={{ ...spec, errorBarType: "ci95" }} />);
 
         await waitFor(() => {
             const yCoordsCi = [...container.querySelectorAll("g.errors line")].map((l) =>
@@ -172,7 +177,7 @@ describe("BarErrorChart", () => {
     it("renders no error lines for n=1 groups", async () => {
         const single: GroupStats = { label: "solo", mean: 5, sd: 2, n: 1 };
         const { container } = render(
-            <BarErrorChart groups={[single]} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={[single]} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
@@ -188,7 +193,7 @@ describe("BarErrorChart", () => {
         ];
         const maxMean = Math.max(...allNegative.map((c) => c.mean));
 
-        render(<BarErrorChart groups={allNegative} spec={spec} errorType="sd" />);
+        render(<BarErrorChart groups={allNegative} spec={{ ...spec, errorBarType: "sd" }} />);
 
         await waitFor(() => {
             expect(scaleLinearDomainCalls.length).toBeGreaterThan(0);
@@ -201,7 +206,7 @@ describe("BarErrorChart", () => {
 
     it("renders bars, error lines, axis labels, and aria-label", async () => {
         const { container } = render(
-            <BarErrorChart groups={threeGroups} spec={spec} errorType="sem" />,
+            <BarErrorChart groups={threeGroups} spec={{ ...spec, errorBarType: "sem" }} />,
         );
 
         await waitFor(() => {
@@ -224,14 +229,14 @@ describe("BarErrorChart", () => {
         ];
 
         const { container, rerender } = render(
-            <BarErrorChart groups={threeGroups} spec={spec} errorType="sem" />,
+            <BarErrorChart groups={threeGroups} spec={{ ...spec, errorBarType: "sem" }} />,
         );
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(3);
         });
 
-        rerender(<BarErrorChart groups={twoGroups} spec={spec} errorType="sem" />);
+        rerender(<BarErrorChart groups={twoGroups} spec={{ ...spec, errorBarType: "sem" }} />);
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(2);
@@ -239,7 +244,9 @@ describe("BarErrorChart", () => {
     });
 
     it("handles empty groups without crashing", async () => {
-        const { container } = render(<BarErrorChart groups={[]} spec={spec} errorType="sem" />);
+        const { container } = render(
+            <BarErrorChart groups={[]} spec={{ ...spec, errorBarType: "sem" }} />,
+        );
 
         await waitFor(() => {
             expect(container.querySelectorAll("rect.bar")).toHaveLength(0);
@@ -250,7 +257,7 @@ describe("BarErrorChart", () => {
     it("renders negative means upward from the zero baseline", async () => {
         const negative: readonly GroupStats[] = [{ label: "Loss", mean: -5, sd: 1, n: 10 }];
         const { container } = render(
-            <BarErrorChart groups={negative} spec={spec} errorType="sd" />,
+            <BarErrorChart groups={negative} spec={{ ...spec, errorBarType: "sd" }} />,
         );
 
         await waitFor(() => {
