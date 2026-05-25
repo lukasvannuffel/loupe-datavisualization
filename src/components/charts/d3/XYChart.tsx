@@ -20,6 +20,8 @@ import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
 import type { Margin } from "./chart.types";
 import { DEFAULT_MARGIN } from "./chart.types";
+import { ChartLegend } from "@/components/charts/legend/ChartLegend";
+
 import { resolvePalette } from "./palettes";
 import { renderXYChartGroups } from "./xyGlyphs";
 import { useResizeObserver } from "./useResizeObserver";
@@ -161,27 +163,36 @@ export const XYChart = ({
               )
             : null;
 
+    const palette = resolvePalette(spec);
+
     return (
-        <div
-            ref={containerRef}
-            className="chart-surface"
-            data-testid="xy-chart"
-            style={{ position: "relative", width: "100%", minHeight: CHART_MIN_HEIGHT }}
-        >
-            <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
-            {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
-                <div
-                    className="chart-labels-host"
-                    style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                >
-                    <ChartLabelLayer
-                        dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
-                        layout={layout}
-                        spec={spec}
-                        onSpecChange={onSpecChange}
-                    />
-                </div>
-            ) : null}
+        <div className="chart-with-legend" data-testid="xy-chart" style={{ width: "100%" }}>
+            <div
+                ref={containerRef}
+                className="chart-surface"
+                style={{ position: "relative", width: "100%", minHeight: CHART_MIN_HEIGHT }}
+            >
+                <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
+                {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
+                    <div
+                        className="chart-labels-host"
+                        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                    >
+                        <ChartLabelLayer
+                            dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
+                            layout={layout}
+                            spec={spec}
+                            onSpecChange={onSpecChange}
+                        />
+                    </div>
+                ) : null}
+            </div>
+            <ChartLegend
+                chartKind="xy"
+                groups={data.groups}
+                mode={mode}
+                palette={palette}
+            />
         </div>
     );
 };

@@ -18,6 +18,8 @@ import type { BoxSpec } from "@/lib/chartSpec/types";
 import { applyAxes } from "./applyAxes";
 import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
+import { ChartLegend } from "@/components/charts/legend/ChartLegend";
+
 import { colorByIndex, resolvePalette } from "./palettes";
 import { drawBoxGlyph, drawStripGlyph } from "./boxGlyphs";
 import { ChartLabelLayer } from "./ChartLabelLayer";
@@ -177,27 +179,32 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
               )
             : null;
 
+    const palette = resolvePalette(spec);
+
     return (
         <div data-testid="box-chart" style={{ width: "100%" }}>
-            <div
-                ref={containerRef}
-                className="chart-surface"
-                style={{ position: "relative", width: "100%", minHeight: CHART_MIN_HEIGHT }}
-            >
-                <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
-                {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
-                    <div
-                        className="chart-labels-host"
-                        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                    >
-                        <ChartLabelLayer
-                            dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
-                            layout={layout}
-                            spec={spec}
-                            onSpecChange={onSpecChange}
-                        />
-                    </div>
-                ) : null}
+            <div className="chart-with-legend" style={{ width: "100%" }}>
+                <div
+                    ref={containerRef}
+                    className="chart-surface"
+                    style={{ position: "relative", width: "100%", minHeight: CHART_MIN_HEIGHT }}
+                >
+                    <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
+                    {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
+                        <div
+                            className="chart-labels-host"
+                            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                        >
+                            <ChartLabelLayer
+                                dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
+                                layout={layout}
+                                spec={spec}
+                                onSpecChange={onSpecChange}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+                <ChartLegend chartKind="box" groups={data.groups} palette={palette} />
             </div>
             {hasStripGroup ? (
                 <p className="rec-box-strip-caption muted small">

@@ -21,6 +21,8 @@ import { AtRiskTable } from "./atRiskTable";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
 import { DEFAULT_MARGIN } from "./chart.types";
+import { ChartLegend } from "@/components/charts/legend/ChartLegend";
+
 import { colorByIndex, resolvePalette } from "./palettes";
 import { drawKMCurve } from "./kmCurves";
 import { useResizeObserver } from "./useResizeObserver";
@@ -155,33 +157,38 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
               )
             : null;
 
+    const palette = resolvePalette(spec);
+
     return (
         <div style={{ width: "100%" }}>
-            <div
-                ref={containerRef}
-                className="chart-surface"
-                style={{
-                    flexShrink: 0,
-                    height: CHART_MIN_HEIGHT,
-                    overflow: "hidden",
-                    position: "relative",
-                    width: "100%",
-                }}
-            >
-                <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
-                {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
-                    <div
-                        className="chart-labels-host"
-                        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                    >
-                        <ChartLabelLayer
-                            dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
-                            layout={layout}
-                            spec={spec}
-                            onSpecChange={onSpecChange}
-                        />
-                    </div>
-                ) : null}
+            <div className="chart-with-legend" style={{ width: "100%" }}>
+                <div
+                    ref={containerRef}
+                    className="chart-surface"
+                    style={{
+                        flexShrink: 0,
+                        height: CHART_MIN_HEIGHT,
+                        overflow: "hidden",
+                        position: "relative",
+                        width: "100%",
+                    }}
+                >
+                    <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
+                    {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
+                        <div
+                            className="chart-labels-host"
+                            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                        >
+                            <ChartLabelLayer
+                                dimensions={{ width: dims.width, height: CHART_MIN_HEIGHT }}
+                                layout={layout}
+                                spec={spec}
+                                onSpecChange={onSpecChange}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+                <ChartLegend chartKind="km" groups={data.groups} palette={palette} />
             </div>
             {spec.showAtRisk && dims !== null ? (
                 <AtRiskTable

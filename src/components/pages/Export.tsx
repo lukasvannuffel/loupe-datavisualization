@@ -829,10 +829,7 @@ export const Export = (): JSX.Element => {
 
                 <div
                     id="customize-sheet"
-                    className={
-                        (useSpecFigure ? "export-rail-sheet" : "customize-rail") +
-                        (mobileRailOpen ? " is-mobile-open" : "")
-                    }
+                    className={"customize-rail" + (mobileRailOpen ? " is-mobile-open" : "")}
                     role={mobileRailOpen ? "dialog" : undefined}
                     aria-modal={mobileRailOpen ? "true" : undefined}
                     aria-label={mobileRailOpen ? "Customize the figure" : undefined}

@@ -12,6 +12,8 @@ import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BarErrorSpec } from "@/lib/chartSpec/types";
 
+import { ChartLegend } from "@/components/charts/legend/ChartLegend";
+
 import { colorByIndex, resolvePalette } from "./palettes";
 import { applyAxes } from "./applyAxes";
 import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
@@ -162,26 +164,31 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
             ? chartLabelLayout(dims, labelMargin, innerWidth, innerHeight, extraBottomPx)
             : null;
 
+    const palette = resolvePalette(spec);
+
     return (
-        <div
-            ref={containerRef}
-            className="chart-surface"
-            style={{ position: "relative", width: "100%", minHeight: 240 }}
-        >
-            <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
-            {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
-                <div
-                    className="chart-labels-host"
-                    style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-                >
-                    <ChartLabelLayer
-                        dimensions={dims}
-                        layout={layout}
-                        spec={spec}
-                        onSpecChange={onSpecChange}
-                    />
-                </div>
-            ) : null}
+        <div className="chart-with-legend" style={{ width: "100%" }}>
+            <div
+                ref={containerRef}
+                className="chart-surface"
+                style={{ position: "relative", width: "100%", minHeight: 240 }}
+            >
+                <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
+                {editable && dims !== null && layout !== null && onSpecChange !== undefined ? (
+                    <div
+                        className="chart-labels-host"
+                        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                    >
+                        <ChartLabelLayer
+                            dimensions={dims}
+                            layout={layout}
+                            spec={spec}
+                            onSpecChange={onSpecChange}
+                        />
+                    </div>
+                ) : null}
+            </div>
+            <ChartLegend chartKind="bar" groups={groups} palette={palette} />
         </div>
     );
 };
