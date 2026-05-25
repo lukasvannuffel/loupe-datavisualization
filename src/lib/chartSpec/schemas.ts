@@ -55,6 +55,25 @@ const statAnnotationSchema = z.discriminatedUnion("kind", [
         .strict(),
 ]);
 
+const axisCustomizationSchema = z
+    .object({
+        label: nonEmpty().optional(),
+    })
+    .strict();
+
+const customizationsSchema = z
+    .object({
+        title: nonEmpty().optional(),
+        axes: z
+            .object({
+                x: axisCustomizationSchema.optional(),
+                y: axisCustomizationSchema.optional(),
+            })
+            .strict()
+            .optional(),
+    })
+    .strict();
+
 const baseSpecShape = {
     version: z.literal(1),
     id: nonEmpty(),
@@ -79,6 +98,7 @@ const kmSpecSchema = z
         showAtRisk: z.boolean(),
         showStats: z.boolean(),
         timeUnit: z.enum(["days", "weeks", "months", "years"]),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -88,6 +108,7 @@ const barErrorSpecSchema = z
         kind: z.literal("barError"),
         errorBarType: z.enum(["sd", "sem", "ci95"]),
         annotations: z.array(statAnnotationSchema).readonly(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -98,6 +119,7 @@ const boxSpecSchema = z
         showOutliers: z.boolean(),
         showMeanMarker: z.boolean(),
         notched: z.boolean(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 
@@ -108,6 +130,7 @@ const xySpecSchema = z
         mode: z.enum(["line", "scatter", "both"]),
         showRegression: z.boolean(),
         showErrorBands: z.boolean(),
+        customizations: customizationsSchema.optional(),
     })
     .strict();
 

@@ -470,23 +470,23 @@ Vervangt het oorspronkelijke ROC-ticket na chart-pivot. Box plot is de canonisch
 Vervangt het oorspronkelijke Forest-ticket na chart-pivot. Twee gebruiksvormen in één primitive: longitudinaal verloop (mean per visit per arm) en correlatie tussen twee continue variabelen. Mode-toggle (`line | scatter | both`) bepaalt rendering zonder data te hertransformeren. Optioneel: lineaire regressielijn voor scatter, error-bands voor line. Dit is je dekking voor "trend over time" en "correlation" — twee use cases die in elk klinisch artikel terugkomen.
 
 **Actie-items**
-- [ ] `xyPlot.ts` — pure functie: rauwe rijen `[{x, y, group?}]` → `[{label, points: [{x, y}]}]` per groep
-- [ ] Optionele regressie-helper: `computeLinearRegression(points)` → `{slope, intercept, r2}` via ordinary least squares
-- [ ] Optionele aggregator voor longitudinaal: rauwe rijen `[{visit, value, patientId, group}]` → mean per visit per groep met SD/SEM voor error-bands
-- [ ] `XYChart.tsx` met `mode` switch (line / scatter / both)
-- [ ] **Line mode:** smooth lijnen (D3 `curveMonotoneX`), optioneel error-bands als semi-transparent gevulde area
-- [ ] **Scatter mode:** punten op coordinaten, optioneel regressielijn over volledige x-range
-- [ ] **Both mode:** lijn door points + zichtbare punten op de lijn
-- [ ] Multi-group support: kleurpalet uit design system, dashed alternatief voor B-arm (consistent met KM-conventie)
-- [ ] Edge cases: één punt per groep, alle x-waardes identiek, single group, regressie op n<3 (skip, toon warning in receipt)
-- [ ] Privacy-check: PlotData bevat aggregaten of paired (x,y) observations — geen patient-IDs of indexeerbare keys
+- [x] `xyPlot.ts` — pure functie: rauwe rijen `[{x, y, group?}]` → `[{label, points: [{x, y}]}]` per groep
+- [x] Optionele regressie-helper: `computeLinearRegression(points)` → `{slope, intercept, r2}` via ordinary least squares
+- [x] Optionele aggregator voor longitudinaal: rauwe rijen `[{visit, value, patientId, group}]` → mean per visit per groep met SD/SEM voor error-bands
+- [x] `XYChart.tsx` met `mode` switch (line / scatter / both)
+- [x] **Line mode:** smooth lijnen (D3 `curveMonotoneX`), optioneel error-bands als semi-transparent gevulde area
+- [x] **Scatter mode:** punten op coordinaten, optioneel regressielijn over volledige x-range
+- [x] **Both mode:** lijn door points + zichtbare punten op de lijn
+- [x] Multi-group support: kleurpalet uit design system, dashed alternatief voor B-arm (consistent met KM-conventie)
+- [x] Edge cases: één punt per groep, alle x-waardes identiek, single group, regressie op n<3 (skip, toon warning in receipt)
+- [x] Privacy-check: PlotData bevat aggregaten of paired (x,y) observations — geen patient-IDs of indexeerbare keys
 
 **Acceptance criteria**
-- [ ] Line mode: longitudinale fixture (mean per cycle per arm) rendert correct met optionele SEM-bands
-- [ ] Scatter mode: bivariate fixture rendert met regressielijn + r² annotatie wanneer `showRegression: true`
-- [ ] Both mode: lijn + punten tegelijk zichtbaar, geen visuele clutter
-- [ ] Regressie-output binnen ±0.001 van bekende OLS-implementatie (bv. `scipy.stats.linregress` op iris)
-- [ ] PlotData JSON: geen `patientId`, `subjectId`, of vergelijkbare indexeerbare velden
+- [x] Line mode: longitudinale fixture (mean per cycle per arm) rendert correct met optionele SEM-bands
+- [x] Scatter mode: bivariate fixture rendert met regressielijn + r² annotatie wanneer `showRegression: true`
+- [x] Both mode: lijn + punten tegelijk zichtbaar, geen visuele clutter
+- [x] Regressie-output binnen ±0.001 van bekende OLS-implementatie (bv. `scipy.stats.linregress` op iris)
+- [x] PlotData JSON: geen `patientId`, `subjectId`, of vergelijkbare indexeerbare velden
 
 ---
 

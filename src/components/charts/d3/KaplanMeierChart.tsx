@@ -10,9 +10,11 @@ import { select } from "d3-selection";
 import { useEffect } from "react";
 
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { KMSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes, axisTickCountForWidth } from "./applyAxes";
+import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { AtRiskTable } from "./atRiskTable";
 import { DEFAULT_MARGIN } from "./chart.types";
@@ -26,8 +28,11 @@ type Props = {
     readonly data: KMPlotData;
 };
 
+const LABEL_MARGIN = marginWithLabels(DEFAULT_MARGIN);
+
 export const KaplanMeierChart = ({ spec, data }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
+    const labels = resolveChartLabels(spec);
 
     useEffect(() => {
         if (!dims || !containerRef.current || data.groups.length === 0) {
@@ -48,8 +53,7 @@ export const KaplanMeierChart = ({ spec, data }: Props): JSX.Element => {
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
-
-        const margin = DEFAULT_MARGIN;
+        const margin = LABEL_MARGIN;
         const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
         const innerHeight = Math.max(0, chartHeight - margin.top - margin.bottom);
         svg.selectAll("*").remove();
@@ -88,7 +92,7 @@ export const KaplanMeierChart = ({ spec, data }: Props): JSX.Element => {
         // uses numeric tick labels that don't overflow horizontally, so applyAxes never
         // reports extraBottomPx > 0. If a future variant adds categorical x-axis labels
         // (unlikely for survival time), restore the two-pass pattern from BarErrorChart.
-        applyAxes(
+        const axisResult = applyAxes(
             {
                 svg: svgEl,
                 dimensions: { width: dims.width, height: chartHeight },
@@ -100,9 +104,21 @@ export const KaplanMeierChart = ({ spec, data }: Props): JSX.Element => {
             yScale,
             tokens,
         );
+        applyChartLabels({
+            ctx: {
+                svg: svgEl,
+                dimensions: { width: dims.width, height: chartHeight },
+                margin,
+                innerWidth,
+                innerHeight,
+            },
+            labels,
+            tokens,
+            extraBottomPx: axisResult.extraBottomPx,
+        });
     }, [spec, data, dims]);
 
-    const marginLeft = DEFAULT_MARGIN.left;
+    const marginLeft = LABEL_MARGIN.left;
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - marginLeft - DEFAULT_MARGIN.right) : 0;
     const tickCount = dims !== null ? axisTickCountForWidth(dims.width) : 6;
@@ -122,7 +138,7 @@ export const KaplanMeierChart = ({ spec, data }: Props): JSX.Element => {
                     width: "100%",
                 }}
             >
-                <svg className="rec-chart-svg" role="img" aria-label={spec.title} />
+                <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
             </div>
             {spec.showAtRisk && dims !== null ? (
                 <AtRiskTable

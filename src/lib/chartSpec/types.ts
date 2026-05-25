@@ -46,6 +46,18 @@ export type StatAnnotation =
 /** Discriminator subset: the four chart types V1 ships with full Spec + PlotData. */
 export type SpecKind = Extract<ChartSlug, "km" | "barError" | "box" | "xy">;
 
+export type AxisCustomization = {
+    readonly label?: string;
+};
+
+export type Customizations = {
+    readonly title?: string;
+    readonly axes?: {
+        readonly x?: AxisCustomization;
+        readonly y?: AxisCustomization;
+    };
+};
+
 /** Frame, typography, palette and stroke options shared by every Spec. */
 export type BaseSpec = {
     version: 1;
@@ -70,6 +82,7 @@ export type KMSpec = BaseSpec & {
     showAtRisk: boolean;
     showStats: boolean;
     timeUnit: "days" | "weeks" | "months" | "years";
+    readonly customizations?: Customizations;
 };
 
 /** Categorical means with uncertainty: error-bar family + optional significance annotations. */
@@ -77,6 +90,7 @@ export type BarErrorSpec = BaseSpec & {
     kind: "barError";
     errorBarType: "sd" | "sem" | "ci95";
     annotations: readonly StatAnnotation[];
+    readonly customizations?: Customizations;
 };
 
 /** Box plot configuration: outliers, mean marker, notch. */
@@ -85,6 +99,7 @@ export type BoxSpec = BaseSpec & {
     readonly showOutliers: boolean;
     readonly showMeanMarker: boolean;
     readonly notched: boolean;
+    readonly customizations?: Customizations;
 };
 
 /** XY plot: scatter, line, or combined; regression and error-band toggles. */
@@ -93,6 +108,7 @@ export type XYSpec = BaseSpec & {
     readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
     readonly showErrorBands: boolean;
+    readonly customizations?: Customizations;
 };
 
 /** Discriminated visual configuration for any V1 chart. Renderer dispatches on `kind`. */

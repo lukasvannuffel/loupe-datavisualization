@@ -4,6 +4,7 @@ import type { ColumnInference } from "@/lib/parser/inference.types";
 import { brandRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
 
+import { deriveLabel } from "../labels/deriveLabel";
 import { applyXYLongitudinalRouting, createDefaultChartSpec, createRoutedChartSpec } from "../factory";
 import { chartSpecSchema } from "../schemas";
 import type { SpecKind, XYSpec } from "../types";
@@ -35,6 +36,22 @@ describe("createDefaultChartSpec", () => {
         const b = createDefaultChartSpec("xy");
         expect(a.id).not.toBe("");
         expect(a.id).not.toBe(b.id);
+    });
+
+    it("populates customizations from column mapping via deriveLabel", () => {
+        const mapping: Mapping = {
+            group: "treatment_group",
+            outcome: "bp_reduction_mmHg",
+        };
+        const spec = createDefaultChartSpec("barError", undefined, {
+            mapping,
+            rows: brandRows([]),
+            inferences: [],
+        });
+        expect(spec.customizations?.axes?.x?.label).toBe(deriveLabel("treatment_group"));
+        expect(spec.customizations?.axes?.y?.label).toBe(deriveLabel("bp_reduction_mmHg"));
+        expect(spec.customizations?.title).toContain(deriveLabel("bp_reduction_mmHg"));
+        expect(spec.title).toBe(spec.customizations?.title);
     });
 
     it("sets sensible kind-specific defaults", () => {

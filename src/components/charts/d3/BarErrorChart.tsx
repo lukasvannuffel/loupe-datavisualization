@@ -8,9 +8,11 @@ import { useEffect } from "react";
 
 import { computeErrorBar } from "@/lib/chartSpec/aggregators/errorBars";
 import type { ErrorBarType, GroupStats } from "@/lib/chartSpec/aggregators/barError.types";
+import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BarErrorSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes } from "./applyAxes";
+import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import type { Margin } from "./chart.types";
 import { DEFAULT_MARGIN } from "./chart.types";
@@ -28,6 +30,7 @@ type Props = {
 
 export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
+    const labels = resolveChartLabels(spec);
 
     useEffect(() => {
         if (!dims || !containerRef.current || groups.length === 0) {
@@ -47,6 +50,7 @@ export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element =
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
@@ -113,28 +117,36 @@ export const BarErrorChart = ({ spec, groups, errorType }: Props): JSX.Element =
                 line(cx - capW, cx + capW, yBot, yBot);
             });
 
-            return applyAxes(
+            const axisResult = applyAxes(
                 { svg: svgEl, dimensions: dims, margin, innerWidth, innerHeight },
                 xScale,
                 yScale,
                 tokens,
-            ).extraBottomPx;
+            );
+            applyChartLabels({
+                ctx: { svg: svgEl, dimensions: dims, margin, innerWidth, innerHeight },
+                labels,
+                tokens,
+                extraBottomPx: axisResult.extraBottomPx,
+            });
+
+            return axisResult.extraBottomPx;
         };
 
-        const extraBottom = draw(DEFAULT_MARGIN);
+        const extraBottom = draw(labelMargin);
         if (extraBottom > 0) {
             // Two-pass draw is intentional. Label-rotation detection in applyAxes requires
             // measured getBBox widths from a real DOM render. We accept one extra draw on
             // resize/effect-runs (microseconds at typical group counts) in exchange for
             // rotation-correctness without a separate measurement pass. Do NOT refactor to
             // a single draw without first solving offline label measurement.
-            draw({ ...DEFAULT_MARGIN, bottom: DEFAULT_MARGIN.bottom + extraBottom });
+            draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
     }, [spec, groups, errorType, dims]);
 
     return (
         <div ref={containerRef} style={{ width: "100%", minHeight: 240 }}>
-            <svg className="rec-chart-svg" role="img" aria-label={spec.title} />
+            <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
         </div>
     );
 };

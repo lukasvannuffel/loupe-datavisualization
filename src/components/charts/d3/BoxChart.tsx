@@ -11,9 +11,11 @@ import { select } from "d3-selection";
 import { useEffect } from "react";
 
 import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
+import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BoxSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes } from "./applyAxes";
+import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { drawBoxGlyph, drawStripGlyph } from "./boxGlyphs";
 import type { Margin } from "./chart.types";
@@ -32,6 +34,7 @@ type Props = {
 export const BoxChart = ({ data, spec }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const hasStripGroup = data.groups.some((group) => group.kind === "strip");
+    const labels = resolveChartLabels(spec);
 
     useEffect(() => {
         if (!dims || !containerRef.current || data.groups.length === 0) {
@@ -51,6 +54,7 @@ export const BoxChart = ({ data, spec }: Props): JSX.Element => {
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
@@ -93,23 +97,37 @@ export const BoxChart = ({ data, spec }: Props): JSX.Element => {
                 }
             });
 
-            return applyAxes(
+            const axisResult = applyAxes(
                 { svg: svgEl, dimensions: { width: dims.width, height: CHART_MIN_HEIGHT }, margin, innerWidth, innerHeight },
                 xScale,
                 yScale,
                 tokens,
-            ).extraBottomPx;
+            );
+            applyChartLabels({
+                ctx: {
+                    svg: svgEl,
+                    dimensions: { width: dims.width, height: CHART_MIN_HEIGHT },
+                    margin,
+                    innerWidth,
+                    innerHeight,
+                },
+                labels,
+                tokens,
+                extraBottomPx: axisResult.extraBottomPx,
+            });
+
+            return axisResult.extraBottomPx;
         };
 
-        const extraBottom = draw(DEFAULT_MARGIN);
+        const extraBottom = draw(labelMargin);
         if (extraBottom > 0) {
-            draw({ ...DEFAULT_MARGIN, bottom: DEFAULT_MARGIN.bottom + extraBottom });
+            draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
     }, [data, spec, dims]);
 
     return (
         <div ref={containerRef} data-testid="box-chart" style={{ width: "100%", minHeight: CHART_MIN_HEIGHT }}>
-            <svg className="rec-chart-svg" role="img" aria-label={spec.title} />
+            <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
             {hasStripGroup ? (
                 <p className="rec-box-strip-caption muted small">
                     Note: groups with n&lt;5 are shown as individual points; quartile-based summaries

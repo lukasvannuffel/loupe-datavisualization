@@ -3,6 +3,7 @@ import type { PrivateRows } from "@/lib/parser/types";
 import { detectLongitudinal } from "@/lib/recommendation/detectLongitudinal";
 import type { Mapping } from "@/lib/roles/types";
 
+import { attachCustomizations } from "./labels/buildCustomizations";
 import type {
     BarErrorSpec,
     BaseSpec,
@@ -153,17 +154,22 @@ export const applyXYLongitudinalRouting = (
  * Pure aside from `id` (UUID) and `createdAt` (now ISO) — caller may pin both
  * via the optional second arg for deterministic tests.
  */
+const finalizeSpec = (spec: ChartSpec, mapping: Mapping): ChartSpec =>
+    attachCustomizations(spec, mapping);
+
 export const createDefaultChartSpec = (
     kind: SpecKind,
     seed?: { readonly id?: string; readonly createdAt?: string },
     context?: ChartSpecFactoryContext,
 ): ChartSpec => {
-    const spec = FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
-    if (spec.kind !== "xy" || context === undefined) {
-        return spec;
-    }
+    const mapping = context?.mapping ?? {};
+    const base = FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
+    const spec =
+        base.kind === "xy" && context !== undefined
+            ? applyXYLongitudinalRouting(base, context).spec
+            : base;
 
-    return applyXYLongitudinalRouting(spec, context).spec;
+    return finalizeSpec(spec, mapping);
 };
 
 /** Like `createDefaultChartSpec` but returns mapping updates when longitudinal routing fires. */
@@ -173,11 +179,15 @@ export const createRoutedChartSpec = (
     seed?: { readonly id?: string; readonly createdAt?: string },
 ): RoutedChartSpec => {
     const spec = FACTORIES[kind](seed?.id ?? newId(), seed?.createdAt ?? new Date().toISOString());
-    if (spec.kind !== "xy") {
-        return { mapping: context.mapping, spec };
+    if (spec.kind === "xy") {
+        const routed = applyXYLongitudinalRouting(spec, context);
+        return {
+            mapping: routed.mapping,
+            spec: finalizeSpec(routed.spec, context.mapping),
+        };
     }
 
-    return applyXYLongitudinalRouting(spec, context);
+    return { mapping: context.mapping, spec: finalizeSpec(spec, context.mapping) };
 };
 
 /** Minimal default `BarErrorSpec` for renderer smoke tests and pages without a saved spec. */

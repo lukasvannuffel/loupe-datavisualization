@@ -394,6 +394,7 @@ export const Recommendation = ({
                                             ) : null}
                                             {xyPlotResult?.status === "ok" ? (
                                                 <XYChart
+                                                    spec={spec}
                                                     data={xyPlotResult.data}
                                                     mode={spec.mode}
                                                     showRegression={spec.showRegression}

@@ -88,6 +88,18 @@ const installResizeObserver = (width: number): void => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
 };
 
+const testXySpec = (patch?: Partial<XYSpec>): XYSpec => {
+    const spec = createDefaultChartSpec("xy", {
+        id: "xy-test-spec",
+        createdAt: "2026-05-20T10:00:00.000Z",
+    });
+    if (spec.kind !== "xy") {
+        throw new Error("expected xy spec");
+    }
+
+    return { ...spec, ...patch };
+};
+
 describe("XYChart", () => {
     let bboxSpy: ReturnType<typeof vi.spyOn> | undefined;
 
@@ -118,7 +130,12 @@ describe("XYChart", () => {
 
     it("renders line mode with paths but no markers", async () => {
         const { container } = render(
-            <XYChart data={xyFixture} mode="line" showRegression={false} />,
+            <XYChart
+                spec={testXySpec({ mode: "line", showRegression: false })}
+                data={xyFixture}
+                mode="line"
+                showRegression={false}
+            />,
         );
         await waitFor(() => {
             expect(container.querySelector('[data-role="xy-line"]')).toBeTruthy();
@@ -128,7 +145,12 @@ describe("XYChart", () => {
 
     it("renders scatter mode with markers but no lines", async () => {
         const { container } = render(
-            <XYChart data={xyFixture} mode="scatter" showRegression={false} />,
+            <XYChart
+                spec={testXySpec({ mode: "scatter", showRegression: false })}
+                data={xyFixture}
+                mode="scatter"
+                showRegression={false}
+            />,
         );
         await waitFor(() => {
             expect(container.querySelector('[data-role="xy-marker"]')).toBeTruthy();
@@ -138,7 +160,12 @@ describe("XYChart", () => {
 
     it("renders both mode with lines and markers", async () => {
         const { container } = render(
-            <XYChart data={xyFixture} mode="both" showRegression={false} />,
+            <XYChart
+                spec={testXySpec({ mode: "both", showRegression: false })}
+                data={xyFixture}
+                mode="both"
+                showRegression={false}
+            />,
         );
         await waitFor(() => {
             expect(container.querySelector('[data-role="xy-line"]')).toBeTruthy();
@@ -149,6 +176,7 @@ describe("XYChart", () => {
     it("renders error bands when showErrorBands=true on longitudinal data", async () => {
         const { container } = render(
             <XYChart
+                spec={testXySpec({ mode: "line", showRegression: false })}
                 data={longitudinalFixture}
                 mode="line"
                 showRegression={false}
@@ -162,7 +190,12 @@ describe("XYChart", () => {
 
     it("renders distinct line styles per group (DASH_BY_INDEX)", async () => {
         const { container } = render(
-            <XYChart data={xyFixture} mode="line" showRegression={false} />,
+            <XYChart
+                spec={testXySpec({ mode: "line", showRegression: false })}
+                data={xyFixture}
+                mode="line"
+                showRegression={false}
+            />,
         );
         await waitFor(() => {
             const lines = container.querySelectorAll('[data-role="xy-line"]');
@@ -174,7 +207,12 @@ describe("XYChart", () => {
 
     it("renders distinct marker shapes per group (MARKER_BY_INDEX)", async () => {
         const { container } = render(
-            <XYChart data={xyFixture} mode="scatter" showRegression={false} />,
+            <XYChart
+                spec={testXySpec({ mode: "scatter", showRegression: false })}
+                data={xyFixture}
+                mode="scatter"
+                showRegression={false}
+            />,
         );
         await waitFor(() => {
             const markersA = container.querySelectorAll(".xy-group-A [data-role='xy-marker']");
@@ -232,6 +270,7 @@ describe("XYChart", () => {
 
         const { container } = render(
             <XYChart
+                spec={spec}
                 data={data}
                 mode={spec.mode}
                 showRegression={spec.showRegression}
@@ -292,6 +331,7 @@ describe("XYChart", () => {
 
         const { container } = render(
             <XYChart
+                spec={lineSpec}
                 data={data}
                 mode={lineSpec.mode}
                 showRegression={lineSpec.showRegression}
@@ -340,6 +380,7 @@ describe("XYChart", () => {
 
         const { container } = render(
             <XYChart
+                spec={spec}
                 data={data}
                 mode={spec.mode}
                 showRegression={spec.showRegression}
@@ -371,7 +412,12 @@ describe("XYChart", () => {
             yMax: 60,
         };
         const { container } = render(
-            <XYChart data={data} mode="scatter" showRegression={true} />,
+            <XYChart
+                spec={testXySpec({ mode: "scatter", showRegression: true })}
+                data={data}
+                mode="scatter"
+                showRegression={true}
+            />,
         );
         await waitFor(() => {
             const line = container.querySelector('[data-role="xy-regression"]');

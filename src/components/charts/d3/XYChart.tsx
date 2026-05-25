@@ -9,8 +9,11 @@ import type {
     LongitudinalData,
     XYPlotData,
 } from "@/lib/chartSpec/aggregators/xyPlot.types";
+import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
+import type { XYSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes } from "./applyAxes";
+import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import type { Margin } from "./chart.types";
 import { DEFAULT_MARGIN } from "./chart.types";
@@ -21,6 +24,7 @@ const CHART_MIN_HEIGHT = 240;
 const AXIS_PADDING_RATIO = 0.05;
 
 type Props = {
+    readonly spec: XYSpec;
     readonly data: XYPlotData | LongitudinalData;
     readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
@@ -31,6 +35,7 @@ const isLongitudinal = (d: XYPlotData | LongitudinalData): d is LongitudinalData
     d.kind === "longitudinal";
 
 export const XYChart = ({
+    spec,
     data,
     mode,
     showRegression,
@@ -38,6 +43,7 @@ export const XYChart = ({
 }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const longitudinal = isLongitudinal(data);
+    const labels = resolveChartLabels(spec);
 
     useEffect(() => {
         if (!dims || !containerRef.current || data.groups.length === 0) {
@@ -57,6 +63,7 @@ export const XYChart = ({
 
         const tokens = readDesignTokens();
         applyDesignTokens(svg, tokens);
+        const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
         const draw = (margin: Margin): number => {
             const innerWidth = Math.max(0, dims.width - margin.left - margin.right);
@@ -91,7 +98,7 @@ export const XYChart = ({
                 yScale,
             });
 
-            return applyAxes(
+            const axisResult = applyAxes(
                 {
                     svg: svgEl,
                     dimensions: { width: dims.width, height: CHART_MIN_HEIGHT },
@@ -102,14 +109,28 @@ export const XYChart = ({
                 xScale,
                 yScale,
                 tokens,
-            ).extraBottomPx;
+            );
+            applyChartLabels({
+                ctx: {
+                    svg: svgEl,
+                    dimensions: { width: dims.width, height: CHART_MIN_HEIGHT },
+                    margin,
+                    innerWidth,
+                    innerHeight,
+                },
+                labels,
+                tokens,
+                extraBottomPx: axisResult.extraBottomPx,
+            });
+
+            return axisResult.extraBottomPx;
         };
 
-        const extraBottom = draw(DEFAULT_MARGIN);
+        const extraBottom = draw(labelMargin);
         if (extraBottom > 0) {
-            draw({ ...DEFAULT_MARGIN, bottom: DEFAULT_MARGIN.bottom + extraBottom });
+            draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, longitudinal, mode, showErrorBands, showRegression]);
+    }, [data, dims, labels, longitudinal, mode, showErrorBands, showRegression]);
 
     return (
         <div
@@ -117,7 +138,7 @@ export const XYChart = ({
             data-testid="xy-chart"
             style={{ width: "100%", minHeight: CHART_MIN_HEIGHT }}
         >
-            <svg className="rec-chart-svg" role="img" aria-label="XY plot" />
+            <svg className="rec-chart-svg" role="img" aria-label={labels.title} />
         </div>
     );
 };
