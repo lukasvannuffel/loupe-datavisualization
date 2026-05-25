@@ -21,7 +21,8 @@ import { AtRiskTable } from "./atRiskTable";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
 import { DEFAULT_MARGIN } from "./chart.types";
-import { drawKMCurve, GROUP_COLORS } from "./kmCurves";
+import { colorByIndex, resolvePalette } from "./palettes";
+import { drawKMCurve } from "./kmCurves";
 import { useResizeObserver } from "./useResizeObserver";
 
 const CHART_MIN_HEIGHT = 240;
@@ -89,10 +90,16 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
                 .attr("stroke-width", 0.6);
         }
 
+        const palette = resolvePalette(spec);
+        const groupCount = data.groups.length;
+
         data.groups.forEach((group, index) => {
             const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
-            const color = GROUP_COLORS[styleIndex] ?? GROUP_COLORS[0];
-            const g = plotG.append("g").attr("class", "km-group");
+            const color = colorByIndex(palette, styleIndex, groupCount);
+            const g = plotG
+                .append("g")
+                .attr("class", "km-group")
+                .attr("data-group-index", String(index));
             drawKMCurve(g, group, xScale, yScale, styleIndex, color);
         });
 
@@ -125,7 +132,7 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
         }
 
         setExtraBottomPx(axisResult.extraBottomPx);
-    }, [data, dims, editable, labels, spec]);
+    }, [data, dims, editable, labels, spec.customizations?.palette, spec.showGrid]);
 
     const marginLeft = LABEL_MARGIN.left;
     const innerWidth =

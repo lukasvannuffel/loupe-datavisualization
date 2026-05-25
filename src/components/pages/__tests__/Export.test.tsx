@@ -140,6 +140,19 @@ describe("Export customization rail", () => {
         });
     });
 
+    it("palette selector is available on export", async () => {
+        renderExport();
+        expect(screen.getByRole("listbox", { name: /chart palette/i })).toBeTruthy();
+        expect(screen.getAllByRole("option")).toHaveLength(7);
+    });
+
+    it("selecting okabe-ito palette marks the option active", async () => {
+        renderExport();
+        const okabeOption = screen.getByRole("option", { name: /Okabe–Ito/i });
+        fireEvent.click(okabeOption);
+        expect(okabeOption.getAttribute("aria-selected")).toBe("true");
+    });
+
     it("inline-edit on the rendered title persists to the spec", async () => {
         renderExport();
 

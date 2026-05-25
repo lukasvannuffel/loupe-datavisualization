@@ -18,6 +18,7 @@ import type { BoxSpec } from "@/lib/chartSpec/types";
 import { applyAxes } from "./applyAxes";
 import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
+import { colorByIndex, resolvePalette } from "./palettes";
 import { drawBoxGlyph, drawStripGlyph } from "./boxGlyphs";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
@@ -83,21 +84,40 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
             const boxWidth = xScale.bandwidth() * BOX_WIDTH_RATIO;
             const stripLabelY = innerHeight + 14;
 
-            data.groups.forEach((group) => {
+            const palette = resolvePalette(spec);
+            const groupCount = data.groups.length;
+            const useEditorialFill = palette === "editorial";
+
+            data.groups.forEach((group, index) => {
                 const bandX = xScale(group.label);
                 if (bandX === undefined) {
                     return;
                 }
 
+                const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
+                const groupColor = colorByIndex(palette, styleIndex, groupCount);
                 const xCenter = bandX + xScale.bandwidth() / 2;
-                const groupG = plotG.append("g").attr("class", `box-group-${group.label}`);
+                const groupG = plotG
+                    .append("g")
+                    .attr("class", `box-group-${group.label}`)
+                    .attr("data-group-index", String(index));
 
                 if (group.kind === "box") {
-                    drawBoxGlyph(groupG, group, xCenter, boxWidth, yScale, {
-                        notched: spec.notched,
-                        showMeanMarker: spec.showMeanMarker,
-                        showOutliers: spec.showOutliers,
-                    }, tokens);
+                    drawBoxGlyph(
+                        groupG,
+                        group,
+                        xCenter,
+                        boxWidth,
+                        yScale,
+                        {
+                            notched: spec.notched,
+                            showMeanMarker: spec.showMeanMarker,
+                            showOutliers: spec.showOutliers,
+                        },
+                        tokens,
+                        groupColor,
+                        useEditorialFill,
+                    );
                 }
                 else {
                     drawStripGlyph(groupG, group, xCenter, yScale, stripLabelY, tokens);
@@ -140,7 +160,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, spec]);
+    }, [data, dims, editable, labels, spec.customizations?.palette, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;

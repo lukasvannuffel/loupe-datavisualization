@@ -348,6 +348,13 @@ describe("Recommendation", () => {
         expect(screen.queryByTestId("publication-km")).toBeNull();
     });
 
+    it("shows palette selector beside chart after chart phase", async () => {
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+        expect(screen.getByRole("listbox", { name: /chart palette/i })).toBeTruthy();
+        expect(screen.getAllByRole("option")).toHaveLength(7);
+    });
+
     it("shows KaplanMeierError message when more than 4 groups", async () => {
         aggregateKaplanMeierMock.mockImplementation(() => {
             throw new KaplanMeierError("Max 4 groups supported. Received 5.");
@@ -634,12 +641,12 @@ describe("Recommendation", () => {
         expect(screen.getByText("bp_change")).toBeTruthy();
     });
 
-    it("does not render the customization rail on recommend", async () => {
+    it("renders customization rail with bar error controls on recommend", async () => {
         render(<Recommendation {...chartRenderProps("barError", sampleReceipt())} />);
         await advanceToChartPhase();
-        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
-        expect(screen.queryByLabelText("Error bar type")).toBeNull();
-        expect(screen.queryByText(/edit inline/i)).toBeNull();
+        expect(screen.getByRole("complementary", { name: /customize chart/i })).toBeTruthy();
+        expect(screen.getByLabelText("Error bar type")).toBeTruthy();
+        expect(screen.getByText(/edit inline/i)).toBeTruthy();
     });
 
     it("keeps the override workflow on recommend", async () => {

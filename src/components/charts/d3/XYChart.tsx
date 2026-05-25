@@ -20,6 +20,7 @@ import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
 import type { Margin } from "./chart.types";
 import { DEFAULT_MARGIN } from "./chart.types";
+import { resolvePalette } from "./palettes";
 import { renderXYChartGroups } from "./xyGlyphs";
 import { useResizeObserver } from "./useResizeObserver";
 
@@ -100,6 +101,7 @@ export const XYChart = ({
 
             renderXYChartGroups(data, plotG, {
                 mode,
+                palette: resolvePalette(spec),
                 showRegression,
                 showErrorBands,
                 xScale,
@@ -142,7 +144,7 @@ export const XYChart = ({
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, longitudinal, mode, showErrorBands, showRegression, spec]);
+    }, [data, dims, editable, labels, longitudinal, mode, showErrorBands, showRegression, spec.customizations?.palette, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;

@@ -61,6 +61,16 @@ const axisCustomizationSchema = z
     })
     .strict();
 
+const paletteNameSchema = z.enum([
+    "editorial",
+    "okabe-ito",
+    "wong",
+    "ibm-design",
+    "tol-vibrant",
+    "deuteranopia-tuned",
+    "monochrome",
+]);
+
 const customizationsSchema = z
     .object({
         title: nonEmpty().optional(),
@@ -71,6 +81,7 @@ const customizationsSchema = z
             })
             .strict()
             .optional(),
+        palette: paletteNameSchema.optional(),
     })
     .strict();
 

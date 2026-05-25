@@ -12,6 +12,7 @@ import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BarErrorSpec } from "@/lib/chartSpec/types";
 
+import { colorByIndex, resolvePalette } from "./palettes";
 import { applyAxes } from "./applyAxes";
 import { applyChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
@@ -80,16 +81,21 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                 .range([innerHeight, 0])
                 .nice();
             const baselineY = yScale(0);
+            const palette = resolvePalette(spec);
+            const groupCount = groups.length;
 
             g.selectAll("rect.bar")
                 .data(groups)
                 .join("rect")
                 .attr("class", "bar")
+                .attr("data-group-index", (_d, index) => String(index))
                 .attr("x", (d) => xScale(d.label) as number)
                 .attr("y", (d) => Math.min(yScale(d.mean), baselineY))
                 .attr("width", xScale.bandwidth())
                 .attr("height", (d) => Math.abs(baselineY - yScale(d.mean)))
-                .attr("fill", tokens.ink)
+                .attr("fill", (_d, index) =>
+                    colorByIndex(palette, Math.min(index, 3) as 0 | 1 | 2 | 3, groupCount),
+                )
                 .attr("opacity", 0.85);
 
             const errors = g.append("g").attr("class", "errors");
@@ -145,7 +151,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [dims, editable, groups, labels, spec.errorBarType, spec]);
+    }, [dims, editable, groups, labels, spec.customizations?.palette, spec.errorBarType, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;

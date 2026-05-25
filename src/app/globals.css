@@ -1699,6 +1699,15 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     margin: 0;
     font-size: 13px;
 }
+.customization-rail__hint {
+    margin: 0 0 10px;
+    font-size: 11px;
+}
+.customization-rail .palette-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
 .customization-field {
     display: flex;
     flex-direction: column;

@@ -87,4 +87,3 @@ export const drawKMCurve = (
     }
 };
 
-export const GROUP_COLORS = ["var(--ink)", "var(--gray)", "var(--amber)", "var(--blue)"] as const;

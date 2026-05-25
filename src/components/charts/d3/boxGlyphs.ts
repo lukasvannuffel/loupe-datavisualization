@@ -31,6 +31,8 @@ export const drawBoxGlyph = (
     yScale: ScaleLinear<number, number>,
     options: BoxDrawOptions,
     tokens: DesignTokens,
+    groupFillColor: string,
+    useEditorialFill: boolean,
 ): void => {
     const left = xCenter - boxWidth / 2;
     const right = xCenter + boxWidth / 2;
@@ -38,9 +40,16 @@ export const drawBoxGlyph = (
     const yQ3 = yScale(stats.q3);
     const yMed = yScale(stats.median);
     const cap = boxWidth * 0.25;
-    g.append("rect").attr("data-role", "box-rect").attr("x", left).attr("y", Math.min(yQ1, yQ3))
-        .attr("width", boxWidth).attr("height", Math.max(Math.abs(yQ1 - yQ3), 0.5))
-        .attr("fill", tokens.paper).attr("stroke", tokens.ink).attr("stroke-width", 0.75);
+    g.append("rect")
+        .attr("data-role", "box-rect")
+        .attr("x", left)
+        .attr("y", Math.min(yQ1, yQ3))
+        .attr("width", boxWidth)
+        .attr("height", Math.max(Math.abs(yQ1 - yQ3), 0.5))
+        .attr("fill", useEditorialFill ? tokens.paper : groupFillColor)
+        .attr("fill-opacity", useEditorialFill ? 1 : 0.2)
+        .attr("stroke", tokens.ink)
+        .attr("stroke-width", 0.75);
     if (options.notched) {
         const inset = boxWidth * 0.15;
         g.append("path").attr("data-role", "box-notch").attr("d",

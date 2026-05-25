@@ -50,12 +50,22 @@ export type AxisCustomization = {
     readonly label?: string;
 };
 
+export type PaletteName =
+    | "editorial"
+    | "okabe-ito"
+    | "wong"
+    | "ibm-design"
+    | "tol-vibrant"
+    | "deuteranopia-tuned"
+    | "monochrome";
+
 export type Customizations = {
     readonly title?: string;
     readonly axes?: {
         readonly x?: AxisCustomization;
         readonly y?: AxisCustomization;
     };
+    readonly palette?: PaletteName;
 };
 
 /** Frame, typography, palette and stroke options shared by every Spec. */

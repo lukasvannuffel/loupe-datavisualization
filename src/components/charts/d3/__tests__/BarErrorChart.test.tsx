@@ -275,4 +275,25 @@ describe("BarErrorChart", () => {
         const g = threeGroups[0];
         expect(computeErrorBar(g, "sem")).toBeCloseTo(g.sd / Math.sqrt(g.n), 5);
     });
+
+    it.each([
+        "editorial",
+        "okabe-ito",
+        "wong",
+        "ibm-design",
+        "tol-vibrant",
+        "deuteranopia-tuned",
+        "monochrome",
+    ] as const)("palette %s renders without error", async (palette) => {
+        const paletteSpec: BarErrorSpec = {
+            ...spec,
+            customizations: { palette },
+        };
+        expect(() =>
+            render(<BarErrorChart groups={threeGroups} spec={paletteSpec} />),
+        ).not.toThrow();
+        await waitFor(() => {
+            expect(document.querySelectorAll("rect.bar").length).toBeGreaterThan(0);
+        });
+    });
 });

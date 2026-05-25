@@ -156,6 +156,20 @@ describe("KaplanMeierChart", () => {
         });
     });
 
+    it("editorial palette with more than two groups uses ink for all curves", async () => {
+        const { container } = render(<KaplanMeierChart data={plotData(4)} spec={kmSpec} />);
+        await waitFor(() => {
+            expect(container.querySelectorAll("path.km-curve").length).toBe(4);
+        });
+
+        const groupNodes = container.querySelectorAll("g.km-group[data-group-index]");
+        expect(groupNodes.length).toBe(4);
+
+        for (const curve of container.querySelectorAll("path.km-curve")) {
+            expect(curve.getAttribute("stroke")).toMatch(/var\(--ink\)|#0[eE]0[eE]0[eE]/);
+        }
+    });
+
     it("draws censoring tick lines and CI bands at opacity 0.12", async () => {
         const { container } = render(<KaplanMeierChart data={plotData(1)} spec={kmSpec} />);
         await waitFor(() => {

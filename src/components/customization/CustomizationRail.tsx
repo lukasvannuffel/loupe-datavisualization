@@ -1,12 +1,17 @@
 "use client";
 
-import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
+import { resolvePalette } from "@/components/charts/d3/palettes";
+import {
+    updateCustomizationPalette,
+    type SpecUpdater,
+} from "@/lib/chartSpec/customizations/patchSpec";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 import { AxisLabelInput } from "./AxisLabelInput";
 import { BarRail } from "./BarRail";
 import { BoxRail } from "./BoxRail";
+import { PaletteSelector } from "./PaletteSelector";
 import { TitleInput } from "./TitleInput";
 import { XYRail } from "./XYRail";
 
@@ -29,6 +34,17 @@ export const CustomizationRail = ({
             <TitleInput spec={spec} onSpecChange={onSpecChange} />
             <AxisLabelInput axis="x" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
             <AxisLabelInput axis="y" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
+        </section>
+
+        <section className="customization-rail__section">
+            <h3 className="customization-rail__heading">Colors</h3>
+            <p className="customization-rail__hint muted">Colorblind-safe options included</p>
+            <PaletteSelector
+                value={resolvePalette(spec)}
+                onChange={(next) => {
+                    onSpecChange((prev) => updateCustomizationPalette(prev, next));
+                }}
+            />
         </section>
 
         <section className="customization-rail__section">

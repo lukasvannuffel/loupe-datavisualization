@@ -820,6 +820,7 @@ export const Export = (): JSX.Element => {
                         />
                     ) : null}
 
+                    {!useSpecFigure ? (
                     <CustomSection
                         id="colors"
                         label="Colors"
@@ -888,6 +889,7 @@ export const Export = (): JSX.Element => {
                             />
                         </div>
                     </CustomSection>
+                    ) : null}
 
                     <CustomSection
                         id="titles"
