@@ -501,18 +501,18 @@ Vervangt het oorspronkelijke Forest-ticket na chart-pivot. Twee gebruiksvormen i
 De rechter rail in `/export`. Begin met de basis (P0): titel, axis-labels, palette. Annotaties (P1: tekstlabels op chart) zijn nice-to-have.
 
 **Actie-items**
-- [ ] **P0:** Inline-editable titel + axis-labels (contentEditable)
-- [ ] **P0:** 3 medische palettes: monochrome, divergent (bv. lancet), categorical
-- [ ] **P0:** Live preview update bij wijziging zonder re-aggregate
-- [ ] **P0:** Box-specifieke toggles: `showOutliers`, `notched`, `showMeanMarker`
-- [ ] **P0:** XY-specifieke toggles: `mode` (line/scatter/both), `showRegression`, `showErrorBands`
-- [ ] **P1:** Annotatie-tool: klik op chart → text-label toevoegen, drag te repositioneren
-- [ ] **P1:** Error-bar type toggle (SD/SEM/CI) voor BarError chart
-- [ ] State serialiseert in ChartSpec voor save
+- [x] **P0:** Inline-editable titel + axis-labels (contentEditable)
+- [x] **P0:** 3 medische palettes: monochrome, divergent (bv. lancet), categorical
+- [x] **P0:** Live preview update bij wijziging zonder re-aggregate
+- [x] **P0:** Box-specifieke toggles: `showOutliers`, `notched`, `showMeanMarker`
+- [x] **P0:** XY-specifieke toggles: `mode` (line/scatter/both), `showRegression`, `showErrorBands`
+- [x] **P1:** Annotatie-tool: klik op chart → text-label toevoegen, drag te repositioneren
+- [x] **P1:** Error-bar type toggle (SD/SEM/CI) voor BarError chart
+- [x] State serialiseert in ChartSpec voor save
 
 **Acceptance criteria**
-- [ ] Wijzigingen reflecteren in <100ms zonder data re-fetch
-- [ ] ChartSpec na save bevat alle customizations
+- [x] Wijzigingen reflecteren in <100ms zonder data re-fetch
+- [x] ChartSpec na save bevat alle customizations
 
 ---
 
