@@ -64,9 +64,13 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
     );
     const selectMock = vi.fn(() => ({ single: singleMock }));
     const insertMock = vi.fn(() => ({ select: selectMock }));
-    const matchMock = vi.fn(async () =>
-        options?.updateError !== undefined ? { error: { message: options.updateError } } : { error: null },
+    const singleUpdateMock = vi.fn(async () =>
+        options?.updateError !== undefined
+            ? { data: null, error: { message: options.updateError } }
+            : { data: { id: "updated-chart-id" }, error: null },
     );
+    const selectUpdateMock = vi.fn(() => ({ single: singleUpdateMock }));
+    const matchMock = vi.fn(() => ({ select: selectUpdateMock }));
     const updateMock = vi.fn(() => ({ match: matchMock }));
     const fromMock = vi.fn(() => ({
         insert: insertMock,
@@ -88,6 +92,8 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
             getUserMock,
             insertMock,
             matchMock,
+            selectUpdateMock,
+            singleUpdateMock,
             selectMock,
             singleMock,
             updateMock,
@@ -98,11 +104,11 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
 const createValidPayload = async (): Promise<SaveChartPayload> => {
     const hash = await computeConfigHash(chartSpec);
     const receipt: Receipt = {
-        generated_at: "2026-05-27T12:00:00.000Z",
+        generated_at: new Date().toISOString(),
         config_hash: hash,
         method: "Kaplan-Meier estimator, Greenwood log-log CI",
         sample: "n = 100 · censored = 0",
-        palette: "editorial",
+        palette: "monochrome",
         software: "Loupe v0.1.0 · client-side",
         ai_rationale: "Time-to-event with censoring and treatment groups.",
         csv_columns: ["time_months", "event_status", "arm"],
@@ -164,13 +170,116 @@ describe("saveChart", () => {
             ...payload,
             plot_data: {
                 ...payload.plot_data,
-                rawRows: [{ id: 1, event: 1, time: 5 }],
+                groups: payload.plot_data.groups.map((group, index) =>
+                    index === 0
+                        ? { ...group, patient_id: "P001" }
+                        : group,
+                ),
             } as unknown as PlotData,
         });
 
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error).toMatch(/privacy|rawRows|row/i);
+            expect(result.error).toMatch(/forbidden key "patient_id"/i);
+        }
+    });
+
+    it("rejects tampered receipt.method", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, method: "Pearson correlation, t-test" },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/method/i);
+        }
+    });
+
+    it("rejects tampered receipt.sample", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, sample: "n = 999999 · censored = 0" },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/sample/i);
+        }
+    });
+
+    it("rejects tampered receipt.software", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, software: "Loupe v999.0.0 · server-side" },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/software/i);
+        }
+    });
+
+    it("rejects tampered receipt.palette", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, palette: "wong" },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/palette/i);
+        }
+    });
+
+    it("rejects tampered receipt.csv_columns", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, csv_columns: ["fake_column"] },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/csv_columns/i);
+        }
+    });
+
+    it("rejects receipt.generated_at outside ±5 min window", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const result = await saveChart({
+            ...payload,
+            receipt: {
+                ...payload.receipt,
+                generated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+            },
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/generated_at|window/i);
         }
     });
 
@@ -240,6 +349,51 @@ describe("saveChart", () => {
 
         expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard");
     });
+
+    it("does not call revalidatePath when validation fails", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        await saveChart({
+            ...payload,
+            receipt: { ...payload.receipt, method: "tampered" },
+        });
+
+        expect(revalidatePathMock).not.toHaveBeenCalled();
+    });
+
+    it("accepts trusted receipt fields n_rows_input and ai_rationale", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        const first = await saveChart({
+            ...payload,
+            receipt: {
+                ...payload.receipt,
+                n_rows_input: 100,
+                ai_rationale: "A",
+            },
+        });
+        const second = await saveChart({
+            ...payload,
+            receipt: {
+                ...payload.receipt,
+                n_rows_input: 200,
+                ai_rationale: "B",
+            },
+        });
+
+        expect(first.success).toBe(true);
+        expect(second.success).toBe(true);
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/lib/privacy/assertNoRawRows.ts, change FORBIDDEN_KEY_PATTERN to /^__never_match__$/.
+    //   Re-run "rejects payload with raw rows in plot_data".
+    //   patient_id no longer flagged -> "forbidden key \"patient_id\"" is absent -> test RED.
+    //   Verified manually: 2026-05-27. REVERTED.
 
     // MUTATION-VERIFY:
     //   In src/app/charts/actions.ts, remove the config_hash mismatch guard.

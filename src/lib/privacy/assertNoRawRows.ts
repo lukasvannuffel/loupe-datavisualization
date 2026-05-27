@@ -1,6 +1,12 @@
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 
 const FORBIDDEN_KEY_PATTERN = /patient|subject|record|row|id$|identifier/i;
+const ACCEPTED_KINDS_FOR_SPEC: Record<ChartSpec["kind"], ReadonlySet<string>> = {
+    barError: new Set(["barError"]),
+    box: new Set(["box"]),
+    km: new Set(["km"]),
+    xy: new Set(["xy", "longitudinal"]),
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === "object" && !Array.isArray(value);
@@ -238,10 +244,43 @@ const assertXYShape = (plotData: unknown): void => {
     });
 };
 
+const assertLongitudinalShape = (plotData: unknown): void => {
+    const root = assertRecord(plotData, "plot_data");
+    assertExactKeys(root, ["kind", "groups", "xMin", "xMax", "yMin", "yMax"], "plot_data");
+    if (root.kind !== "longitudinal") {
+        throw new Error("Privacy violation: expected longitudinal plot_data kind");
+    }
+    assertNumber(root.xMin, "plot_data.xMin");
+    assertNumber(root.xMax, "plot_data.xMax");
+    assertNumber(root.yMin, "plot_data.yMin");
+    assertNumber(root.yMax, "plot_data.yMax");
+    if (!Array.isArray(root.groups)) {
+        throw new Error('Privacy violation: expected array at "plot_data.groups"');
+    }
+    root.groups.forEach((group, groupIndex) => {
+        const path = `plot_data.groups[${groupIndex}]`;
+        const groupRecord = assertRecord(group, path);
+        assertExactKeys(groupRecord, ["label", "points"], path);
+        assertString(groupRecord.label, `${path}.label`);
+        if (!Array.isArray(groupRecord.points)) {
+            throw new Error(`Privacy violation: expected array at "${path}.points"`);
+        }
+        groupRecord.points.forEach((point, pointIndex) => {
+            const pointPath = `${path}.points[${pointIndex}]`;
+            const pointRecord = assertRecord(point, pointPath);
+            assertExactKeys(pointRecord, ["visit", "mean", "sem", "n"], pointPath);
+            assertNumber(pointRecord.visit, `${pointPath}.visit`);
+            assertNumber(pointRecord.mean, `${pointPath}.mean`);
+            assertNumber(pointRecord.sem, `${pointPath}.sem`);
+            assertNumber(pointRecord.n, `${pointPath}.n`);
+        });
+    });
+};
+
 export const assertNoRawRows = (chartSpec: ChartSpec, plotData: PlotData): void => {
     const root = assertRecord(plotData, "plot_data");
     const dataKind = root.kind;
-    if (dataKind !== chartSpec.kind) {
+    if (!ACCEPTED_KINDS_FOR_SPEC[chartSpec.kind].has(String(dataKind))) {
         throw new Error(`Plot data kind mismatch: spec is ${chartSpec.kind}, data is ${String(dataKind)}`);
     }
 
@@ -258,6 +297,10 @@ export const assertNoRawRows = (chartSpec: ChartSpec, plotData: PlotData): void 
             assertBoxShape(plotData);
             return;
         case "xy":
+            if (dataKind === "longitudinal") {
+                assertLongitudinalShape(plotData);
+                return;
+            }
             assertXYShape(plotData);
             return;
     }

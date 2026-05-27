@@ -38,6 +38,21 @@ const validKmPlotData: PlotData = {
     ],
 };
 
+const xySpec: ChartSpec = {
+    kind: "xy",
+    version: 1,
+    id: "xy-id",
+    createdAt: "2026-05-27T12:00:00.000Z",
+    title: "XY",
+    showLegend: true,
+    showGrid: false,
+    paletteId: "editorial",
+    strokeWeight: 1.5,
+    mode: "line",
+    showRegression: true,
+    showErrorBands: false,
+};
+
 describe("assertNoRawRows", () => {
     it("accepts valid KM plot data", () => {
         expect(() => assertNoRawRows(kmSpec, validKmPlotData)).not.toThrow();
@@ -74,6 +89,69 @@ describe("assertNoRawRows", () => {
         } as unknown as PlotData;
 
         expect(() => assertNoRawRows(kmSpec, injected)).toThrow(/unexpected keys/i);
+    });
+
+    it("accepts longitudinal plot data when chart_spec.kind is xy", () => {
+        const longitudinalData = {
+            kind: "longitudinal",
+            xMin: 0,
+            xMax: 12,
+            yMin: 7.5,
+            yMax: 9.1,
+            groups: [
+                {
+                    label: "A",
+                    points: [{ visit: 0, mean: 8, sem: 0.3, n: 60 }],
+                },
+            ],
+        } as PlotData;
+
+        expect(() => assertNoRawRows(xySpec, longitudinalData)).not.toThrow();
+    });
+
+    it("rejects longitudinal plot data with unexpected extra field", () => {
+        const longitudinalData = {
+            kind: "longitudinal",
+            xMin: 0,
+            xMax: 12,
+            yMin: 7.5,
+            yMax: 9.1,
+            groups: [
+                {
+                    label: "A",
+                    points: [{ visit: 0, mean: 8, sem: 0.3, n: 60 }],
+                    rawPatientTrajectories: [{ patient_id: "P001" }],
+                },
+            ],
+        } as unknown as PlotData;
+
+        expect(() => assertNoRawRows(xySpec, longitudinalData)).toThrow();
+    });
+
+    it("rejects mismatched: longitudinal plot data when chart_spec.kind is barError", () => {
+        const barSpec = {
+            kind: "barError",
+            version: 1,
+            id: "bar-id",
+            createdAt: "2026-05-27T12:00:00.000Z",
+            title: "Bar",
+            showLegend: true,
+            showGrid: false,
+            paletteId: "editorial",
+            strokeWeight: 1.5,
+            errorBarType: "ci95",
+            annotations: [],
+        } as ChartSpec;
+        const longitudinalData = {
+            kind: "longitudinal",
+            xMin: 0,
+            xMax: 12,
+            yMin: 7.5,
+            yMax: 9.1,
+            groups: [{ label: "A", points: [{ visit: 0, mean: 8, sem: 0.3, n: 60 }] }],
+        } as PlotData;
+
+        expect(() => assertNoRawRows(barSpec, longitudinalData)).toThrow(/kind mismatch/i);
     });
 
     // MUTATION-VERIFY:

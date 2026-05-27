@@ -30,6 +30,7 @@ import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import { saveChart } from "@/app/charts/actions";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
 import { CustomSection } from "./CustomSection";
@@ -541,6 +542,8 @@ export const Export = (): JSX.Element => {
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saving, setSaving] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
 
@@ -676,6 +679,40 @@ export const Export = (): JSX.Element => {
     const onCopy = (): void => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
+    };
+
+    const handleSaveToProject = async (): Promise<void> => {
+        if (liveSpec === null || dataset === null || computedReceipt === null) {
+            setSaveError("Save unavailable: chart data is incomplete.");
+            return;
+        }
+        const plotData = computePlotData(liveSpec, mapping, dataset);
+        if (plotData === null) {
+            setSaveError("Save unavailable: unable to compute aggregated plot data.");
+            return;
+        }
+
+        setSaveError(null);
+        setSaving(true);
+        try {
+            const result = await saveChart({
+                id: undefined,
+                name: liveSpec.title,
+                chart_spec: liveSpec,
+                column_mapping: mapping,
+                receipt: computedReceipt,
+                plot_data: plotData,
+            });
+            if (!result.success) {
+                setSaveError(result.error);
+                return;
+            }
+            router.push("/dashboard");
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : "Save failed");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const onReset = (): void => {
@@ -909,9 +946,10 @@ export const Export = (): JSX.Element => {
                         <button
                             type="button"
                             className="btn btn--ghost btn--lg"
-                            onClick={() => router.push("/dashboard")}
+                            onClick={handleSaveToProject}
+                            disabled={saving}
                         >
-                            Save to project
+                            {saving ? "Saving…" : "Save to project"}
                         </button>
                         <button
                             type="button"
@@ -921,6 +959,11 @@ export const Export = (): JSX.Element => {
                             Start a new chart
                         </button>
                     </div>
+                    {saveError !== null && (
+                        <p role="alert" className="muted">
+                            Save failed: {saveError}
+                        </p>
+                    )}
 
                     <div className="export-receipt">
                         <h4>Reproducibility receipt</h4>

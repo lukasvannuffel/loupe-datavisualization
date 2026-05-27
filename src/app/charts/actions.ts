@@ -4,13 +4,17 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { chartSpecSchema, plotDataSchema } from "@/lib/chartSpec/schemas";
+import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
+import { chartSpecSchema } from "@/lib/chartSpec/schemas";
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { assertNoRawRows } from "@/lib/privacy/assertNoRawRows";
 import { computeConfigHash } from "@/lib/receipt/configHash";
+import { methodString } from "@/lib/receipt/methodStrings";
+import { sampleString } from "@/lib/receipt/sampleStrings";
 import { receiptSchema } from "@/lib/receipt/schemas";
 import type { Mapping } from "@/lib/roles/types";
 import { createClient } from "@/utils/supabase/server";
+import packageJson from "../../../package.json";
 
 const columnMappingSchema = z
     .object({
@@ -46,14 +50,17 @@ const payloadSchema = z
         chart_spec: chartSpecSchema,
         column_mapping: columnMappingSchema,
         receipt: receiptSchema,
-        plot_data: plotDataSchema,
+        plot_data: z.unknown(),
     })
     .strict();
+
+const GENERATED_AT_TOLERANCE_MS = 5 * 60 * 1000;
 
 export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartResult> => {
     try {
         const parsed = payloadSchema.parse(payload);
-        assertNoRawRows(parsed.chart_spec, parsed.plot_data);
+        const validatedPlotData = parsed.plot_data as PlotData;
+        assertNoRawRows(parsed.chart_spec, validatedPlotData);
 
         const recomputedHash = await computeConfigHash(parsed.chart_spec);
         if (recomputedHash !== parsed.receipt.config_hash) {
@@ -62,6 +69,44 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                 error: `Receipt config_hash mismatch: client sent ${parsed.receipt.config_hash}, server computed ${recomputedHash}`,
             };
         }
+        const expectedMethod = methodString(parsed.chart_spec.kind);
+        if (parsed.receipt.method !== expectedMethod) {
+            return { success: false, error: "Receipt method mismatch" };
+        }
+        const expectedSample = sampleString(parsed.chart_spec, validatedPlotData);
+        if (parsed.receipt.sample !== expectedSample) {
+            return { success: false, error: "Receipt sample mismatch" };
+        }
+        const expectedSoftware = `Loupe v${packageJson.version} · client-side`;
+        if (parsed.receipt.software !== expectedSoftware) {
+            return { success: false, error: "Receipt software mismatch" };
+        }
+        const expectedPalette = resolvePalette(parsed.chart_spec);
+        if (parsed.receipt.palette !== expectedPalette) {
+            return { success: false, error: "Receipt palette mismatch" };
+        }
+        const expectedCsvColumns = new Set(
+            Object.values(parsed.column_mapping).filter((value): value is string => typeof value === "string"),
+        );
+        const receivedCsvColumns = new Set(parsed.receipt.csv_columns);
+        if (
+            expectedCsvColumns.size !== receivedCsvColumns.size ||
+            !Array.from(expectedCsvColumns).every((column) => receivedCsvColumns.has(column))
+        ) {
+            return { success: false, error: "Receipt csv_columns mismatch" };
+        }
+        const generatedAtMs = new Date(parsed.receipt.generated_at).getTime();
+        if (
+            Number.isNaN(generatedAtMs) ||
+            Math.abs(Date.now() - generatedAtMs) > GENERATED_AT_TOLERANCE_MS
+        ) {
+            return {
+                success: false,
+                error: "Receipt generated_at outside acceptable window (±5 min of server time)",
+            };
+        }
+        // TRUST GAP (documented): n_rows_input cannot be recomputed server-side because raw CSV rows never leave the client.
+        // TRUST GAP (documented): ai_rationale is non-deterministic LLM text and cannot be reproduced exactly server-side.
 
         const supabase = createClient(await cookies());
         const {
@@ -74,7 +119,7 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
         }
 
         if (parsed.id !== undefined) {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("charts")
                 .update({
                     name: parsed.name,
@@ -82,10 +127,12 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                     column_mapping: parsed.column_mapping,
                     receipt: parsed.receipt,
                 })
-                .match({ id: parsed.id, user_id: user.id });
+                .match({ id: parsed.id, user_id: user.id })
+                .select("id")
+                .single();
 
-            if (error !== null) {
-                return { success: false, error: error.message };
+            if (error !== null || data === null) {
+                return { success: false, error: error?.message ?? "Chart not found" };
             }
 
             revalidatePath("/dashboard");
