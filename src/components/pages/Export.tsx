@@ -17,10 +17,22 @@ import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
 import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { useAppState } from "@/app/providers";
+import { mappingForBarError } from "@/components/pages/recommendation/barErrorMapping";
+import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
+import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
+import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
+import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
+import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
+import { LongitudinalError, XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
-import type { ChartSpec } from "@/lib/chartSpec/types";
+import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import { saveChart } from "@/app/charts/actions";
+import { buildReceipt } from "@/lib/receipt/buildReceipt";
+import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
 import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
@@ -429,6 +441,59 @@ const DEFAULT_ANNOTATION_DRAFT: AnnotationDraft = {
 const isSpecKind = (kind: ChartSlug): kind is ChartSpec["kind"] =>
     kind === "km" || kind === "barError" || kind === "box" || kind === "xy";
 
+const computePlotData = (
+    spec: ChartSpec,
+    mapping: ReturnType<typeof useAppState>["mapping"],
+    dataset: NonNullable<ReturnType<typeof useAppState>["dataset"]>,
+): PlotData | null => {
+    if (spec.kind === "barError") {
+        const mapped = mappingForBarError(mapping, dataset.inferences);
+
+        return { kind: "barError", groups: aggregateBarError(dataset.rows, mapped.mapping).groups };
+    }
+    if (spec.kind === "km") {
+        if (mapping.time === undefined || mapping.event === undefined) {
+            return null;
+        }
+        try {
+            return aggregateKaplanMeier(dataset.rows, mapping);
+        } catch (error) {
+            if (error instanceof KaplanMeierError) {
+                return null;
+            }
+            throw error;
+        }
+    }
+    if (spec.kind === "box") {
+        if (mapping.outcome === undefined) {
+            return null;
+        }
+        try {
+            return aggregateBoxPlot(dataset.rows, mapping);
+        } catch (error) {
+            if (error instanceof BoxPlotError) {
+                return null;
+            }
+            throw error;
+        }
+    }
+    if (mapping.x === undefined || mapping.y === undefined) {
+        return null;
+    }
+    try {
+        const useLongitudinal = spec.mode === "line" || (spec.mode === "both" && mapping.id !== undefined);
+
+        return useLongitudinal
+            ? aggregateLongitudinal(dataset.rows, mapping)
+            : aggregateXYPlot(dataset.rows, mapping, { computeRegression: spec.showRegression });
+    } catch (error) {
+        if (error instanceof XYPlotError || error instanceof LongitudinalError) {
+            return null;
+        }
+        throw error;
+    }
+};
+
 export const Export = (): JSX.Element => {
     const router = useRouter();
     const {
@@ -438,6 +503,7 @@ export const Export = (): JSX.Element => {
         dataset,
         hydrated,
         mapping,
+        receipt,
         setChartSpec,
         setMapping,
     } = useAppState();
@@ -475,6 +541,9 @@ export const Export = (): JSX.Element => {
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saving, setSaving] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
 
@@ -531,6 +600,43 @@ export const Export = (): JSX.Element => {
             : palette.name.toLowerCase();
 
     useEffect(() => {
+        let isCancelled = false;
+        if (!useSpecFigure || liveSpec === null || dataset === null) {
+            setComputedReceipt(null);
+            return;
+        }
+        const plotData = computePlotData(liveSpec, mapping, dataset);
+        if (plotData === null) {
+            setComputedReceipt(null);
+            return;
+        }
+        const nextPalette: PaletteName = resolvePalette(liveSpec);
+        const aiRationale = receipt?.recommendation.because ?? slugDefaults.rationale;
+        void buildReceipt({
+            aiRationale,
+            chartSpec: liveSpec,
+            columnMapping: mapping,
+            nRowsInput: dataset.rows.length,
+            palette: nextPalette,
+            plotData,
+        })
+            .then((nextReceipt) => {
+                if (!isCancelled) {
+                    setComputedReceipt(nextReceipt);
+                }
+            })
+            .catch(() => {
+                if (!isCancelled) {
+                    setComputedReceipt(null);
+                }
+            });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [dataset, liveSpec, mapping, receipt, slugDefaults.rationale, useSpecFigure]);
+
+    useEffect(() => {
         setTitle(slugDefaults.title);
         setCaption(slugDefaults.caption);
         setXLabel(slugDefaults.xLabel);
@@ -573,6 +679,40 @@ export const Export = (): JSX.Element => {
     const onCopy = (): void => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
+    };
+
+    const handleSaveToProject = async (): Promise<void> => {
+        if (liveSpec === null || dataset === null || computedReceipt === null) {
+            setSaveError("Save unavailable: chart data is incomplete.");
+            return;
+        }
+        const plotData = computePlotData(liveSpec, mapping, dataset);
+        if (plotData === null) {
+            setSaveError("Save unavailable: unable to compute aggregated plot data.");
+            return;
+        }
+
+        setSaveError(null);
+        setSaving(true);
+        try {
+            const result = await saveChart({
+                id: undefined,
+                name: liveSpec.title,
+                chart_spec: liveSpec,
+                column_mapping: mapping,
+                receipt: computedReceipt,
+                plot_data: plotData,
+            });
+            if (!result.success) {
+                setSaveError(result.error);
+                return;
+            }
+            router.push("/dashboard");
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : "Save failed");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const onReset = (): void => {
@@ -806,9 +946,10 @@ export const Export = (): JSX.Element => {
                         <button
                             type="button"
                             className="btn btn--ghost btn--lg"
-                            onClick={() => router.push("/dashboard")}
+                            onClick={handleSaveToProject}
+                            disabled={saving}
                         >
-                            Save to project
+                            {saving ? "Saving…" : "Save to project"}
                         </button>
                         <button
                             type="button"
@@ -818,6 +959,11 @@ export const Export = (): JSX.Element => {
                             Start a new chart
                         </button>
                     </div>
+                    {saveError !== null && (
+                        <p role="alert" className="muted">
+                            Save failed: {saveError}
+                        </p>
+                    )}
 
                     <div className="export-receipt">
                         <h4>Reproducibility receipt</h4>
@@ -827,19 +973,25 @@ export const Export = (): JSX.Element => {
                         </p>
                         <dl>
                             <dt>Generated</dt>
-                            <dd>2026-04-28 14:32 CET</dd>
+                            <dd>{computedReceipt?.generated_at ?? "—"}</dd>
                             <dt>Config hash</dt>
-                            <dd>sha256·4f7a9b…d21c</dd>
+                            <dd>{computedReceipt?.config_hash ?? "—"}</dd>
                             <dt>Method</dt>
-                            <dd>{slugDefaults.method}</dd>
+                            <dd>{computedReceipt?.method ?? slugDefaults.method}</dd>
                             <dt>Sample</dt>
-                            <dd>{slugDefaults.metaLine}</dd>
+                            <dd>{computedReceipt?.sample ?? slugDefaults.metaLine}</dd>
                             <dt>Palette</dt>
-                            <dd>{receiptPaletteLabel}</dd>
+                            <dd>{computedReceipt?.palette ?? receiptPaletteLabel}</dd>
                             <dt>Software</dt>
-                            <dd>Loupe v0.4.2 · client-side</dd>
+                            <dd>{computedReceipt?.software ?? "—"}</dd>
                             <dt>AI rationale</dt>
-                            <dd className="export-receipt-prose">{slugDefaults.rationale}</dd>
+                            <dd className="export-receipt-prose">
+                                {computedReceipt?.ai_rationale ?? slugDefaults.rationale}
+                            </dd>
+                            <dt>CSV COLUMNS</dt>
+                            <dd>{computedReceipt?.csv_columns.join(", ") ?? "—"}</dd>
+                            <dt>INPUT ROWS</dt>
+                            <dd>{computedReceipt?.n_rows_input ?? "—"}</dd>
                             {chatRevisions.length > 0 && (
                                 <>
                                     <dt>Chat revisions</dt>

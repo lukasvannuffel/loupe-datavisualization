@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
     useRouter: (): { push: typeof push } => ({ push }),
 }));
 
+vi.mock("@/app/charts/actions", () => ({
+    saveChart: vi.fn(async () => ({ success: true, id: "test-id" })),
+}));
+
 vi.mock("../ExportChat/ExportChatLauncher", () => ({
     ExportChatLauncher: (): null => null,
 }));
