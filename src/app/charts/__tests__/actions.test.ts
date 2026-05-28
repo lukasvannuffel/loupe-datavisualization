@@ -729,6 +729,33 @@ describe("getChart and deleteChart", () => {
         expect(chart).not.toBeNull();
     });
 
+    it("getChart returns the row when loaded KM plot_data has null CI fields", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: {
+                plot_data: {
+                    ...plotData,
+                    groups: [
+                        {
+                            ...plotData.groups[0],
+                            points: [
+                                {
+                                    ...plotData.groups[0].points[0],
+                                    ciLower: null,
+                                    ciUpper: null,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).not.toBeNull();
+    });
+
     // MUTATION-VERIFY:
     //   In src/app/charts/actions.ts getChart, remove the exact line:
     //   `.eq("user_id", user.id)`.
