@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SaveChartPayload } from "@/app/charts/actions";
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
+import { methodString } from "@/lib/receipt/methodStrings";
+import { sampleString } from "@/lib/receipt/sampleStrings";
 import { computeConfigHash } from "@/lib/receipt/configHash";
 import type { Receipt } from "@/lib/receipt/schemas";
 
@@ -42,6 +45,43 @@ const chartSpec: ChartSpec = {
     timeUnit: "months",
 };
 
+const boxChartSpec: ChartSpec = {
+    kind: "box",
+    version: 1,
+    id: "spec-box",
+    createdAt: "2026-05-27T12:00:00.000Z",
+    title: "Tumor size distribution",
+    showLegend: false,
+    showGrid: false,
+    paletteId: "editorial",
+    strokeWeight: 1.5,
+    showOutliers: true,
+    showMeanMarker: true,
+    notched: false,
+};
+
+const scatterChartSpec: ChartSpec = {
+    kind: "xy",
+    version: 1,
+    id: "spec-scatter",
+    createdAt: "2026-05-27T12:00:00.000Z",
+    title: "Biomarker relationship",
+    showLegend: false,
+    showGrid: false,
+    paletteId: "editorial",
+    strokeWeight: 1.5,
+    mode: "scatter",
+    showRegression: true,
+    showErrorBands: false,
+};
+
+const longitudinalChartSpec: ChartSpec = {
+    ...scatterChartSpec,
+    id: "spec-longitudinal",
+    title: "Outcome trajectories",
+    mode: "line",
+};
+
 const plotData: PlotData = {
     kind: "km",
     tMax: 24,
@@ -54,6 +94,53 @@ const plotData: PlotData = {
             atRiskTicks: [{ t: 0, nAtRisk: 100 }],
         },
     ],
+};
+
+const boxPlotData: PlotData = {
+    kind: "box",
+    groups: [
+        {
+            kind: "box",
+            label: "Stage I",
+            n: 10,
+            min: 1,
+            q1: 2,
+            median: 3,
+            q3: 4,
+            max: 5,
+            notchLower: 2.6,
+            notchUpper: 3.4,
+            outliers: [8],
+            mean: 3.2,
+        },
+    ],
+    yMin: 1,
+    yMax: 8,
+};
+
+const scatterPlotData: PlotData = {
+    kind: "xy",
+    groups: [{ label: "All", points: [{ x: 1, y: 2 }] }],
+    regressions: [],
+    regressionSkipped: false,
+    xMin: 1,
+    xMax: 1,
+    yMin: 2,
+    yMax: 2,
+};
+
+const longitudinalPlotData: PlotData = {
+    kind: "longitudinal",
+    groups: [
+        {
+            label: "Arm A",
+            points: [{ visit: 1, mean: 1.1, sem: 0.2, n: 10 }],
+        },
+    ],
+    xMin: 1,
+    xMax: 1,
+    yMin: 1.1,
+    yMax: 1.1,
 };
 
 const createSupabaseMock = (options?: { authUserId?: string | null; insertError?: string; updateError?: string }) => {
@@ -101,14 +188,21 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
     };
 };
 
-const createValidPayload = async (): Promise<SaveChartPayload> => {
-    const hash = await computeConfigHash(chartSpec);
+const createValidPayload = async (
+    overrides?: {
+        chartSpec?: ChartSpec;
+        plotData?: PlotData;
+    },
+): Promise<SaveChartPayload> => {
+    const nextChartSpec = overrides?.chartSpec ?? chartSpec;
+    const nextPlotData = overrides?.plotData ?? plotData;
+    const hash = await computeConfigHash(nextChartSpec);
     const receipt: Receipt = {
         generated_at: new Date().toISOString(),
         config_hash: hash,
-        method: "Kaplan-Meier estimator, Greenwood log-log CI",
-        sample: "n = 100 · censored = 0",
-        palette: "monochrome",
+        method: methodString(nextChartSpec.kind),
+        sample: sampleString(nextChartSpec, nextPlotData),
+        palette: resolvePalette(nextChartSpec),
         software: "Loupe v0.1.0 · client-side",
         ai_rationale: "Time-to-event with censoring and treatment groups.",
         csv_columns: ["time_months", "event_status", "arm"],
@@ -117,14 +211,15 @@ const createValidPayload = async (): Promise<SaveChartPayload> => {
 
     return {
         name: "KM chart",
-        chart_spec: chartSpec,
+        chart_spec: nextChartSpec,
         column_mapping: {
             time: "time_months",
             event: "event_status",
             group: "arm",
         },
         receipt,
-        plot_data: plotData,
+        plot_data: nextPlotData,
+        thumbnail: "data:image/png;base64,thumb",
     };
 };
 
@@ -340,6 +435,69 @@ describe("saveChart", () => {
         expect(mocks.updateMock).not.toHaveBeenCalled();
     });
 
+    it("stores null plot_data for box charts", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload({
+            chartSpec: boxChartSpec,
+            plotData: boxPlotData,
+        });
+
+        await saveChart(payload);
+
+        expect(mocks.insertMock).toHaveBeenCalledWith(
+            expect.objectContaining({ plot_data: null, chart_kind: "box" }),
+        );
+    });
+
+    it("stores null plot_data for scatter charts", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload({
+            chartSpec: scatterChartSpec,
+            plotData: scatterPlotData,
+        });
+
+        await saveChart(payload);
+
+        expect(mocks.insertMock).toHaveBeenCalledWith(
+            expect.objectContaining({ plot_data: null, chart_kind: "xy" }),
+        );
+    });
+
+    it("stores plot_data for KM charts", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        await saveChart(payload);
+
+        expect(mocks.insertMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                plot_data: expect.objectContaining({ kind: "km" }),
+                chart_kind: "km",
+            }),
+        );
+    });
+
+    it("stores plot_data for xy longitudinal charts", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload({
+            chartSpec: longitudinalChartSpec,
+            plotData: longitudinalPlotData,
+        });
+
+        await saveChart(payload);
+
+        expect(mocks.insertMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                plot_data: expect.objectContaining({ kind: "longitudinal" }),
+                chart_kind: "xy",
+            }),
+        );
+    });
+
     it('calls revalidatePath("/dashboard") on success', async () => {
         const { client } = createSupabaseMock();
         createClientMock.mockReturnValue(client);
@@ -400,4 +558,10 @@ describe("saveChart", () => {
     //   Re-run "rejects when client config_hash does not match server recomputation".
     //   Mismatched hash is now accepted -> test RED.
     //   Verified manually: 2026-05-27. REVERTED.
+
+    // MUTATION-VERIFY:
+    //   In src/app/charts/actions.ts isPlotDataStorable, change `if (chartKind === "box") { return false; }` to `return true;`.
+    //   Re-run "stores null plot_data for box charts".
+    //   Box plot_data is now stored instead of nulled -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
 });

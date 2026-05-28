@@ -39,6 +39,12 @@ const assertNumber = (value: unknown, path: string): void => {
     }
 };
 
+const assertFiniteOrNaNNumber = (value: unknown, path: string): void => {
+    if (typeof value !== "number" || (!Number.isFinite(value) && !Number.isNaN(value))) {
+        throw new Error(`Privacy violation: expected number at "${path}"`);
+    }
+};
+
 const assertBoolean = (value: unknown, path: string): void => {
     if (typeof value !== "boolean") {
         throw new Error(`Privacy violation: expected boolean at "${path}"`);
@@ -112,8 +118,8 @@ const assertKMShape = (plotData: unknown): void => {
             assertNumber(pointRecord.survival, `${pointPath}.survival`);
             assertNumber(pointRecord.nAtRisk, `${pointPath}.nAtRisk`);
             assertBoolean(pointRecord.censored, `${pointPath}.censored`);
-            assertNumber(pointRecord.ciLower, `${pointPath}.ciLower`);
-            assertNumber(pointRecord.ciUpper, `${pointPath}.ciUpper`);
+            assertFiniteOrNaNNumber(pointRecord.ciLower, `${pointPath}.ciLower`);
+            assertFiniteOrNaNNumber(pointRecord.ciUpper, `${pointPath}.ciUpper`);
         });
         if (!Array.isArray(groupRecord.atRiskTicks)) {
             throw new Error(`Privacy violation: expected array at "${groupPath}.atRiskTicks"`);

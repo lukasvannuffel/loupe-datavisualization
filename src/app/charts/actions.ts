@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
 import { chartSpecSchema } from "@/lib/chartSpec/schemas";
-import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import type { ChartSpec, PlotData, SpecKind } from "@/lib/chartSpec/types";
 import { assertNoRawRows } from "@/lib/privacy/assertNoRawRows";
 import { computeConfigHash } from "@/lib/receipt/configHash";
 import { methodString } from "@/lib/receipt/methodStrings";
@@ -37,6 +37,7 @@ export type SaveChartPayload = {
     readonly column_mapping: Mapping;
     readonly receipt: z.infer<typeof receiptSchema>;
     readonly plot_data: PlotData;
+    readonly thumbnail: string;
 };
 
 export type SaveChartResult =
@@ -51,16 +52,39 @@ const payloadSchema = z
         column_mapping: columnMappingSchema,
         receipt: receiptSchema,
         plot_data: z.unknown(),
+        thumbnail: z.string().min(1).max(200_000).regex(/^data:image\/(png|svg\+xml);/),
     })
     .strict();
 
 const GENERATED_AT_TOLERANCE_MS = 5 * 60 * 1000;
+const SCATTER_PLOT_DATA_KIND = "xy";
+const DASHBOARD_KIND_BY_SPEC_KIND: Record<SpecKind, "bar" | "box" | "km" | "xy"> = {
+    barError: "bar",
+    box: "box",
+    km: "km",
+    xy: "xy",
+};
+
+const isPlotDataStorable = (chartKind: SpecKind, plotData: PlotData): boolean => {
+    if (chartKind === "box") {
+        return false;
+    }
+    if (chartKind === "xy" && plotData.kind === SCATTER_PLOT_DATA_KIND) {
+        return false;
+    }
+
+    return true;
+};
 
 export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartResult> => {
     try {
         const parsed = payloadSchema.parse(payload);
         const validatedPlotData = parsed.plot_data as PlotData;
         assertNoRawRows(parsed.chart_spec, validatedPlotData);
+        const storablePlotData = isPlotDataStorable(parsed.chart_spec.kind, validatedPlotData)
+            ? validatedPlotData
+            : null;
+        const chartKind = DASHBOARD_KIND_BY_SPEC_KIND[parsed.chart_spec.kind];
 
         const recomputedHash = await computeConfigHash(parsed.chart_spec);
         if (recomputedHash !== parsed.receipt.config_hash) {
@@ -126,6 +150,9 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                     chart_spec: parsed.chart_spec,
                     column_mapping: parsed.column_mapping,
                     receipt: parsed.receipt,
+                    plot_data: storablePlotData,
+                    thumbnail: parsed.thumbnail,
+                    chart_kind: chartKind,
                 })
                 .match({ id: parsed.id, user_id: user.id })
                 .select("id")
@@ -148,6 +175,9 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                 chart_spec: parsed.chart_spec,
                 column_mapping: parsed.column_mapping,
                 receipt: parsed.receipt,
+                plot_data: storablePlotData,
+                thumbnail: parsed.thumbnail,
+                chart_kind: chartKind,
             })
             .select("id")
             .single();

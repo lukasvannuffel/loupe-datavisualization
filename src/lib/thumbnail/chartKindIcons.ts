@@ -1,0 +1,11 @@
+export type DashboardChartKind = "bar" | "box" | "km" | "xy";
+
+const ICON_BY_KIND: Record<DashboardChartKind, string> = {
+    bar: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><rect x="34" y="92" width="30" height="46" rx="4" fill="#334155"/><rect x="82" y="68" width="30" height="70" rx="4" fill="#475569"/><rect x="130" y="48" width="30" height="90" rx="4" fill="#64748b"/><rect x="178" y="78" width="30" height="60" rx="4" fill="#94a3b8"/></svg>',
+    km: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><path d="M28 30v108h184" stroke="#0f172a" stroke-width="3" fill="none"/><path d="M38 50h45v24h35v20h38v14h46" stroke="#334155" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M83 50v24M118 74v20M156 94v14" stroke="#334155" stroke-width="4"/></svg>',
+    box: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><path d="M20 132h200" stroke="#0f172a" stroke-width="3"/><path d="M66 98v34M50 116h32M106 76v56M86 96h40M150 86v46M132 108h36M188 68v64M170 96h36" stroke="#475569" stroke-width="3"/><rect x="44" y="102" width="44" height="28" fill="#cbd5e1" stroke="#334155" stroke-width="3"/><rect x="84" y="80" width="44" height="30" fill="#cbd5e1" stroke="#334155" stroke-width="3"/><rect x="128" y="92" width="44" height="28" fill="#cbd5e1" stroke="#334155" stroke-width="3"/><rect x="166" y="74" width="44" height="32" fill="#cbd5e1" stroke="#334155" stroke-width="3"/></svg>',
+    xy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160"><rect width="240" height="160" fill="#fff"/><path d="M28 30v108h184" stroke="#0f172a" stroke-width="3" fill="none"/><circle cx="62" cy="112" r="5" fill="#334155"/><circle cx="82" cy="82" r="5" fill="#475569"/><circle cx="108" cy="96" r="5" fill="#64748b"/><circle cx="124" cy="68" r="5" fill="#334155"/><circle cx="146" cy="78" r="5" fill="#475569"/><circle cx="168" cy="52" r="5" fill="#64748b"/><circle cx="188" cy="70" r="5" fill="#334155"/></svg>',
+};
+
+export const chartKindIcon = (chartKind: DashboardChartKind): string =>
+    `data:image/svg+xml;utf8,${encodeURIComponent(ICON_BY_KIND[chartKind])}`;

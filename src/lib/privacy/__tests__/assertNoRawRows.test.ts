@@ -58,6 +58,27 @@ describe("assertNoRawRows", () => {
         expect(() => assertNoRawRows(kmSpec, validKmPlotData)).not.toThrow();
     });
 
+    it("accepts KM confidence bounds with NaN at edge points", () => {
+        const withNaNCI: PlotData = {
+            ...validKmPlotData,
+            groups: [
+                {
+                    ...validKmPlotData.groups[0],
+                    points: [
+                        ...validKmPlotData.groups[0].points.slice(0, 1),
+                        {
+                            ...validKmPlotData.groups[0].points[1],
+                            ciLower: Number.NaN,
+                            ciUpper: Number.NaN,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(() => assertNoRawRows(kmSpec, withNaNCI)).not.toThrow();
+    });
+
     it("rejects KM plot data containing a patient_id field", () => {
         const injected = {
             ...validKmPlotData,

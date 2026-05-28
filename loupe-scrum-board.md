@@ -532,16 +532,16 @@ De rechter rail in `/export`. Begin met de basis (P0): titel, axis-labels, palet
 SQL-migratie voor de charts-tabel. Eén tabel, JSONB voor flexibiliteit, RLS voor isolatie tussen users.
 
 **Actie-items**
-- [ ] Migratie-bestand `supabase/migrations/YYYYMMDD_charts.sql`
-- [ ] Tabel `public.charts` met velden uit eerdere brief
-- [ ] RLS policy: `auth.uid() = user_id` voor select/insert/update/delete
-- [ ] Index op `user_id` voor dashboard-query
-- [ ] Trigger voor `updated_at`
-- [ ] Test in Supabase studio: user A kan charts van user B niet zien
+- [x] Migratie-bestand `supabase/migrations/YYYYMMDD_charts.sql`
+- [x] Tabel `public.charts` met velden uit eerdere brief
+- [x] RLS policy: `auth.uid() = user_id` voor select/insert/update/delete
+- [x] Index op `user_id` voor dashboard-query
+- [x] Trigger voor `updated_at`
+- [x] Test in Supabase studio: user A kan charts van user B niet zien
 
 **Acceptance criteria**
-- [ ] `supabase db reset` past schema clean toe
-- [ ] Dual-account test bewijst RLS-isolatie
+- [x] `supabase db reset` past schema clean toe
+- [x] Dual-account test bewijst RLS-isolatie
 
 On export, source the title from ChartSpec.title, NOT from overrideDisplay.title. The · overridden from X suffix is page-UI-only and must not appear in exported artifacts.
 ---
@@ -557,15 +557,15 @@ On export, source the title from ChartSpec.title, NOT from overrideDisplay.title
 Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-kritisch:** asseert dat geen rauwe rijen in payload zitten voor het naar Supabase gaat.
 
 **Actie-items**
-- [ ] `src/app/charts/actions.ts` — `saveChart` server action
-- [ ] Payload validatie via Zod (alleen aggregaten, geen array-of-rows)
-- [ ] Privacy-assert: scan PlotData op verdachte structuur, throw als detected
-- [ ] Update vs. insert logica op basis van `id`
-- [ ] revalidatePath('/dashboard') bij succes
+- [x] `src/app/charts/actions.ts` — `saveChart` server action
+- [x] Payload validatie via Zod (alleen aggregaten, geen array-of-rows)
+- [x] Privacy-assert: scan PlotData op verdachte structuur, throw als detected
+- [x] Update vs. insert logica op basis van `id`
+- [x] revalidatePath('/dashboard') bij succes
 
 **Acceptance criteria**
-- [ ] KM met 600 patiënten saved als <5kB JSON (alleen step-points)
-- [ ] Privacy-assert blokkeert mock-payload met `rows[]` veld
+- [x] KM met 600 patiënten saved als <5kB JSON (alleen step-points)
+- [x] Privacy-assert blokkeert mock-payload met `rows[]` veld
 
 ---
 

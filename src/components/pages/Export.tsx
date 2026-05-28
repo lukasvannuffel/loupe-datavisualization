@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -33,6 +33,7 @@ import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { saveChart } from "@/app/charts/actions";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
+import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
 import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
@@ -546,6 +547,7 @@ export const Export = (): JSX.Element => {
     const [saving, setSaving] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
+    const chartCanvasRef = useRef<HTMLDivElement | null>(null);
 
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
 
@@ -695,6 +697,8 @@ export const Export = (): JSX.Element => {
         setSaveError(null);
         setSaving(true);
         try {
+            const chartSvg = chartCanvasRef.current?.querySelector<SVGSVGElement>("svg.rec-chart-svg") ?? null;
+            const thumbnail = await generateThumbnail(liveSpec.kind, plotData.kind, chartSvg);
             const result = await saveChart({
                 id: undefined,
                 name: liveSpec.title,
@@ -702,6 +706,7 @@ export const Export = (): JSX.Element => {
                 column_mapping: mapping,
                 receipt: computedReceipt,
                 plot_data: plotData,
+                thumbnail,
             });
             if (!result.success) {
                 setSaveError(result.error);
@@ -884,7 +889,7 @@ export const Export = (): JSX.Element => {
                     <Eyebrow>Final figure</Eyebrow>
                     <h1 className="export-title">Ready for the manuscript.</h1>
 
-                    <div className="export-canvas">
+                    <div className="export-canvas" ref={chartCanvasRef}>
                         <div className="export-canvas-head">
                             <div>
                                 <div className="muted export-canvas-eyebrow">{eyebrow}</div>
