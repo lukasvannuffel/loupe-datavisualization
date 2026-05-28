@@ -6,6 +6,7 @@ import type { ChartListItem } from "@/lib/charts/listCharts";
 import { chartKindIcon } from "@/lib/thumbnail/chartKindIcons";
 
 import { ChartKindBadge } from "./ChartKindBadge";
+import { DeleteChartButton } from "./DeleteChartButton";
 import styles from "./dashboard.module.css";
 
 type ChartCardProps = {
@@ -51,9 +52,7 @@ export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
                     </time>
                 </div>
             </Link>
-            <button type="button" className={styles.deleteButton} aria-label="Delete chart">
-                Delete
-            </button>
+            <DeleteChartButton chartId={chart.id} chartName={chart.name} />
         </article>
     );
 };

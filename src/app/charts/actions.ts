@@ -43,6 +43,21 @@ export type SaveChartPayload = {
 export type SaveChartResult =
     | { readonly success: true; readonly id: string }
     | { readonly success: false; readonly error: string };
+export type DeleteChartResult =
+    | { readonly success: true }
+    | { readonly success: false; readonly error: string };
+export type ChartRow = {
+    readonly id: string;
+    readonly name: string;
+    readonly chart_spec: ChartSpec;
+    readonly column_mapping: Mapping;
+    readonly receipt: z.infer<typeof receiptSchema>;
+    readonly plot_data: PlotData | null;
+    readonly thumbnail: string | null;
+    readonly chart_kind: "bar" | "box" | "km" | "xy" | null;
+    readonly created_at: string;
+    readonly updated_at: string;
+};
 
 const payloadSchema = z
     .object({
@@ -197,5 +212,46 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
             success: false,
             error: error instanceof Error ? error.message : "Unknown error",
         };
+    }
+};
+
+export const getChart = async (id: string): Promise<ChartRow | null> => {
+    const supabase = createClient(await cookies());
+    const { data, error } = await supabase
+        .from("charts")
+        .select("id, name, chart_spec, column_mapping, receipt, plot_data, thumbnail, chart_kind, created_at, updated_at")
+        .eq("id", id)
+        .single();
+
+    if (error !== null || data === null) {
+        console.error("[getChart]", error);
+
+        return null;
+    }
+
+    return data as ChartRow;
+};
+
+export const deleteChart = async (id: string): Promise<DeleteChartResult> => {
+    try {
+        const supabase = createClient(await cookies());
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+        if (authError !== null || user === null) {
+            return { success: false, error: "Not authenticated" };
+        }
+        const { error } = await supabase.from("charts").delete().eq("id", id).eq("user_id", user.id);
+        if (error !== null) {
+            return { success: false, error: error.message };
+        }
+        revalidatePath("/dashboard");
+
+        return { success: true };
+    } catch (error) {
+        console.error("[deleteChart]", error);
+
+        return { success: false, error: "Delete failed" };
     }
 };

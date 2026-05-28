@@ -6,6 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChartCard } from "@/app/dashboard/ChartCard";
 import type { ChartListItem } from "@/lib/charts/listCharts";
 
+vi.mock("@/app/dashboard/DeleteChartButton", () => ({
+    DeleteChartButton: () => <button type="button">Delete</button>,
+}));
+
 const baseChart: ChartListItem = {
     id: "1",
     name: "My KM",
@@ -38,7 +42,7 @@ describe("ChartCard", () => {
 
         const image = container.querySelector("img");
         expect(image).not.toBeNull();
-        expect(image.getAttribute("src")).toContain("data:image/png");
+        expect(image?.getAttribute("src")).toContain("data:image/png");
     });
 
     it("renders a fallback icon when thumbnail is null", () => {
@@ -46,7 +50,7 @@ describe("ChartCard", () => {
 
         const image = container.querySelector("img");
         expect(image).not.toBeNull();
-        expect(image.getAttribute("src")).toContain("data:image/svg+xml");
+        expect(image?.getAttribute("src")).toContain("data:image/svg+xml");
     });
 
     it("links to export with the chart id", () => {

@@ -26,7 +26,7 @@ vi.mock("@/utils/supabase/server", () => ({
     createClient: createClientMock,
 }));
 
-import { saveChart } from "@/app/charts/actions";
+import { deleteChart, getChart, saveChart } from "@/app/charts/actions";
 
 const chartSpec: ChartSpec = {
     kind: "km",
@@ -143,7 +143,15 @@ const longitudinalPlotData: PlotData = {
     yMax: 1.1,
 };
 
-const createSupabaseMock = (options?: { authUserId?: string | null; insertError?: string; updateError?: string }) => {
+const createSupabaseMock = (
+    options?: {
+        authUserId?: string | null;
+        insertError?: string;
+        updateError?: string;
+        getError?: string;
+        deleteError?: string;
+    },
+) => {
     const singleMock = vi.fn(async () =>
         options?.insertError !== undefined
             ? { data: null, error: { message: options.insertError } }
@@ -159,9 +167,50 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
     const selectUpdateMock = vi.fn(() => ({ single: singleUpdateMock }));
     const matchMock = vi.fn(() => ({ select: selectUpdateMock }));
     const updateMock = vi.fn(() => ({ match: matchMock }));
+    const singleGetMock = vi.fn(async () =>
+        options?.getError !== undefined
+            ? { data: null, error: { message: options.getError } }
+            : {
+                data: {
+                    id: "chart-1",
+                    name: "Saved chart",
+                    chart_kind: "km",
+                    thumbnail: "data:image/png;base64,thumb",
+                    chart_spec: chartSpec,
+                    column_mapping: { time: "time_months", event: "event_status", group: "arm" },
+                    receipt: {
+                        generated_at: new Date().toISOString(),
+                        config_hash: "hash",
+                        method: "m",
+                        sample: "s",
+                        palette: "editorial",
+                        software: "Loupe v0.1.0 · client-side",
+                        ai_rationale: "why",
+                        csv_columns: ["time_months", "event_status", "arm"],
+                        n_rows_input: 100,
+                    },
+                    plot_data: plotData,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                },
+                error: null,
+            },
+    );
+    const eqSecondMock = vi.fn(() => ({ single: singleGetMock }));
+    const eqFirstMock = vi.fn(() => ({ eq: eqSecondMock, single: singleGetMock }));
+    const selectGetMock = vi.fn(() => ({ eq: eqFirstMock }));
+    const eqDeleteSecondMock = vi.fn(async () =>
+        options?.deleteError !== undefined
+            ? { error: { message: options.deleteError } }
+            : { error: null },
+    );
+    const eqDeleteFirstMock = vi.fn(() => ({ eq: eqDeleteSecondMock }));
+    const deleteMock = vi.fn(() => ({ eq: eqDeleteFirstMock }));
     const fromMock = vi.fn(() => ({
         insert: insertMock,
         update: updateMock,
+        select: selectGetMock,
+        delete: deleteMock,
     }));
     const getUserMock = vi.fn(async () =>
         options?.authUserId === null
@@ -183,6 +232,13 @@ const createSupabaseMock = (options?: { authUserId?: string | null; insertError?
             singleUpdateMock,
             selectMock,
             singleMock,
+            selectGetMock,
+            eqFirstMock,
+            eqSecondMock,
+            singleGetMock,
+            deleteMock,
+            eqDeleteFirstMock,
+            eqDeleteSecondMock,
             updateMock,
         },
     };
@@ -563,5 +619,61 @@ describe("saveChart", () => {
     //   In src/app/charts/actions.ts isPlotDataStorable, change `if (chartKind === "box") { return false; }` to `return true;`.
     //   Re-run "stores null plot_data for box charts".
     //   Box plot_data is now stored instead of nulled -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
+});
+
+describe("getChart and deleteChart", () => {
+    beforeEach(() => {
+        createClientMock.mockReset();
+        revalidatePathMock.mockClear();
+    });
+
+    it("getChart returns a row when found", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart?.id).toBe("chart-1");
+    });
+
+    it("getChart returns null when missing", async () => {
+        const { client } = createSupabaseMock({ getError: "not found" });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("missing");
+
+        expect(chart).toBeNull();
+    });
+
+    it("deleteChart deletes scoped to the authenticated user", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const result = await deleteChart("chart-123");
+
+        expect(result.success).toBe(true);
+        expect(mocks.deleteMock).toHaveBeenCalledTimes(1);
+        expect(mocks.eqDeleteFirstMock).toHaveBeenCalledWith("id", "chart-123");
+        expect(mocks.eqDeleteSecondMock).toHaveBeenCalledWith("user_id", "user-123");
+        expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard");
+    });
+
+    it("deleteChart returns not authenticated without a session", async () => {
+        const { client } = createSupabaseMock({ authUserId: null });
+        createClientMock.mockReturnValue(client);
+
+        const result = await deleteChart("chart-123");
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/not authenticated/i);
+        }
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/app/charts/actions.ts deleteChart, remove `.eq("user_id", user.id)`.
+    //   Re-run "deleteChart deletes scoped to the authenticated user".
+    //   The user_id scoping assertion fails -> test RED.
     //   Verified manually: 2026-05-28. REVERTED.
 });
