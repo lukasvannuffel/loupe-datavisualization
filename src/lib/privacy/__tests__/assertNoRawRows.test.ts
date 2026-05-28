@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 
-import { assertNoRawRows } from "../assertNoRawRows";
+import { assertNoRawRows, FORBIDDEN_KEY_PATTERN } from "../assertNoRawRows";
 
 const kmSpec: ChartSpec = {
     kind: "km",
@@ -58,6 +58,47 @@ describe("assertNoRawRows", () => {
         expect(() => assertNoRawRows(kmSpec, validKmPlotData)).not.toThrow();
     });
 
+    it("accepts KM confidence bounds with NaN at edge points", () => {
+        const withNaNCI: PlotData = {
+            ...validKmPlotData,
+            groups: [
+                {
+                    ...validKmPlotData.groups[0],
+                    points: [
+                        ...validKmPlotData.groups[0].points.slice(0, 1),
+                        {
+                            ...validKmPlotData.groups[0].points[1],
+                            ciLower: Number.NaN,
+                            ciUpper: Number.NaN,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(() => assertNoRawRows(kmSpec, withNaNCI)).not.toThrow();
+    });
+
+    it("accepts KM confidence bounds serialized as null", () => {
+        const withNullCI = {
+            ...validKmPlotData,
+            groups: [
+                {
+                    ...validKmPlotData.groups[0],
+                    points: [
+                        {
+                            ...validKmPlotData.groups[0].points[0],
+                            ciLower: null,
+                            ciUpper: null,
+                        },
+                    ],
+                },
+            ],
+        } as unknown as PlotData;
+
+        expect(() => assertNoRawRows(kmSpec, withNullCI)).not.toThrow();
+    });
+
     it("rejects KM plot data containing a patient_id field", () => {
         const injected = {
             ...validKmPlotData,
@@ -73,7 +114,7 @@ describe("assertNoRawRows", () => {
             rawRows: [{ id: 1, time: 5, event: 1 }],
         } as unknown as PlotData;
 
-        expect(() => assertNoRawRows(kmSpec, injected)).toThrow(/rawRows|row/i);
+        expect(() => assertNoRawRows(kmSpec, injected)).toThrow(/unexpected keys|rawRows|row/i);
     });
 
     it("rejects plot data with mismatched kind", () => {
@@ -154,9 +195,52 @@ describe("assertNoRawRows", () => {
         expect(() => assertNoRawRows(barSpec, longitudinalData)).toThrow(/kind mismatch/i);
     });
 
+    it.each(["patient_id", "subjectId", "record_id", "foo_id", "identifier"])(
+        "flags forbidden key %s",
+        (key) => {
+            expect(FORBIDDEN_KEY_PATTERN.test(key)).toBe(true);
+        },
+    );
+
+    it.each(["seriesId", "groupId", "panelId", "label", "mean"])(
+        "allows safe key %s",
+        (key) => {
+            expect(FORBIDDEN_KEY_PATTERN.test(key)).toBe(false);
+        },
+    );
+
+    describe("allowlist perimeter catches keys the regex no longer matches", () => {
+        it.each(["userId", "patientName", "subjectName", "mrn", "dob"])(
+            "rejects unexpected key %s injected into a KM group via allowlist",
+            (key) => {
+                const injected = {
+                    ...validKmPlotData,
+                    groups: [{ ...validKmPlotData.groups[0], [key]: "leak" }],
+                } as unknown as PlotData;
+
+                expect(() => assertNoRawRows(kmSpec, injected)).toThrow(/unexpected keys/i);
+            },
+        );
+
+        it("confirms userId and patientName are not caught by the regex", () => {
+            expect(FORBIDDEN_KEY_PATTERN.test("userId")).toBe(false);
+            expect(FORBIDDEN_KEY_PATTERN.test("patientName")).toBe(false);
+        });
+    });
+
     // MUTATION-VERIFY:
-    //   In src/lib/privacy/assertNoRawRows.ts, change FORBIDDEN_KEY_PATTERN to /^never_match_anything$/.
-    //   Re-run "rejects KM plot data containing a patient_id field".
-    //   The patient_id key is no longer flagged -> test RED.
-    //   Verified manually: 2026-05-27. REVERTED.
+    //   In src/lib/privacy/assertNoRawRows.ts, mutate the exact call in assertKMShape:
+    //   `assertExactKeys(groupRecord, ["label", "points", "atRiskTicks", "nTotal", "nEvents"], groupPath);`
+    //   to
+    //   `assertExactKeys(groupRecord, ["label", "points", "atRiskTicks", "nTotal", "nEvents", "userId"], groupPath);`.
+    //   Re-run "rejects unexpected key userId injected into a KM group via allowlist".
+    //   userId is no longer rejected -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
+
+    // MUTATION-VERIFY:
+    //   In src/lib/privacy/assertNoRawRows.ts, change FORBIDDEN_KEY_PATTERN
+    //   from `/^(patient|subject|record)([_-]?id)?$|_id$|identifier/i` to include `|id$`.
+    //   Re-run "allows safe key seriesId".
+    //   `seriesId` now matches `id$` -> expect(false) fails -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
 });

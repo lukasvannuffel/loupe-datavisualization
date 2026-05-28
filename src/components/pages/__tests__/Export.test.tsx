@@ -130,6 +130,107 @@ describe("Export customization rail", () => {
         ).toBeTruthy();
     });
 
+    it("shows view-only notice and hides editing controls when loaded plot_data is null", async () => {
+        render(
+            <AppStateProvider>
+                <Export
+                    initialChartId="box-1"
+                    initialChart={{
+                        id: "box-1",
+                        name: "Saved scatter",
+                        chart_spec: createDefaultChartSpec(
+                            "box",
+                            { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
+                            { inferences: [], mapping: {}, rows: brandRows([]) },
+                        ),
+                        column_mapping: {},
+                        receipt: {
+                            generated_at: "2026-05-28T08:00:00.000Z",
+                            config_hash: "hash",
+                            method: "method",
+                            sample: "sample",
+                            palette: "editorial",
+                            software: "Loupe v0.1.0 · client-side",
+                            ai_rationale: "why",
+                            csv_columns: [],
+                            n_rows_input: 1,
+                        },
+                        plot_data: null,
+                        thumbnail: "data:image/svg+xml;utf8,test",
+                        chart_kind: "box",
+                        created_at: "2026-05-28T08:00:00.000Z",
+                        updated_at: "2026-05-28T08:00:00.000Z",
+                    }}
+                />
+            </AppStateProvider>,
+        );
+
+        expect(
+            await screen.findByText(/saved as a snapshot to protect patient data/i),
+        ).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /save to project/i })).toBeNull();
+        expect(screen.queryByRole("complementary", { name: /customize chart/i })).toBeNull();
+    });
+
+    it("shows customization rail when loaded chart has plot_data", async () => {
+        render(
+            <AppStateProvider>
+                <Export
+                    initialChartId="km-1"
+                    initialChart={{
+                        id: "km-1",
+                        name: "Saved km",
+                        chart_spec: createDefaultChartSpec(
+                            "km",
+                            { id: "saved-km", createdAt: "2026-05-28T08:00:00.000Z" },
+                            { inferences: [], mapping: {}, rows: brandRows([]) },
+                        ),
+                        column_mapping: {},
+                        receipt: {
+                            generated_at: "2026-05-28T08:00:00.000Z",
+                            config_hash: "sha256·abcdef12…beef",
+                            method: "Kaplan-Meier estimator, Greenwood log-log CI",
+                            sample: "n = 100 · censored = 0",
+                            palette: "editorial",
+                            software: "Loupe v0.1.0 · client-side",
+                            ai_rationale: "why",
+                            csv_columns: ["time", "event"],
+                            n_rows_input: 1,
+                        },
+                        plot_data: {
+                            kind: "km",
+                            tMax: 12,
+                            groups: [
+                                {
+                                    label: "Arm A",
+                                    nTotal: 10,
+                                    nEvents: 1,
+                                    points: [{ t: 1, survival: 0.9, nAtRisk: 10, censored: false, ciLower: 0.7, ciUpper: 1 }],
+                                    atRiskTicks: [{ t: 0, nAtRisk: 10 }],
+                                },
+                            ],
+                        },
+                        thumbnail: "data:image/png;base64,thumb",
+                        chart_kind: "km",
+                        created_at: "2026-05-28T08:00:00.000Z",
+                        updated_at: "2026-05-28T08:00:00.000Z",
+                    }}
+                />
+            </AppStateProvider>,
+        );
+
+        expect(await screen.findByRole("complementary", { name: /customize chart/i })).toBeTruthy();
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/components/pages/Export.tsx, mutate the exact rail guard:
+    //   `viewOnlySnapshot === null && useSpecFigure && liveSpec !== null`
+    //   to
+    //   `useSpecFigure && liveSpec !== null`.
+    //   Re-run "shows view-only notice and hides editing controls when loaded plot_data is null".
+    //   The rail becomes visible, so `queryByRole("complementary", { name: /customize chart/i })` is non-null -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
+
     it("rail title input edits the spec live", async () => {
         renderExport();
 

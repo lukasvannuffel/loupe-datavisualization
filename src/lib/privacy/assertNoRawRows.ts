@@ -1,6 +1,6 @@
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 
-const FORBIDDEN_KEY_PATTERN = /patient|subject|record|row|id$|identifier/i;
+export const FORBIDDEN_KEY_PATTERN = /^(patient|subject|record)([_-]?id)?$|_id$|identifier/i;
 const ACCEPTED_KINDS_FOR_SPEC: Record<ChartSpec["kind"], ReadonlySet<string>> = {
     barError: new Set(["barError"]),
     box: new Set(["box"]),
@@ -37,6 +37,19 @@ const assertNumber = (value: unknown, path: string): void => {
     if (typeof value !== "number" || Number.isNaN(value)) {
         throw new Error(`Privacy violation: expected number at "${path}"`);
     }
+};
+
+const assertFiniteOrNaNNumber = (value: unknown, path: string): void => {
+    if (typeof value !== "number" || (!Number.isFinite(value) && !Number.isNaN(value))) {
+        throw new Error(`Privacy violation: expected number at "${path}"`);
+    }
+};
+
+const assertFiniteOrNaNNumberOrNull = (value: unknown, path: string): void => {
+    if (value === null) {
+        return;
+    }
+    assertFiniteOrNaNNumber(value, path);
 };
 
 const assertBoolean = (value: unknown, path: string): void => {
@@ -112,8 +125,8 @@ const assertKMShape = (plotData: unknown): void => {
             assertNumber(pointRecord.survival, `${pointPath}.survival`);
             assertNumber(pointRecord.nAtRisk, `${pointPath}.nAtRisk`);
             assertBoolean(pointRecord.censored, `${pointPath}.censored`);
-            assertNumber(pointRecord.ciLower, `${pointPath}.ciLower`);
-            assertNumber(pointRecord.ciUpper, `${pointPath}.ciUpper`);
+            assertFiniteOrNaNNumberOrNull(pointRecord.ciLower, `${pointPath}.ciLower`);
+            assertFiniteOrNaNNumberOrNull(pointRecord.ciUpper, `${pointPath}.ciUpper`);
         });
         if (!Array.isArray(groupRecord.atRiskTicks)) {
             throw new Error(`Privacy violation: expected array at "${groupPath}.atRiskTicks"`);

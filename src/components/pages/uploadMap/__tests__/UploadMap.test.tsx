@@ -401,8 +401,11 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(screen.getByText(/Couldn.*generate a recommendation/i)).not.toBeNull();
+            expect(screen.getByRole("alert")).not.toBeNull();
         });
+        const alert = screen.getByRole("alert");
+        expect(alert.textContent).toContain("AI gateway upstream error.");
+        expect(screen.getByRole("button", { name: /Try again/i })).not.toBeDisabled();
         await act(async () => {
             recommendChartMock.mockResolvedValueOnce({
                 chartType: "km",
@@ -431,10 +434,14 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(screen.getByText(/Couldn.*generate a recommendation/i)).toBeTruthy();
+            expect(screen.getByRole("alert")).not.toBeNull();
         });
+        const alert = screen.getByRole("alert");
+        expect(alert.textContent).toContain("AI gateway upstream error.");
+        const manualButton = screen.getByRole("button", { name: /Pick chart manually/i });
+        expect(manualButton).not.toBeDisabled();
         await act(async () => {
-            fireEvent.click(screen.getByRole("button", { name: /Pick chart manually/i }));
+            fireEvent.click(manualButton);
         });
         await waitFor(() => {
             expect(push).toHaveBeenCalledWith("/recommend/manual");
