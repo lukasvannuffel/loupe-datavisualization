@@ -150,6 +150,7 @@ const createSupabaseMock = (
         updateError?: string;
         getError?: string;
         deleteError?: string;
+        getDataOverride?: Record<string, unknown>;
     },
 ) => {
     const singleMock = vi.fn(async () =>
@@ -180,18 +181,19 @@ const createSupabaseMock = (
                     column_mapping: { time: "time_months", event: "event_status", group: "arm" },
                     receipt: {
                         generated_at: new Date().toISOString(),
-                        config_hash: "hash",
-                        method: "m",
-                        sample: "s",
+                        config_hash: "sha256·abcdef12…beef",
+                        method: "Kaplan-Meier estimator, Greenwood log-log CI",
+                        sample: "n = 100 · censored = 0",
                         palette: "editorial",
                         software: "Loupe v0.1.0 · client-side",
-                        ai_rationale: "why",
+                        ai_rationale: "Time-to-event with censoring and treatment groups.",
                         csv_columns: ["time_months", "event_status", "arm"],
                         n_rows_input: 100,
                     },
                     plot_data: plotData,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
+                    ...options?.getDataOverride,
                 },
                 error: null,
             },
@@ -610,13 +612,15 @@ describe("saveChart", () => {
     //   Verified manually: 2026-05-27. REVERTED.
 
     // MUTATION-VERIFY:
-    //   In src/app/charts/actions.ts, remove the config_hash mismatch guard.
+    //   In src/app/charts/actions.ts, delete the exact guard block:
+    //   `if (recomputedHash !== parsed.receipt.config_hash) { return { success: false, error: ... }; }`.
     //   Re-run "rejects when client config_hash does not match server recomputation".
     //   Mismatched hash is now accepted -> test RED.
     //   Verified manually: 2026-05-27. REVERTED.
 
     // MUTATION-VERIFY:
-    //   In src/app/charts/actions.ts isPlotDataStorable, change `if (chartKind === "box") { return false; }` to `return true;`.
+    //   In src/app/charts/actions.ts isPlotDataStorable, mutate only the box branch:
+    //   `if (chartKind === "box") { return false; }` -> `if (chartKind === "box") { return true; }`.
     //   Re-run "stores null plot_data for box charts".
     //   Box plot_data is now stored instead of nulled -> test RED.
     //   Verified manually: 2026-05-28. REVERTED.
@@ -629,12 +633,13 @@ describe("getChart and deleteChart", () => {
     });
 
     it("getChart returns a row when found", async () => {
-        const { client } = createSupabaseMock();
+        const { client, mocks } = createSupabaseMock();
         createClientMock.mockReturnValue(client);
 
         const chart = await getChart("chart-1");
 
         expect(chart?.id).toBe("chart-1");
+        expect(mocks.eqSecondMock).toHaveBeenCalledWith("user_id", "user-123");
     });
 
     it("getChart returns null when missing", async () => {
@@ -645,6 +650,98 @@ describe("getChart and deleteChart", () => {
 
         expect(chart).toBeNull();
     });
+
+    it("getChart returns null when no authenticated user", async () => {
+        const { client } = createSupabaseMock({ authUserId: null });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns null when chart_spec fails schema validation", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: { chart_spec: { kind: "bogus" } },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns null when receipt fails schema validation", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: { receipt: { bogus: true } },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns null when chart_kind is unknown", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: { chart_kind: "pie" },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns null when column_mapping fails schema validation", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: { column_mapping: { bogus: 123 } },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns null when loaded plot_data contains a forbidden key", async () => {
+        const { client } = createSupabaseMock({
+            getDataOverride: {
+                plot_data: {
+                    ...plotData,
+                    groups: [{ ...plotData.groups[0], patient_id: "P001" }],
+                },
+            },
+        });
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).toBeNull();
+    });
+
+    it("getChart returns the row when loaded plot_data is clean", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const chart = await getChart("chart-1");
+
+        expect(chart).not.toBeNull();
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/app/charts/actions.ts getChart, remove the exact line:
+    //   `.eq("user_id", user.id)`.
+    //   Re-run "getChart returns a row when found".
+    //   `expect(mocks.eqSecondMock).toHaveBeenCalledWith("user_id", "user-123")` fails -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
+
+    // MUTATION-VERIFY:
+    //   In src/app/charts/actions.ts getChart, comment out the exact line:
+    //   `assertNoRawRows(parsedSpec.data, data.plot_data as PlotData);`.
+    //   Re-run "getChart returns null when loaded plot_data contains a forbidden key".
+    //   Tainted row is returned instead of null -> test RED.
+    //   Verified manually: 2026-05-28. REVERTED.
 
     it("deleteChart deletes scoped to the authenticated user", async () => {
         const { client, mocks } = createSupabaseMock();

@@ -15,7 +15,7 @@ export const receiptSchema = z
             "tol-vibrant",
             "deuteranopia-tuned",
         ]),
-        software: z.string().regex(/^Loupe v\d+\.\d+\.\d+ · client-side$/),
+        software: z.string().regex(/^Loupe v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)? · client-side$/),
         ai_rationale: z.string().min(1).max(2000),
         csv_columns: z.array(z.string().min(1).max(100)).min(1).max(50).readonly(),
         n_rows_input: z.number().int().positive().max(1_000_000),

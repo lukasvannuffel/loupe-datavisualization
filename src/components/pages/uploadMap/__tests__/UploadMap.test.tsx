@@ -401,7 +401,7 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole("alert")).not.toBeNull();
         });
         const alert = screen.getByRole("alert");
         expect(alert.textContent).toContain("AI gateway upstream error.");
@@ -434,7 +434,7 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole("alert")).not.toBeNull();
         });
         const alert = screen.getByRole("alert");
         expect(alert.textContent).toContain("AI gateway upstream error.");

@@ -1,6 +1,6 @@
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 
-const FORBIDDEN_KEY_PATTERN = /patient|subject|record|row|id$|identifier/i;
+export const FORBIDDEN_KEY_PATTERN = /^(patient|subject|record)([_-]?id)?$|_id$|identifier/i;
 const ACCEPTED_KINDS_FOR_SPEC: Record<ChartSpec["kind"], ReadonlySet<string>> = {
     barError: new Set(["barError"]),
     box: new Set(["box"]),

@@ -580,17 +580,17 @@ Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-k
 `/dashboard` toont saved charts. Klik om te laden in `/export` voor verdere bewerking. Delete met bevestiging.
 
 **Actie-items**
-- [ ] `/dashboard/page.tsx` — server component, fetch charts van user
-- [ ] Card per chart: thumbnail (mini-render), titel, datum, chart-type badge
-- [ ] Sort: laatst bewerkt eerst
-- [ ] Klik → laadt ChartSpec in app state, navigeert naar `/export?id=...`
-- [ ] Delete-action met confirmation modal
-- [ ] Empty state: friendly copy + CTA naar `/upload`
+- [x] `/dashboard/page.tsx` — server component, fetch charts van user
+- [x] Card per chart: thumbnail (mini-render), titel, datum, chart-type badge
+- [x] Sort: laatst bewerkt eerst
+- [x] Klik → laadt ChartSpec in app state, navigeert naar `/export?id=...`
+- [x] Delete-action met confirmation modal
+- [x] Empty state: friendly copy + CTA naar `/upload`
 
 **Acceptance criteria**
-- [ ] Saved chart verschijnt onmiddelijk na save
-- [ ] Reload van `/export?id=...` toont identieke chart
-- [ ] Delete verwijdert direct uit Supabase + UI
+- [x] Saved chart verschijnt onmiddelijk na save
+- [x] Reload van `/export?id=...` toont identieke chart
+- [x] Delete verwijdert direct uit Supabase + UI
 
 ---
 
