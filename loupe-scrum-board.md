@@ -501,18 +501,18 @@ Vervangt het oorspronkelijke Forest-ticket na chart-pivot. Twee gebruiksvormen i
 De rechter rail in `/export`. Begin met de basis (P0): titel, axis-labels, palette. Annotaties (P1: tekstlabels op chart) zijn nice-to-have.
 
 **Actie-items**
-- [ ] **P0:** Inline-editable titel + axis-labels (contentEditable)
-- [ ] **P0:** 3 medische palettes: monochrome, divergent (bv. lancet), categorical
-- [ ] **P0:** Live preview update bij wijziging zonder re-aggregate
-- [ ] **P0:** Box-specifieke toggles: `showOutliers`, `notched`, `showMeanMarker`
-- [ ] **P0:** XY-specifieke toggles: `mode` (line/scatter/both), `showRegression`, `showErrorBands`
-- [ ] **P1:** Annotatie-tool: klik op chart → text-label toevoegen, drag te repositioneren
-- [ ] **P1:** Error-bar type toggle (SD/SEM/CI) voor BarError chart
-- [ ] State serialiseert in ChartSpec voor save
+- [x] **P0:** Inline-editable titel + axis-labels (contentEditable)
+- [x] **P0:** 3 medische palettes: monochrome, divergent (bv. lancet), categorical
+- [x] **P0:** Live preview update bij wijziging zonder re-aggregate
+- [x] **P0:** Box-specifieke toggles: `showOutliers`, `notched`, `showMeanMarker`
+- [x] **P0:** XY-specifieke toggles: `mode` (line/scatter/both), `showRegression`, `showErrorBands`
+- [x] **P1:** Annotatie-tool: klik op chart → text-label toevoegen, drag te repositioneren
+- [x] **P1:** Error-bar type toggle (SD/SEM/CI) voor BarError chart
+- [x] State serialiseert in ChartSpec voor save
 
 **Acceptance criteria**
-- [ ] Wijzigingen reflecteren in <100ms zonder data re-fetch
-- [ ] ChartSpec na save bevat alle customizations
+- [x] Wijzigingen reflecteren in <100ms zonder data re-fetch
+- [x] ChartSpec na save bevat alle customizations
 
 ---
 
@@ -532,16 +532,16 @@ De rechter rail in `/export`. Begin met de basis (P0): titel, axis-labels, palet
 SQL-migratie voor de charts-tabel. Eén tabel, JSONB voor flexibiliteit, RLS voor isolatie tussen users.
 
 **Actie-items**
-- [ ] Migratie-bestand `supabase/migrations/YYYYMMDD_charts.sql`
-- [ ] Tabel `public.charts` met velden uit eerdere brief
-- [ ] RLS policy: `auth.uid() = user_id` voor select/insert/update/delete
-- [ ] Index op `user_id` voor dashboard-query
-- [ ] Trigger voor `updated_at`
-- [ ] Test in Supabase studio: user A kan charts van user B niet zien
+- [x] Migratie-bestand `supabase/migrations/YYYYMMDD_charts.sql`
+- [x] Tabel `public.charts` met velden uit eerdere brief
+- [x] RLS policy: `auth.uid() = user_id` voor select/insert/update/delete
+- [x] Index op `user_id` voor dashboard-query
+- [x] Trigger voor `updated_at`
+- [x] Test in Supabase studio: user A kan charts van user B niet zien
 
 **Acceptance criteria**
-- [ ] `supabase db reset` past schema clean toe
-- [ ] Dual-account test bewijst RLS-isolatie
+- [x] `supabase db reset` past schema clean toe
+- [x] Dual-account test bewijst RLS-isolatie
 
 On export, source the title from ChartSpec.title, NOT from overrideDisplay.title. The · overridden from X suffix is page-UI-only and must not appear in exported artifacts.
 ---
@@ -557,15 +557,15 @@ On export, source the title from ChartSpec.title, NOT from overrideDisplay.title
 Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-kritisch:** asseert dat geen rauwe rijen in payload zitten voor het naar Supabase gaat.
 
 **Actie-items**
-- [ ] `src/app/charts/actions.ts` — `saveChart` server action
-- [ ] Payload validatie via Zod (alleen aggregaten, geen array-of-rows)
-- [ ] Privacy-assert: scan PlotData op verdachte structuur, throw als detected
-- [ ] Update vs. insert logica op basis van `id`
-- [ ] revalidatePath('/dashboard') bij succes
+- [x] `src/app/charts/actions.ts` — `saveChart` server action
+- [x] Payload validatie via Zod (alleen aggregaten, geen array-of-rows)
+- [x] Privacy-assert: scan PlotData op verdachte structuur, throw als detected
+- [x] Update vs. insert logica op basis van `id`
+- [x] revalidatePath('/dashboard') bij succes
 
 **Acceptance criteria**
-- [ ] KM met 600 patiënten saved als <5kB JSON (alleen step-points)
-- [ ] Privacy-assert blokkeert mock-payload met `rows[]` veld
+- [x] KM met 600 patiënten saved als <5kB JSON (alleen step-points)
+- [x] Privacy-assert blokkeert mock-payload met `rows[]` veld
 
 ---
 
@@ -580,17 +580,17 @@ Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-k
 `/dashboard` toont saved charts. Klik om te laden in `/export` voor verdere bewerking. Delete met bevestiging.
 
 **Actie-items**
-- [ ] `/dashboard/page.tsx` — server component, fetch charts van user
-- [ ] Card per chart: thumbnail (mini-render), titel, datum, chart-type badge
-- [ ] Sort: laatst bewerkt eerst
-- [ ] Klik → laadt ChartSpec in app state, navigeert naar `/export?id=...`
-- [ ] Delete-action met confirmation modal
-- [ ] Empty state: friendly copy + CTA naar `/upload`
+- [x] `/dashboard/page.tsx` — server component, fetch charts van user
+- [x] Card per chart: thumbnail (mini-render), titel, datum, chart-type badge
+- [x] Sort: laatst bewerkt eerst
+- [x] Klik → laadt ChartSpec in app state, navigeert naar `/export?id=...`
+- [x] Delete-action met confirmation modal
+- [x] Empty state: friendly copy + CTA naar `/upload`
 
 **Acceptance criteria**
-- [ ] Saved chart verschijnt onmiddelijk na save
-- [ ] Reload van `/export?id=...` toont identieke chart
-- [ ] Delete verwijdert direct uit Supabase + UI
+- [x] Saved chart verschijnt onmiddelijk na save
+- [x] Reload van `/export?id=...` toont identieke chart
+- [x] Delete verwijdert direct uit Supabase + UI
 
 ---
 

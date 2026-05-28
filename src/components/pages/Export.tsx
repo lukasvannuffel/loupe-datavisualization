@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -17,10 +17,30 @@ import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
 import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { useAppState } from "@/app/providers";
+import { mappingForBarError } from "@/components/pages/recommendation/barErrorMapping";
+import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
+import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
+import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
+import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
+import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
+import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
+import type { LongitudinalData, XYPlotData } from "@/lib/chartSpec/aggregators/xyPlot.types";
+import { LongitudinalError, XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
+import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
+import { KaplanMeierChart } from "@/components/charts/d3/KaplanMeierChart";
+import { XYChart } from "@/components/charts/d3/XYChart";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
-import type { ChartSpec } from "@/lib/chartSpec/types";
+import type { BarErrorPlotData, ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import { saveChart } from "@/app/charts/actions";
+import type { ChartRow } from "@/app/charts/actions";
+import { buildReceipt } from "@/lib/receipt/buildReceipt";
+import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
+import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
+import { ViewOnlyNotice } from "./ViewOnlyNotice";
 import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
@@ -429,7 +449,65 @@ const DEFAULT_ANNOTATION_DRAFT: AnnotationDraft = {
 const isSpecKind = (kind: ChartSlug): kind is ChartSpec["kind"] =>
     kind === "km" || kind === "barError" || kind === "box" || kind === "xy";
 
-export const Export = (): JSX.Element => {
+const computePlotData = (
+    spec: ChartSpec,
+    mapping: ReturnType<typeof useAppState>["mapping"],
+    dataset: NonNullable<ReturnType<typeof useAppState>["dataset"]>,
+): PlotData | null => {
+    if (spec.kind === "barError") {
+        const mapped = mappingForBarError(mapping, dataset.inferences);
+
+        return { kind: "barError", groups: aggregateBarError(dataset.rows, mapped.mapping).groups };
+    }
+    if (spec.kind === "km") {
+        if (mapping.time === undefined || mapping.event === undefined) {
+            return null;
+        }
+        try {
+            return aggregateKaplanMeier(dataset.rows, mapping);
+        } catch (error) {
+            if (error instanceof KaplanMeierError) {
+                return null;
+            }
+            throw error;
+        }
+    }
+    if (spec.kind === "box") {
+        if (mapping.outcome === undefined) {
+            return null;
+        }
+        try {
+            return aggregateBoxPlot(dataset.rows, mapping);
+        } catch (error) {
+            if (error instanceof BoxPlotError) {
+                return null;
+            }
+            throw error;
+        }
+    }
+    if (mapping.x === undefined || mapping.y === undefined) {
+        return null;
+    }
+    try {
+        const useLongitudinal = spec.mode === "line" || (spec.mode === "both" && mapping.id !== undefined);
+
+        return useLongitudinal
+            ? aggregateLongitudinal(dataset.rows, mapping)
+            : aggregateXYPlot(dataset.rows, mapping, { computeRegression: spec.showRegression });
+    } catch (error) {
+        if (error instanceof XYPlotError || error instanceof LongitudinalError) {
+            return null;
+        }
+        throw error;
+    }
+};
+
+type ExportProps = {
+    readonly initialChartId?: string | null;
+    readonly initialChart?: ChartRow | null;
+};
+
+export const Export = ({ initialChart = null, initialChartId = null }: ExportProps): JSX.Element => {
     const router = useRouter();
     const {
         chartKind,
@@ -438,12 +516,15 @@ export const Export = (): JSX.Element => {
         dataset,
         hydrated,
         mapping,
+        receipt,
+        setChartKind,
+        setChartSlug,
         setChartSpec,
         setMapping,
     } = useAppState();
 
     const slug: ChartSlug = appChartSlug ?? "km";
-    const useSpecFigure = dataset !== null && chartSpec !== null && isSpecKind(chartSpec.kind);
+    const useSpecFigure = chartSpec !== null && isSpecKind(chartSpec.kind);
     const slugDefaults = SLUG_DEFAULTS[slug];
     const ChartComponent = getPublicationChart(slug);
 
@@ -475,17 +556,61 @@ export const Export = (): JSX.Element => {
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saving, setSaving] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
+    const chartCanvasRef = useRef<HTMLDivElement | null>(null);
 
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
+    const [loadedChartId, setLoadedChartId] = useState<string | null>(null);
+    const [loadedPlotData, setLoadedPlotData] = useState<PlotData | null>(null);
+    const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(null);
+    const [viewOnlySnapshot, setViewOnlySnapshot] = useState<{ name: string; thumbnail: string | null } | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         setLiveSpec(chartSpec);
     }, [chartSpec]);
 
     useEffect(() => {
+        if (initialChartId === null) {
+            setLoadedChartId(null);
+            setLoadedPlotData(null);
+            setLoadedReceipt(null);
+            setViewOnlySnapshot(null);
+            setLoadError(null);
+            return;
+        }
+        if (initialChart === null) {
+            setLoadedChartId(initialChartId);
+            setLoadedPlotData(null);
+            setLoadedReceipt(null);
+            setViewOnlySnapshot(null);
+            setLoadError("Chart not found.");
+            return;
+        }
+        setLoadedChartId(initialChart.id);
+        setChartSpec(initialChart.chart_spec);
+        setLiveSpec(initialChart.chart_spec);
+        setChartKind(initialChart.chart_spec.kind);
+        setChartSlug(initialChart.chart_spec.kind);
+        setMapping(initialChart.column_mapping);
+        setLoadedReceipt(initialChart.receipt);
+        if (initialChart.plot_data === null) {
+            setLoadedPlotData(null);
+            setViewOnlySnapshot({ name: initialChart.name, thumbnail: initialChart.thumbnail });
+            return;
+        }
+        setViewOnlySnapshot(null);
+        setLoadedPlotData(initialChart.plot_data);
+        setLoadError(null);
+    }, [initialChart, initialChartId, setChartKind, setChartSlug, setChartSpec, setMapping]);
+
+    useEffect(() => {
         if (
+            initialChartId !== null ||
             !hydrated ||
             chartKind === null ||
             dataset === null ||
@@ -506,7 +631,7 @@ export const Export = (): JSX.Element => {
         }
 
         setChartSpec(spec);
-    }, [chartKind, chartSpec, dataset, hydrated, mapping, setChartSpec, setMapping]);
+    }, [chartKind, chartSpec, dataset, hydrated, initialChartId, mapping, setChartSpec, setMapping]);
 
     const onSpecChange = (updater: SpecUpdater): void => {
         if (liveSpec === null) {
@@ -529,6 +654,45 @@ export const Export = (): JSX.Element => {
         useSpecFigure && liveSpec !== null
             ? resolvePalette(liveSpec)
             : palette.name.toLowerCase();
+
+    useEffect(() => {
+        let isCancelled = false;
+        if (!useSpecFigure || liveSpec === null) {
+            setComputedReceipt(null);
+            return;
+        }
+        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+        if (plotData === null) {
+            setComputedReceipt(null);
+            return;
+        }
+        const nextPalette: PaletteName = resolvePalette(liveSpec);
+        const aiRationale =
+            dataset !== null ? (receipt?.recommendation.because ?? slugDefaults.rationale) : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
+        const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
+        void buildReceipt({
+            aiRationale,
+            chartSpec: liveSpec,
+            columnMapping: mapping,
+            nRowsInput,
+            palette: nextPalette,
+            plotData,
+        })
+            .then((nextReceipt) => {
+                if (!isCancelled) {
+                    setComputedReceipt(nextReceipt);
+                }
+            })
+            .catch(() => {
+                if (!isCancelled) {
+                    setComputedReceipt(null);
+                }
+            });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, receipt, slugDefaults.rationale, useSpecFigure]);
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -573,6 +737,43 @@ export const Export = (): JSX.Element => {
     const onCopy = (): void => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
+    };
+
+    const handleSaveToProject = async (): Promise<void> => {
+        if (liveSpec === null || computedReceipt === null) {
+            setSaveError("Save unavailable: chart data is incomplete.");
+            return;
+        }
+        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+        if (plotData === null) {
+            setSaveError("Save unavailable: unable to compute aggregated plot data.");
+            return;
+        }
+
+        setSaveError(null);
+        setSaving(true);
+        try {
+            const chartSvg = chartCanvasRef.current?.querySelector<SVGSVGElement>("svg.rec-chart-svg") ?? null;
+            const thumbnail = await generateThumbnail(liveSpec.kind, plotData.kind, chartSvg);
+            const result = await saveChart({
+                id: loadedChartId ?? undefined,
+                name: liveSpec.title,
+                chart_spec: liveSpec,
+                column_mapping: mapping,
+                receipt: computedReceipt,
+                plot_data: plotData,
+                thumbnail,
+            });
+            if (!result.success) {
+                setSaveError(result.error);
+                return;
+            }
+            router.push("/dashboard");
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : "Save failed");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const onReset = (): void => {
@@ -737,6 +938,25 @@ export const Export = (): JSX.Element => {
 
     const annotationGroupCount = slug === "barError" || slug === "box" ? 4 : slug === "violin" ? 3 : 4;
 
+    if (loadError !== null) {
+        return (
+            <div className="export-page page-enter">
+                <div className="container">
+                    <p role="alert" className="muted">
+                        {loadError}
+                    </p>
+                    <button
+                        type="button"
+                        className="btn btn--quiet btn--sm"
+                        onClick={() => router.push("/dashboard")}
+                    >
+                        Back to dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="export-page page-enter">
             <div className="container export-shell">
@@ -744,7 +964,7 @@ export const Export = (): JSX.Element => {
                     <Eyebrow>Final figure</Eyebrow>
                     <h1 className="export-title">Ready for the manuscript.</h1>
 
-                    <div className="export-canvas">
+                    <div className="export-canvas" ref={chartCanvasRef}>
                         <div className="export-canvas-head">
                             <div>
                                 <div className="muted export-canvas-eyebrow">{eyebrow}</div>
@@ -752,7 +972,12 @@ export const Export = (): JSX.Element => {
                             </div>
                             <div className="muted mono export-canvas-meta">{slugDefaults.metaLine}</div>
                         </div>
-                        {useSpecFigure && liveSpec !== null && dataset !== null ? (
+                        {viewOnlySnapshot !== null ? (
+                            <ViewOnlyNotice
+                                chartName={viewOnlySnapshot.name}
+                                thumbnail={viewOnlySnapshot.thumbnail}
+                            />
+                        ) : useSpecFigure && liveSpec !== null && dataset !== null ? (
                             <>
                                 <SpecChartPanel
                                     chartKind={liveSpec.kind}
@@ -765,6 +990,34 @@ export const Export = (): JSX.Element => {
                                     <span className="ring ring--xs" />
                                     Click any axis label or title on the chart to edit inline.
                                 </p>
+                            </>
+                        ) : useSpecFigure && liveSpec !== null && loadedPlotData !== null ? (
+                            <>
+                                {liveSpec.kind === "km" && loadedPlotData.kind === "km" ? (
+                                    <KaplanMeierChart
+                                        spec={liveSpec}
+                                        data={loadedPlotData as KMPlotData}
+                                        onSpecChange={onSpecChange}
+                                    />
+                                ) : null}
+                                {liveSpec.kind === "barError" && loadedPlotData.kind === "barError" ? (
+                                    <BarErrorChart
+                                        spec={liveSpec}
+                                        groups={(loadedPlotData as BarErrorPlotData).groups}
+                                        onSpecChange={onSpecChange}
+                                    />
+                                ) : null}
+                                {liveSpec.kind === "xy" &&
+                                (loadedPlotData.kind === "xy" || loadedPlotData.kind === "longitudinal") ? (
+                                    <XYChart
+                                        spec={liveSpec}
+                                        data={loadedPlotData as XYPlotData | LongitudinalData}
+                                        mode={liveSpec.mode}
+                                        showRegression={liveSpec.showRegression}
+                                        showErrorBands={liveSpec.showErrorBands}
+                                        onSpecChange={onSpecChange}
+                                    />
+                                ) : null}
                             </>
                         ) : (
                             <ChartComponent {...chartProps} />
@@ -802,13 +1055,15 @@ export const Export = (): JSX.Element => {
                         </button>
                     </div>
 
+                    {viewOnlySnapshot === null ? (
                     <div className="export-secondary">
                         <button
                             type="button"
                             className="btn btn--ghost btn--lg"
-                            onClick={() => router.push("/dashboard")}
+                            onClick={handleSaveToProject}
+                            disabled={saving}
                         >
-                            Save to project
+                            {saving ? "Saving…" : "Save to project"}
                         </button>
                         <button
                             type="button"
@@ -818,6 +1073,12 @@ export const Export = (): JSX.Element => {
                             Start a new chart
                         </button>
                     </div>
+                    ) : null}
+                    {saveError !== null && (
+                        <p role="alert" className="muted">
+                            Save failed: {saveError}
+                        </p>
+                    )}
 
                     <div className="export-receipt">
                         <h4>Reproducibility receipt</h4>
@@ -827,19 +1088,25 @@ export const Export = (): JSX.Element => {
                         </p>
                         <dl>
                             <dt>Generated</dt>
-                            <dd>2026-04-28 14:32 CET</dd>
+                            <dd>{computedReceipt?.generated_at ?? "—"}</dd>
                             <dt>Config hash</dt>
-                            <dd>sha256·4f7a9b…d21c</dd>
+                            <dd>{computedReceipt?.config_hash ?? "—"}</dd>
                             <dt>Method</dt>
-                            <dd>{slugDefaults.method}</dd>
+                            <dd>{computedReceipt?.method ?? slugDefaults.method}</dd>
                             <dt>Sample</dt>
-                            <dd>{slugDefaults.metaLine}</dd>
+                            <dd>{computedReceipt?.sample ?? slugDefaults.metaLine}</dd>
                             <dt>Palette</dt>
-                            <dd>{receiptPaletteLabel}</dd>
+                            <dd>{computedReceipt?.palette ?? receiptPaletteLabel}</dd>
                             <dt>Software</dt>
-                            <dd>Loupe v0.4.2 · client-side</dd>
+                            <dd>{computedReceipt?.software ?? "—"}</dd>
                             <dt>AI rationale</dt>
-                            <dd className="export-receipt-prose">{slugDefaults.rationale}</dd>
+                            <dd className="export-receipt-prose">
+                                {computedReceipt?.ai_rationale ?? slugDefaults.rationale}
+                            </dd>
+                            <dt>CSV COLUMNS</dt>
+                            <dd>{computedReceipt?.csv_columns.join(", ") ?? "—"}</dd>
+                            <dt>INPUT ROWS</dt>
+                            <dd>{computedReceipt?.n_rows_input ?? "—"}</dd>
                             {chatRevisions.length > 0 && (
                                 <>
                                     <dt>Chat revisions</dt>
@@ -881,7 +1148,7 @@ export const Export = (): JSX.Element => {
                         </p>
                     </div>
 
-                    {useSpecFigure && liveSpec !== null ? (
+                    {viewOnlySnapshot === null && useSpecFigure && liveSpec !== null ? (
                         <CustomizationRail
                             errorBandsAvailable={xyErrorBandsAvailable}
                             mapping={mapping}
