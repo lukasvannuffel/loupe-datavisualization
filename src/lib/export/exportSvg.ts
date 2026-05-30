@@ -17,7 +17,7 @@ export interface ExportOptions {
 }
 
 export const CHART_EXPORT_FONT = {
-    url: "https://fonts.gstatic.com/s/sourceserif4/v13/10Uf7uJ_341V8Wp32H1kYgVvL1_z.woff2",
+    url: "/fonts/source-serif-4-latin.woff2",
     family: "Source Serif 4",
 } as const;
 
@@ -271,11 +271,12 @@ const downloadSvg = (xml: string, title: string): void => {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
-export async function exportSvg(
+export async function exportSvgString(
     container: HTMLElement,
-    title: string,
+    _title: string,
     options?: ExportOptions,
-): Promise<void> {
+): Promise<string> {
+
     const svgEl = getPlotSvg(container);
     const clone = svgEl.cloneNode(true) as SVGElement;
 
@@ -297,5 +298,14 @@ export async function exportSvg(
         throw new ExportError("SERIALIZE_FAILED", message);
     }
 
-    downloadSvg(`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`, title);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+}
+
+export async function exportSvg(
+    container: HTMLElement,
+    title: string,
+    options?: ExportOptions,
+): Promise<void> {
+    const xml = await exportSvgString(container, title, options);
+    downloadSvg(xml, title);
 }

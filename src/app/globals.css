@@ -2218,6 +2218,14 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 }
 .export-png {
     cursor: default;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.export-png .export-dpi button:disabled {
+    opacity: 0.7;
+    cursor: wait;
 }
 .export-receipt-prose {
     font-family: var(--sans);
