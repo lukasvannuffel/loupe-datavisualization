@@ -1,4 +1,5 @@
 import { toSvgFilename } from "./filenameHelper";
+import { appendAtRiskTable, appendLegend } from "./svgTableHelpers";
 
 export class ExportError extends Error {
     constructor(
@@ -44,26 +45,7 @@ const PRESENTATION_ATTRS = [
 ] as const;
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const AT_RISK_FILL = "#0e0e0e";
-const AT_RISK_ROW_HEIGHT = 18;
-// Must match km-at-risk-table thead th:first-child width in atRiskTable.tsx.
-// If that component's header width changes, update this value to match.
-const AT_RISK_ROW_HEADER_WIDTH = 72;
-const AT_RISK_HEADER_TOP_Y = 32;
-const AT_RISK_FONT_SIZE = 11;
 const VAR_NAME_PATTERN = /^var\(\s*(--[^,)]+)/;
-
-const measureAtRiskExportHeight = (bodyRowCount: number, fontSize: number): number => {
-    const headerY = AT_RISK_HEADER_TOP_Y + fontSize;
-
-    if (bodyRowCount === 0) {
-        return headerY + fontSize;
-    }
-
-    const lastRowY = headerY + AT_RISK_ROW_HEIGHT + (bodyRowCount - 1) * AT_RISK_ROW_HEIGHT;
-
-    return lastRowY + fontSize;
-};
 
 const isElement = (node: Node): node is Element => node.nodeType === Node.ELEMENT_NODE;
 
@@ -86,19 +68,6 @@ const getPlotSvg = (container: HTMLElement): SVGElement => {
     }
 
     return directSvgs[0]!;
-};
-
-const findAtRiskTable = (container: HTMLElement): HTMLTableElement | null => {
-    const local = container.querySelector("table.km-at-risk-table");
-
-    if (local instanceof HTMLTableElement) {
-        return local;
-    }
-
-    const chartRoot = container.closest(".chart-with-legend")?.parentElement;
-    const external = chartRoot?.querySelector("table.km-at-risk-table");
-
-    return external instanceof HTMLTableElement ? external : null;
 };
 
 const fetchFontAsBase64 = async (url: string): Promise<string | null> => {
@@ -271,133 +240,6 @@ const stripDataAttributes = (root: Node): void => {
     }
 };
 
-const createSvgText = (
-    x: number,
-    y: number,
-    text: string,
-    fontFamily: string,
-    fontSize: number,
-    textAnchor: "start" | "middle",
-): SVGTextElement => {
-    const label = document.createElementNS(SVG_NS, "text");
-    label.setAttribute("x", String(x));
-    label.setAttribute("y", String(y));
-    label.setAttribute("fill", AT_RISK_FILL);
-    label.setAttribute("font-family", fontFamily);
-    label.setAttribute("font-size", String(fontSize));
-    label.setAttribute("text-anchor", textAnchor);
-    label.textContent = text;
-
-    return label;
-};
-
-const atRiskTableToSvg = (
-    tableEl: HTMLTableElement,
-    plotWidth: number,
-    marginLeft: number,
-    fontFamily: string,
-    fontSize: number,
-): SVGGElement => {
-    const group = document.createElementNS(SVG_NS, "g");
-    group.setAttribute("class", "km-at-risk-export");
-
-    const captionText =
-        tableEl.querySelector("caption")?.textContent?.trim().toUpperCase() ?? "AT RISK";
-    const timeHeaders = [...tableEl.querySelectorAll("thead th[scope='col']")]
-        .slice(1)
-        .map((cell) => cell.textContent?.trim() ?? "");
-    const bodyRows = [...tableEl.querySelectorAll("tbody tr")];
-    const colCount = timeHeaders.length;
-    const dataWidth = Math.max(0, plotWidth - marginLeft - AT_RISK_ROW_HEADER_WIDTH);
-    const colWidth = colCount > 0 ? dataWidth / colCount : 0;
-    const tableTopY = AT_RISK_HEADER_TOP_Y;
-
-    group.appendChild(
-        createSvgText(marginLeft, fontSize + 2, captionText, fontFamily, fontSize, "start"),
-    );
-
-    const headerY = tableTopY + fontSize;
-
-    for (let i = 0; i < timeHeaders.length; i += 1) {
-        const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (i + 0.5) * colWidth;
-        group.appendChild(
-            createSvgText(x, headerY, timeHeaders[i] ?? "", fontFamily, fontSize, "middle"),
-        );
-    }
-
-    for (let rowIndex = 0; rowIndex < bodyRows.length; rowIndex += 1) {
-        const row = bodyRows[rowIndex]!;
-        const rowHeader = row.querySelector("th[scope='row']")?.textContent?.trim() ?? "";
-        const cells = [...row.querySelectorAll("td")];
-        const rowY = headerY + AT_RISK_ROW_HEIGHT + rowIndex * AT_RISK_ROW_HEIGHT;
-
-        group.appendChild(
-            createSvgText(
-                marginLeft,
-                rowY,
-                rowHeader,
-                fontFamily,
-                fontSize,
-                "start",
-            ),
-        );
-
-        for (let colIndex = 0; colIndex < cells.length; colIndex += 1) {
-            const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (colIndex + 0.5) * colWidth;
-            const value = cells[colIndex]?.textContent?.trim() ?? "";
-            group.appendChild(
-                createSvgText(x, rowY, value, fontFamily, fontSize, "middle"),
-            );
-        }
-    }
-
-    return group;
-};
-
-const appendAtRiskTable = (
-    container: HTMLElement,
-    liveSvg: SVGElement,
-    clone: SVGElement,
-): void => {
-    const tableEl = findAtRiskTable(container);
-
-    if (tableEl === null) {
-        return;
-    }
-
-    const plotWidth = liveSvg.getBoundingClientRect().width;
-    const plotHeight =
-        Number.parseFloat(liveSvg.getAttribute("height") ?? "") ||
-        liveSvg.getBoundingClientRect().height;
-    const marginLeft = Number.parseFloat(window.getComputedStyle(tableEl).marginLeft) || 0;
-    const fontFamily = window.getComputedStyle(liveSvg).fontFamily || "ui-monospace, monospace";
-    const bodyRowCount = tableEl.querySelectorAll("tbody tr").length;
-    const extraHeight = measureAtRiskExportHeight(bodyRowCount, AT_RISK_FONT_SIZE);
-    const atRiskGroup = atRiskTableToSvg(
-        tableEl,
-        plotWidth,
-        marginLeft,
-        fontFamily,
-        AT_RISK_FONT_SIZE,
-    );
-
-    atRiskGroup.setAttribute("transform", `translate(0, ${plotHeight})`);
-    clone.appendChild(atRiskGroup);
-
-    const newHeight = plotHeight + extraHeight;
-    clone.setAttribute("height", String(newHeight));
-
-    const viewBox = clone.getAttribute("viewBox");
-
-    if (viewBox !== null) {
-        const parts = viewBox.split(/[\s,]+/).map(Number);
-
-        if (parts.length === 4 && parts.every((value) => Number.isFinite(value))) {
-            clone.setAttribute("viewBox", `0 0 ${parts[2]} ${newHeight}`);
-        }
-    }
-};
-
 const embedFont = async (
     clone: SVGElement,
     options: ExportOptions | undefined,
@@ -443,6 +285,7 @@ export async function exportSvg(
     mergeLabelLayer(container, clone);
     stripDataAttributes(clone);
     appendAtRiskTable(container, svgEl, clone);
+    appendLegend(container, svgEl, clone);
     await embedFont(clone, options);
 
     let xml = "";

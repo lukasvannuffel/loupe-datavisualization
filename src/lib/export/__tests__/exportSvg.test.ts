@@ -205,6 +205,100 @@ const buildSiblingAtRiskDom = (): {
     return { surface, serialized };
 };
 
+const mockPaletteComputedStyle = (): void => {
+    vi.spyOn(window, "getComputedStyle").mockImplementation(
+        () =>
+            ({
+                getPropertyValue: (prop: string): string => {
+                    if (prop === "--palette-deuteranopia-0") {
+                        return "#2563eb";
+                    }
+
+                    if (prop === "--palette-deuteranopia-1") {
+                        return "#dc2626";
+                    }
+
+                    return "";
+                },
+                fontFamily: "ui-monospace, monospace",
+            }) as CSSStyleDeclaration,
+    );
+};
+
+const buildLegendListItem = (label: string, fill: string): HTMLLIElement => {
+    const li = document.createElement("li");
+    const glyphSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    glyphSvg.setAttribute("class", "chart-legend-glyph");
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("fill", fill);
+    rect.setAttribute("height", "8");
+    rect.setAttribute("opacity", "0.85");
+    rect.setAttribute("width", "10");
+    glyphSvg.appendChild(rect);
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = label;
+    li.appendChild(glyphSvg);
+    li.appendChild(labelSpan);
+
+    return li;
+};
+
+const buildChartSurfaceWithLegend = (options?: {
+    readonly withAtRiskTable?: boolean;
+}): { container: HTMLDivElement; serialized: () => string } => {
+    const { serialized } = setupExportMocks();
+
+    const chartWithLegend = document.createElement("div");
+    chartWithLegend.className = "chart-with-legend";
+
+    const surface = document.createElement("div");
+    surface.className = "chart-surface";
+    const plotSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    plotSvg.setAttribute("height", "240");
+    plotSvg.setAttribute("width", "500");
+    plotSvg.setAttribute("viewBox", "0 0 500 240");
+    surface.appendChild(plotSvg);
+    vi.spyOn(plotSvg, "getBoundingClientRect").mockReturnValue(mockDomRect(500, 240));
+
+    chartWithLegend.appendChild(surface);
+
+    const legend = document.createElement("ul");
+    legend.setAttribute("aria-label", "Chart legend");
+    legend.appendChild(buildLegendListItem("Label A", "var(--palette-deuteranopia-0)"));
+    legend.appendChild(buildLegendListItem("Label B", "var(--palette-deuteranopia-1)"));
+    chartWithLegend.appendChild(legend);
+
+    const outer = document.createElement("div");
+    outer.appendChild(chartWithLegend);
+
+    if (options?.withAtRiskTable === true) {
+        const wrap = document.createElement("div");
+        wrap.className = "km-at-risk-wrap";
+        const table = document.createElement("table");
+        table.className = "km-at-risk-table mono";
+
+        const tbody = document.createElement("tbody");
+        const row = document.createElement("tr");
+        const rowHeader = document.createElement("th");
+        rowHeader.scope = "row";
+        rowHeader.textContent = "Arm A";
+        row.appendChild(rowHeader);
+        const cell = document.createElement("td");
+        cell.textContent = "12";
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        table.appendChild(tbody);
+        table.style.marginLeft = "48px";
+        wrap.appendChild(table);
+        outer.appendChild(wrap);
+    }
+
+    document.body.appendChild(outer);
+
+    return { container: surface, serialized };
+};
+
 describe("exportSvg", () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -426,6 +520,192 @@ describe("exportSvg", () => {
             surface.parentElement?.parentElement?.remove();
         }
     });
+
+    it("renders legend items as SVG rect + text pairs", async () => {
+        const { container, serialized } = buildChartSurfaceWithLegend();
+        mockPaletteComputedStyle();
+
+        try {
+            await exportSvg(container, "Legend export");
+
+            expect(serialized()).toContain("Label A");
+            expect(serialized()).toContain("Label B");
+            expect(serialized()).toContain('fill="#2563eb"');
+            expect(serialized()).not.toMatch(/var\(--palette/);
+        } finally {
+            container.parentElement?.parentElement?.remove();
+        }
+    });
+
+    it("renders legend for XY/KM chart type with path-based glyph marker", async () => {
+        const { serialized } = setupExportMocks();
+
+        const chartWithLegend = document.createElement("div");
+        chartWithLegend.className = "chart-with-legend";
+
+        const surface = document.createElement("div");
+        surface.className = "chart-surface";
+        const plotSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        plotSvg.setAttribute("height", "240");
+        plotSvg.setAttribute("width", "500");
+        plotSvg.setAttribute("viewBox", "0 0 500 240");
+        surface.appendChild(plotSvg);
+        vi.spyOn(plotSvg, "getBoundingClientRect").mockReturnValue(mockDomRect(500, 240));
+
+        const legend = document.createElement("ul");
+        legend.setAttribute("aria-label", "Chart legend");
+        const li = document.createElement("li");
+        const glyphSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        glyphSvg.setAttribute("class", "chart-legend-glyph");
+        glyphSvg.setAttribute("data-role", "legend-glyph-marker");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M 0,-4 A 4,4 0 1,1 0,4");
+        path.setAttribute("fill", "var(--palette-deuteranopia-0)");
+        path.setAttribute("transform", "translate(6,6)");
+        glyphSvg.appendChild(path);
+
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = "Yes";
+        li.appendChild(glyphSvg);
+        li.appendChild(labelSpan);
+        legend.appendChild(li);
+
+        chartWithLegend.appendChild(surface);
+        chartWithLegend.appendChild(legend);
+        document.body.appendChild(chartWithLegend);
+
+        mockPaletteComputedStyle();
+
+        try {
+            await exportSvg(surface, "Path glyph legend");
+
+            expect(serialized()).toContain("Yes");
+            expect(serialized()).toContain('fill="#2563eb"');
+            expect(serialized()).not.toMatch(/d="M 0,-4/);
+            expect(serialized()).not.toMatch(/var\(--palette/);
+        } finally {
+            chartWithLegend.remove();
+        }
+    });
+
+    it("renders legend for KM line glyph with stroke-only source element", async () => {
+        const { serialized } = setupExportMocks();
+
+        const chartWithLegend = document.createElement("div");
+        chartWithLegend.className = "chart-with-legend";
+
+        const surface = document.createElement("div");
+        surface.className = "chart-surface";
+        const plotSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        plotSvg.setAttribute("height", "240");
+        plotSvg.setAttribute("width", "500");
+        plotSvg.setAttribute("viewBox", "0 0 500 240");
+        surface.appendChild(plotSvg);
+        vi.spyOn(plotSvg, "getBoundingClientRect").mockReturnValue(mockDomRect(500, 240));
+
+        const legend = document.createElement("ul");
+        legend.setAttribute("aria-label", "Chart legend");
+        const li = document.createElement("li");
+        const glyphSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        glyphSvg.setAttribute("class", "chart-legend-glyph");
+        glyphSvg.setAttribute("data-role", "legend-glyph-line");
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("stroke", "var(--palette-deuteranopia-0)");
+        line.setAttribute("stroke-width", "1.5");
+        line.setAttribute("x1", "1");
+        line.setAttribute("x2", "11");
+        line.setAttribute("y1", "6");
+        line.setAttribute("y2", "6");
+        glyphSvg.appendChild(line);
+
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = "Standard Therapy";
+        li.appendChild(glyphSvg);
+        li.appendChild(labelSpan);
+        legend.appendChild(li);
+
+        chartWithLegend.appendChild(surface);
+        chartWithLegend.appendChild(legend);
+        document.body.appendChild(chartWithLegend);
+
+        mockPaletteComputedStyle();
+
+        try {
+            await exportSvg(surface, "KM line legend");
+
+            expect(serialized()).toContain("Standard Therapy");
+            expect(serialized()).toContain('fill="#2563eb"');
+            expect(serialized()).not.toMatch(/stroke="var\(--palette/);
+        } finally {
+            chartWithLegend.remove();
+        }
+    });
+
+    it("legend is placed below at-risk table when both are present", async () => {
+        const atRiskOnly = buildPlotContainer({ withAtRiskTable: true });
+        mockPaletteComputedStyle();
+        await exportSvg(atRiskOnly.container, "At risk only");
+        const heightAtRiskOnly = Number(
+            atRiskOnly.serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+        );
+
+        const { container, serialized } = buildChartSurfaceWithLegend({ withAtRiskTable: true });
+        mockPaletteComputedStyle();
+
+        try {
+            await exportSvg(container, "Legend and at risk");
+
+            const heightWithBoth = Number(
+                serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+            );
+
+            expect(heightWithBoth).toBeGreaterThan(heightAtRiskOnly);
+            expect(serialized()).toContain("Label A");
+            expect(serialized()).toContain("Arm A");
+            expect(serialized()).toContain("chart-legend-export");
+        } finally {
+            container.parentElement?.parentElement?.remove();
+        }
+    });
+
+    it("returns null and export completes when no legend element found", async () => {
+        const baseline = buildPlotContainer();
+        await exportSvg(baseline.container, "No legend baseline");
+        const baselineHeight = Number(
+            baseline.serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+        );
+
+        const { container, serialized } = buildPlotContainer();
+        await exportSvg(container, "No legend");
+
+        const heightWithoutLegend = Number(
+            serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+        );
+
+        expect(heightWithoutLegend).toBe(baselineHeight);
+        expect(serialized()).not.toContain("chart-legend-export");
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/svgTableHelpers.ts legendToSvg, remove ?? glyphSvg.querySelector('[stroke]')
+    //   fallback from glyphChild lookup.
+    //   Re-run "renders legend for KM line glyph with stroke-only source element".
+    //   Line glyph skipped; output lacks "Standard Therapy" -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/svgTableHelpers.ts legendToSvg, change querySelector('[fill]')
+    //   back to querySelector('rect').
+    //   Re-run "renders legend for XY/KM chart type with path-based glyph marker".
+    //   Path glyph skipped; output lacks "Yes" and fill="#2563eb" -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/svgTableHelpers.ts resolvePresentationColor, return raw attribute
+    //   without calling getComputedStyle (keep var() in output).
+    //   Re-run "renders legend items as SVG rect + text pairs".
+    //   Serialized output still contains var(--palette-deuteranopia-0) -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
 
     // MUTATION-VERIFY:
     //   In src/lib/export/exportSvg.ts mergeLabelLayer, replace walkLiveAndClone with
