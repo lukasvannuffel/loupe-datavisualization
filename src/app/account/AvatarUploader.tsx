@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useRef, type ChangeEvent } from "react";
+import { useActionState, useEffect, useRef, type ChangeEvent } from "react";
 
 import { initialsFromNameOrEmail } from "@/lib/profile";
+import { useToast } from "@/lib/toast/useToast";
 
 import { removeAvatar, uploadAvatar, type FormActionState } from "./actions";
 
@@ -23,6 +24,9 @@ export const AvatarUploader = ({
     avatarUrl,
     fallbackLabel,
 }: AvatarUploaderProps): JSX.Element => {
+    const { toast } = useToast();
+    const lastUploadOkRef = useRef<boolean>(false);
+    const lastRemoveOkRef = useRef<boolean>(false);
     const [uploadState, uploadAction, isUploading] = useActionState<
         FormActionState,
         FormData
@@ -38,6 +42,30 @@ export const AvatarUploader = ({
     const initials = initialsFromNameOrEmail(fallbackLabel);
     const isBusy = isUploading || isRemoving;
     const error = uploadState.error ?? removeState.error;
+
+    useEffect(() => {
+        if (uploadState.ok && uploadState.message !== null && !lastUploadOkRef.current) {
+            toast({
+                description: uploadState.message,
+                title: "Profile picture updated.",
+                variant: "success",
+            });
+        }
+
+        lastUploadOkRef.current = uploadState.ok;
+    }, [toast, uploadState.message, uploadState.ok]);
+
+    useEffect(() => {
+        if (removeState.ok && removeState.message !== null && !lastRemoveOkRef.current) {
+            toast({
+                description: removeState.message,
+                title: "Profile picture removed.",
+                variant: "success",
+            });
+        }
+
+        lastRemoveOkRef.current = removeState.ok;
+    }, [removeState.message, removeState.ok, toast]);
 
     const onPickFile = (event: ChangeEvent<HTMLInputElement>): void => {
         if (event.target.files !== null && event.target.files.length > 0) {

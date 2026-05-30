@@ -8,7 +8,7 @@ import { TopNav, type TopNavUser } from "@/components/chrome/TopNav";
 import { displayNameFor, loadProfile } from "@/lib/profile";
 import { createClient } from "@/utils/supabase/server";
 
-import { AppStateProvider } from "./providers";
+import { ClientProviders } from "@/components/ui/ClientProviders";
 
 import "./globals.css";
 
@@ -70,13 +70,13 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<JSX.Element> =
                 <meta name="apple-mobile-web-app-title" content="Loupe" />
             </head>
             <body>
-                <AppStateProvider>
+                <ClientProviders>
                     <div className="shell">
                         <TopNav user={navUser} />
                         <main style={{ flex: 1 }}>{children}</main>
                         <FooterGate />
                     </div>
-                </AppStateProvider>
+                </ClientProviders>
             </body>
         </html>
     );

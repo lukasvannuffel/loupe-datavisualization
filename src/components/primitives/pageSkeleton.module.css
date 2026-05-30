@@ -1,0 +1,29 @@
+.wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.line {
+    height: 14px;
+    border-radius: var(--r-2);
+    background: linear-gradient(
+        90deg,
+        var(--paper-2) 0%,
+        color-mix(in srgb, var(--hairline) 70%, white) 50%,
+        var(--paper-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+    0% {
+        background-position: 100% 0;
+    }
+
+    100% {
+        background-position: -100% 0;
+    }
+}

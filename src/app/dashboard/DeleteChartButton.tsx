@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { deleteChart } from "@/app/charts/actions";
 import { Dialog } from "@/components/ui/Dialog";
+import { useToast } from "@/lib/toast/useToast";
 
 import styles from "./dashboard.module.css";
 
@@ -15,19 +16,31 @@ type DeleteChartButtonProps = {
 
 export const DeleteChartButton = ({ chartId, chartName }: DeleteChartButtonProps): JSX.Element => {
     const router = useRouter();
+    const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const onConfirm = async (): Promise<void> => {
         setDeleting(true);
-        setError(null);
         const result = await deleteChart(chartId);
         setDeleting(false);
+
         if (!result.success) {
-            setError(result.error);
+            toast({
+                description: "Check your connection and try again.",
+                durationMs: 0,
+                title: "Chart could not be deleted.",
+                variant: "error",
+            });
+            console.error("[deleteChart]", result.error);
             return;
         }
+
+        toast({
+            description: `"${chartName}" was removed from your dashboard.`,
+            title: "Chart deleted.",
+            variant: "success",
+        });
         setOpen(false);
         router.refresh();
     };
@@ -49,11 +62,6 @@ export const DeleteChartButton = ({ chartId, chartName }: DeleteChartButtonProps
                         <p className="muted">This cannot be undone.</p>
                     </div>
                 </header>
-                {error !== null ? (
-                    <p role="alert" className="muted">
-                        {error}
-                    </p>
-                ) : null}
                 <div className="rerun-actions">
                     <button
                         type="button"

@@ -14,19 +14,25 @@ export type ChartListItem = {
     readonly created_at: string;
 };
 
+export type ListChartsResult =
+    | { readonly ok: true; readonly charts: readonly ChartListItem[] }
+    | { readonly ok: false; readonly error: "unauthenticated" | "fetch_failed" };
+
 const isDashboardChartKind = (value: unknown): value is DashboardChartKind =>
     value === "bar" || value === "km" || value === "box" || value === "xy";
 
-export const listCharts = async (): Promise<readonly ChartListItem[]> => {
+export const listCharts = async (): Promise<ListChartsResult> => {
     try {
         const supabase = createClient(await cookies());
         const {
             data: { user },
             error: authError,
         } = await supabase.auth.getUser();
+
         if (authError !== null || user === null) {
-            return [];
+            return { error: "unauthenticated", ok: false };
         }
+
         const { data, error } = await supabase
             .from("charts")
             .select("id, name, chart_kind, thumbnail, updated_at, created_at")
@@ -36,10 +42,10 @@ export const listCharts = async (): Promise<readonly ChartListItem[]> => {
         if (error !== null) {
             console.error("[listCharts]", error);
 
-            return [];
+            return { error: "fetch_failed", ok: false };
         }
 
-        return (data ?? []).filter((item): item is ChartListItem => {
+        const charts = (data ?? []).filter((item): item is ChartListItem => {
             return (
                 typeof item.id === "string" &&
                 typeof item.name === "string" &&
@@ -49,9 +55,12 @@ export const listCharts = async (): Promise<readonly ChartListItem[]> => {
                 typeof item.created_at === "string"
             );
         });
+
+        return { charts, ok: true };
     }
     catch (error) {
         console.error("[listCharts] unexpected", error);
-        return [];
+
+        return { error: "fetch_failed", ok: false };
     }
 };

@@ -1,11 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { authenticate, type AuthActionState } from "@/app/auth/actions";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
+import { useToast } from "@/lib/toast/useToast";
 import { createClient } from "@/utils/supabase/client";
 
 type AuthMode = "signin" | "signup";
@@ -15,12 +16,18 @@ const INITIAL_STATE: AuthActionState = {
     message: null,
 };
 
-const resolveCallbackError = (errorParam: string | null): string | null => {
+const resolveCallbackError = (errorParam: string | null): { readonly description: string; readonly title: string } | null => {
     if (errorParam === "oauth") {
-        return "Google sign-in failed. Try again.";
+        return {
+            description: "Try Google sign-in again or use email and password.",
+            title: "Google sign-in did not complete.",
+        };
     }
     if (errorParam === "callback") {
-        return "That confirmation link is invalid or has expired.";
+        return {
+            description: "Request a fresh confirmation link and try again.",
+            title: "That confirmation link is invalid or expired.",
+        };
     }
 
     return null;
@@ -35,9 +42,10 @@ const submitLabel = (mode: AuthMode, isPending: boolean): string => {
 };
 
 export const Auth = (): JSX.Element => {
+    const { toast } = useToast();
     const [mode, setMode] = useState<AuthMode>("signin");
-    const [oauthError, setOauthError] = useState<string | null>(null);
     const [isOauthPending, setIsOauthPending] = useState<boolean>(false);
+    const callbackNotifiedRef = useRef<boolean>(false);
 
     const searchParams = useSearchParams();
     const callbackError = resolveCallbackError(searchParams?.get("error") ?? null);
@@ -47,8 +55,33 @@ export const Auth = (): JSX.Element => {
         INITIAL_STATE,
     );
 
+    useEffect(() => {
+        if (callbackError === null || callbackNotifiedRef.current) {
+            return;
+        }
+
+        callbackNotifiedRef.current = true;
+        toast({
+            description: callbackError.description,
+            durationMs: 0,
+            title: callbackError.title,
+            variant: "error",
+        });
+    }, [callbackError, toast]);
+
+    useEffect(() => {
+        if (state.message === null) {
+            return;
+        }
+
+        toast({
+            description: state.message,
+            title: "Check your inbox.",
+            variant: "info",
+        });
+    }, [state.message, toast]);
+
     const onGoogleClick = async (): Promise<void> => {
-        setOauthError(null);
         setIsOauthPending(true);
 
         const supabase = createClient();
@@ -61,11 +94,15 @@ export const Auth = (): JSX.Element => {
 
         if (error !== null) {
             setIsOauthPending(false);
-            setOauthError("Couldn't start Google sign-in. Try again.");
+            toast({
+                description: "Try again in a moment.",
+                title: "Could not start Google sign-in.",
+                variant: "error",
+            });
         }
     };
 
-    const inlineError = state.error ?? oauthError ?? callbackError;
+    const inlineError = state.error;
 
     return (
         <div className="auth-wrap page-enter">
@@ -129,11 +166,6 @@ export const Auth = (): JSX.Element => {
                             {inlineError}
                         </p>
                     ) : null}
-                    {state.message !== null ? (
-                        <p className="auth-info" role="status">
-                            {state.message}
-                        </p>
-                    ) : null}
                     <button
                         className="btn btn--primary auth-submit"
                         type="submit"
@@ -148,7 +180,9 @@ export const Auth = (): JSX.Element => {
                 <button
                     type="button"
                     className="btn-google"
-                    onClick={onGoogleClick}
+                    onClick={() => {
+                        void onGoogleClick();
+                    }}
                     disabled={isOauthPending || isPending}
                 >
                     <img src="/assets/google.svg" alt="" width={18} height={18} aria-hidden="true" />

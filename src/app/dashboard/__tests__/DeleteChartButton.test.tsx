@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DeleteChartButton } from "@/app/dashboard/DeleteChartButton";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 const deleteChartMock = vi.hoisted(() => vi.fn());
 const refreshMock = vi.hoisted(() => vi.fn());
@@ -19,7 +20,11 @@ vi.mock("@/app/charts/actions", () => ({
 describe("DeleteChartButton", () => {
     it("calls deleteChart only on confirm", async () => {
         deleteChartMock.mockResolvedValue({ success: true });
-        render(<DeleteChartButton chartId="1" chartName="Test" />);
+        render(
+            <ToastProvider>
+                <DeleteChartButton chartId="1" chartName="Test" />
+            </ToastProvider>,
+        );
 
         fireEvent.click(screen.getByLabelText(/delete test/i));
         expect(screen.getByRole("dialog")).not.toBeNull();

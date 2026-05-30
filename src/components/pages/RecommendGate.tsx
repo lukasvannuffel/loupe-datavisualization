@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAppState } from "@/app/providers";
+import { PageSkeleton } from "@/components/primitives/PageSkeleton";
 import { updateCustomizationPalette } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 
 import { Recommendation } from "./Recommendation";
 
-export const RecommendGate = (): JSX.Element | null => {
+export const RecommendGate = (): JSX.Element => {
     const router = useRouter();
     const {
         chartKind,
@@ -70,7 +71,11 @@ export const RecommendGate = (): JSX.Element | null => {
     }, [chartKind, chartSpec, dataset, mapping, setChartSpec, setMapping]);
 
     if (!hydrated || !receipt || !chartKind || !resolvedSpec || dataset === null) {
-        return null;
+        return (
+            <div className="container page-enter" style={{ paddingTop: 32, paddingBottom: 32 }}>
+                <PageSkeleton lines={5} />
+            </div>
+        );
     }
 
     return (

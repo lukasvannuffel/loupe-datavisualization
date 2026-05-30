@@ -224,69 +224,89 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
     }
 };
 
-export const getChart = async (id: string): Promise<ChartRow | null> => {
-    const supabase = createClient(await cookies());
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser();
-    if (authError !== null || user === null) {
-        return null;
-    }
-    const { data, error } = await supabase
-        .from("charts")
-        .select("id, name, chart_spec, column_mapping, receipt, plot_data, thumbnail, chart_kind, created_at, updated_at")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .single();
+export type GetChartResult =
+    | { readonly ok: true; readonly chart: ChartRow }
+    | { readonly ok: false; readonly reason: "not_found" | "load_failed" | "unauthenticated" };
 
-    if (error !== null || data === null) {
-        console.error("[getChart]", error);
+export const getChart = async (id: string): Promise<GetChartResult> => {
+    try {
+        const supabase = createClient(await cookies());
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
-        return null;
-    }
-
-    const parsedSpec = chartSpecSchema.safeParse(data.chart_spec);
-    if (!parsedSpec.success) {
-        console.error("[getChart] chart_spec failed schema validation", parsedSpec.error.format());
-        return null;
-    }
-    const parsedReceipt = receiptSchema.safeParse(data.receipt);
-    if (!parsedReceipt.success) {
-        console.error("[getChart] receipt failed schema validation", parsedReceipt.error.format());
-        return null;
-    }
-    if (data.chart_kind !== null && !isKnownChartKind(data.chart_kind)) {
-        console.error("[getChart] unknown chart_kind", data.chart_kind);
-        return null;
-    }
-    const parsedMapping = columnMappingSchema.safeParse(data.column_mapping);
-    if (!parsedMapping.success) {
-        console.error("[getChart] column_mapping failed schema validation", parsedMapping.error.format());
-        return null;
-    }
-    if (data.plot_data !== null) {
-        try {
-            assertNoRawRows(parsedSpec.data, data.plot_data as PlotData);
+        if (authError !== null || user === null) {
+            return { ok: false, reason: "unauthenticated" };
         }
-        catch (error) {
-            console.error("[getChart] loaded plot_data failed privacy assertion", error);
-            return null;
-        }
-    }
 
-    return {
-        id: data.id as string,
-        name: data.name as string,
-        chart_spec: parsedSpec.data,
-        column_mapping: parsedMapping.data,
-        receipt: parsedReceipt.data,
-        plot_data: (data.plot_data ?? null) as PlotData | null,
-        thumbnail: (data.thumbnail ?? null) as string | null,
-        chart_kind: (data.chart_kind ?? null) as ChartRow["chart_kind"],
-        created_at: data.created_at as string,
-        updated_at: data.updated_at as string,
-    };
+        const { data, error } = await supabase
+            .from("charts")
+            .select("id, name, chart_spec, column_mapping, receipt, plot_data, thumbnail, chart_kind, created_at, updated_at")
+            .eq("id", id)
+            .eq("user_id", user.id)
+            .single();
+
+        if (error !== null || data === null) {
+            console.error("[getChart]", error);
+
+            if (error?.code === "PGRST116") {
+                return { ok: false, reason: "not_found" };
+            }
+
+            return { ok: false, reason: "load_failed" };
+        }
+
+        const parsedSpec = chartSpecSchema.safeParse(data.chart_spec);
+        if (!parsedSpec.success) {
+            console.error("[getChart] chart_spec failed schema validation", parsedSpec.error.format());
+            return { ok: false, reason: "load_failed" };
+        }
+        const parsedReceipt = receiptSchema.safeParse(data.receipt);
+        if (!parsedReceipt.success) {
+            console.error("[getChart] receipt failed schema validation", parsedReceipt.error.format());
+            return { ok: false, reason: "load_failed" };
+        }
+        if (data.chart_kind !== null && !isKnownChartKind(data.chart_kind)) {
+            console.error("[getChart] unknown chart_kind", data.chart_kind);
+            return { ok: false, reason: "load_failed" };
+        }
+        const parsedMapping = columnMappingSchema.safeParse(data.column_mapping);
+        if (!parsedMapping.success) {
+            console.error("[getChart] column_mapping failed schema validation", parsedMapping.error.format());
+            return { ok: false, reason: "load_failed" };
+        }
+        if (data.plot_data !== null) {
+            try {
+                assertNoRawRows(parsedSpec.data, data.plot_data as PlotData);
+            }
+            catch (error) {
+                console.error("[getChart] loaded plot_data failed privacy assertion", error);
+                return { ok: false, reason: "load_failed" };
+            }
+        }
+
+        return {
+            chart: {
+                id: data.id as string,
+                name: data.name as string,
+                chart_spec: parsedSpec.data,
+                column_mapping: parsedMapping.data,
+                receipt: parsedReceipt.data,
+                plot_data: (data.plot_data ?? null) as PlotData | null,
+                thumbnail: (data.thumbnail ?? null) as string | null,
+                chart_kind: (data.chart_kind ?? null) as ChartRow["chart_kind"],
+                created_at: data.created_at as string,
+                updated_at: data.updated_at as string,
+            },
+            ok: true,
+        };
+    }
+    catch (error) {
+        console.error("[getChart] unexpected", error);
+
+        return { ok: false, reason: "load_failed" };
+    }
 };
 
 export const deleteChart = async (id: string): Promise<DeleteChartResult> => {

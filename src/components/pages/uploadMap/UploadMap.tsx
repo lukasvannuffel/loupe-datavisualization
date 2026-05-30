@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useAppState } from "@/app/providers";
 import { detectPhiColumns } from "@/lib/ai/phi/detect";
@@ -9,17 +9,55 @@ import { toAiColumns } from "@/lib/ai/toAiColumns";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { countAssigned, validateMapping } from "@/lib/roles";
+import { useToast } from "@/lib/toast/useToast";
 
 import { IntentBox } from "./IntentBox";
 import { MappingTable } from "./MappingTable";
 import { PhiWarning } from "./PhiWarning";
 import { TransparencyPanel } from "./TransparencyPanel";
-import { useRecommendation } from "./useRecommendation";
+import { useRecommendation, type RecommendationState } from "./useRecommendation";
 import { useUploadMap } from "./useUploadMap";
 import { ValidationStrip } from "./ValidationStrip";
 
+type RecommendErrorCode = Extract<RecommendationState, { status: "error" }>["code"];
+
+const recommendationErrorCopy = (
+    code: RecommendErrorCode,
+): { readonly description: string; readonly title: string; readonly variant: "error" | "warning" } => {
+    if (code === "RATE_LIMITED") {
+        return {
+            description: "Wait a while, then try again or pick a chart manually.",
+            title: "Too many recommendations.",
+            variant: "warning",
+        };
+    }
+
+    if (code === "PRIVACY_VIOLATION") {
+        return {
+            description: "Rename sensitive columns, then try again.",
+            title: "Patient data cannot leave your device.",
+            variant: "error",
+        };
+    }
+
+    if (code === "VALIDATION_FAILED") {
+        return {
+            description: "Check your column mapping and intent, then try again.",
+            title: "Could not analyse your dataset.",
+            variant: "error",
+        };
+    }
+
+    return {
+        description: "Check your connection and try again.",
+        title: "Could not get chart recommendation.",
+        variant: "error",
+    };
+};
+
 export const UploadMap = (): JSX.Element => {
     const router = useRouter();
+    const { toast } = useToast();
     const {
         intent,
         mapping,
@@ -81,6 +119,24 @@ export const UploadMap = (): JSX.Element => {
 
     const showPhi = phi.length > 0 && !dismissPhi && !sentAnywayConfirmed;
 
+    const errorCopy =
+        state.status === "error" ? recommendationErrorCopy(state.code) : null;
+
+    useEffect(() => {
+        if (state.status !== "error") {
+            return;
+        }
+
+        const copy = recommendationErrorCopy(state.code);
+
+        toast({
+            description: copy.description,
+            durationMs: 0,
+            title: copy.title,
+            variant: copy.variant,
+        });
+    }, [state, toast]);
+
     return (
         <div className="upload-page page-enter">
             <div className="container">
@@ -118,15 +174,15 @@ export const UploadMap = (): JSX.Element => {
                     />
                 )}
 
-                {state.status === "error" && (
+                {errorCopy !== null && (
                     <div className="map-ai-error" role="alert">
-                        <div className="map-ai-error-title">Couldn&apos;t generate a recommendation.</div>
-                        <p className="muted">{state.message}</p>
+                        <div className="map-ai-error-title">{errorCopy.title}</div>
+                        <p className="muted">{errorCopy.description}</p>
                         <div className="map-ai-error-actions">
                             <button
                                 type="button"
                                 className="btn btn--ghost btn--sm"
-                                disabled={state.code === "RATE_LIMITED"}
+                                disabled={rateLimited}
                                 onClick={() => run(payload)}
                             >
                                 Try again
@@ -157,7 +213,7 @@ export const UploadMap = (): JSX.Element => {
                         {state.status === "loading" ? (
                             <>
                                 <span className="map-continue-loader">
-                                    <RingLoader /> Generating…
+                                    <RingLoader /> Analysing your data…
                                 </span>
                             </>
                         ) : (
