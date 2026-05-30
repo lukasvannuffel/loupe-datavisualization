@@ -605,14 +605,14 @@ Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-k
 Inline alle styles in de SVG, sanitize, download als file. Filename = sanitized titel.
 
 **Actie-items**
-- [ ] `src/lib/export/exportSvg.ts` — pakt SVG node, inlines computed styles
-- [ ] Strip data-react attributes
-- [ ] Filename helper: titel → `kebab-case-truncated-50.svg`
-- [ ] Download trigger via `URL.createObjectURL` + `<a download>`
+- [x] `src/lib/export/exportSvg.ts` — pakt SVG node, inlines computed styles
+- [x] Strip data-react attributes
+- [x] Filename helper: titel → `kebab-case-truncated-50.svg`
+- [x] Download trigger via `URL.createObjectURL` + `<a download>`
 
 **Acceptance criteria**
-- [ ] Geëxporteerde SVG opent in Illustrator + Inkscape met correcte fonts (mits geïnstalleerd)
-- [ ] Bestandsnaam veilig op alle OS (geen `/` of `:`)
+- [x] Geëxporteerde SVG opent in Illustrator + Inkscape met correcte fonts (mits geïnstalleerd)
+- [x] Bestandsnaam veilig op alle OS (geen `/` of `:`)
 
 ---
 

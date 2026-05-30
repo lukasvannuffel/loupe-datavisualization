@@ -34,12 +34,47 @@ const ALLOWED_PROPS = new Set([
     "transform",
 ]);
 
+const PRESENTATION_ATTRS = [
+    "fill",
+    "stroke",
+    "color",
+    "stop-color",
+    "flood-color",
+    "lighting-color",
+] as const;
+
 const SVG_NS = "http://www.w3.org/2000/svg";
+const AT_RISK_FILL = "#0e0e0e";
+const AT_RISK_ROW_HEIGHT = 18;
+// Must match km-at-risk-table thead th:first-child width in atRiskTable.tsx.
+// If that component's header width changes, update this value to match.
+const AT_RISK_ROW_HEADER_WIDTH = 72;
+const AT_RISK_HEADER_TOP_Y = 32;
+const AT_RISK_FONT_SIZE = 11;
+const VAR_NAME_PATTERN = /^var\(\s*(--[^,)]+)/;
+
+const measureAtRiskExportHeight = (bodyRowCount: number, fontSize: number): number => {
+    const headerY = AT_RISK_HEADER_TOP_Y + fontSize;
+
+    if (bodyRowCount === 0) {
+        return headerY + fontSize;
+    }
+
+    const lastRowY = headerY + AT_RISK_ROW_HEIGHT + (bodyRowCount - 1) * AT_RISK_ROW_HEIGHT;
+
+    return lastRowY + fontSize;
+};
 
 const isElement = (node: Node): node is Element => node.nodeType === Node.ELEMENT_NODE;
 
 const isStyledElement = (node: Element): node is HTMLElement | SVGElement =>
     node instanceof HTMLElement || node instanceof SVGElement;
+
+const extractVarName = (value: string): string | null => {
+    const match = value.trim().match(VAR_NAME_PATTERN);
+
+    return match?.[1] ?? null;
+};
 
 const getPlotSvg = (container: HTMLElement): SVGElement => {
     const directSvgs = [...container.children].filter(
@@ -51,6 +86,19 @@ const getPlotSvg = (container: HTMLElement): SVGElement => {
     }
 
     return directSvgs[0]!;
+};
+
+const findAtRiskTable = (container: HTMLElement): HTMLTableElement | null => {
+    const local = container.querySelector("table.km-at-risk-table");
+
+    if (local instanceof HTMLTableElement) {
+        return local;
+    }
+
+    const chartRoot = container.closest(".chart-with-legend")?.parentElement;
+    const external = chartRoot?.querySelector("table.km-at-risk-table");
+
+    return external instanceof HTMLTableElement ? external : null;
 };
 
 const fetchFontAsBase64 = async (url: string): Promise<string | null> => {
@@ -76,24 +124,136 @@ const fetchFontAsBase64 = async (url: string): Promise<string | null> => {
     }
 };
 
+const resolveVarAttrs = (liveEl: Element, cloneEl: Element): void => {
+    for (const attr of PRESENTATION_ATTRS) {
+        const raw = liveEl.getAttribute(attr);
+
+        if (raw === null || !raw.trim().startsWith("var(")) {
+            continue;
+        }
+
+        const varName = extractVarName(raw);
+
+        if (varName === null) {
+            continue;
+        }
+
+        const resolved = window.getComputedStyle(liveEl).getPropertyValue(varName).trim();
+
+        if (resolved.length === 0) {
+            console.warn(`Loupe export: could not resolve ${varName} for ${attr}`);
+            continue;
+        }
+
+        cloneEl.setAttribute(attr, resolved);
+    }
+
+    if (!isStyledElement(liveEl) || !isStyledElement(cloneEl)) {
+        return;
+    }
+
+    for (const prop of ALLOWED_PROPS) {
+        if (!liveEl.style.getPropertyValue(prop).includes("var(")) {
+            continue;
+        }
+
+        const resolved = window.getComputedStyle(liveEl).getPropertyValue(prop).trim();
+
+        if (resolved.length === 0) {
+            console.warn(`Loupe export: could not resolve ${prop}`);
+            continue;
+        }
+
+        cloneEl.style.setProperty(prop, resolved);
+    }
+};
+
+const inlineStyles = (liveEl: Element, cloneEl: Element): void => {
+    if (!isStyledElement(liveEl) || !isStyledElement(cloneEl)) {
+        return;
+    }
+
+    for (const sheet of document.styleSheets) {
+        let rules: CSSRuleList;
+
+        try {
+            rules = sheet.cssRules;
+        } catch {
+            continue;
+        }
+
+        for (const rule of rules) {
+            if (!(rule instanceof CSSStyleRule) || rule.selectorText.startsWith("@")) {
+                continue;
+            }
+
+            try {
+                if (!liveEl.matches(rule.selectorText)) {
+                    continue;
+                }
+            } catch {
+                continue;
+            }
+
+            for (let i = 0; i < rule.style.length; i += 1) {
+                const prop = rule.style.item(i);
+                cloneEl.style.setProperty(prop, rule.style.getPropertyValue(prop));
+            }
+        }
+    }
+
+    if (cloneEl.style.length === 0) {
+        const computed = window.getComputedStyle(liveEl);
+
+        for (const prop of ALLOWED_PROPS) {
+            const value = computed.getPropertyValue(prop);
+
+            if (value.length > 0) {
+                cloneEl.style.setProperty(prop, value);
+            }
+        }
+    }
+};
+
+const walkLiveAndClone = (liveRoot: Element, cloneRoot: Element): void => {
+    const liveWalker = document.createTreeWalker(liveRoot, NodeFilter.SHOW_ELEMENT);
+    const cloneWalker = document.createTreeWalker(cloneRoot, NodeFilter.SHOW_ELEMENT);
+
+    let liveNode: Node | null = liveWalker.currentNode;
+    let cloneNode: Node | null = cloneWalker.currentNode;
+
+    while (liveNode !== null && cloneNode !== null) {
+        if (isElement(liveNode) && isElement(cloneNode)) {
+            resolveVarAttrs(liveNode, cloneNode);
+            inlineStyles(liveNode, cloneNode);
+        }
+
+        liveNode = liveWalker.nextNode();
+        cloneNode = cloneWalker.nextNode();
+    }
+};
+
 const mergeLabelLayer = (container: HTMLElement, clone: SVGElement): void => {
     const labelSvg = container.querySelector("svg.chart-labels-layer");
 
-    if (labelSvg === null) {
+    if (labelSvg === null || !(labelSvg instanceof SVGElement)) {
         return;
     }
+
+    const cloneLabelSvg = labelSvg.cloneNode(true) as SVGElement;
+    walkLiveAndClone(labelSvg, cloneLabelSvg);
 
     const group = document.createElementNS(SVG_NS, "g");
     group.setAttribute("class", "exported-labels");
 
-    for (const child of [...labelSvg.childNodes]) {
-        group.appendChild(child.cloneNode(true));
+    for (const child of [...cloneLabelSvg.childNodes]) {
+        group.appendChild(child);
     }
 
     clone.appendChild(group);
 };
 
-const stripReactArtifacts = (root: Node): void => {
+const stripDataAttributes = (root: Node): void => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
 
     let node: Node | null = walker.currentNode;
@@ -101,7 +261,7 @@ const stripReactArtifacts = (root: Node): void => {
     while (node !== null) {
         if (isElement(node)) {
             for (const attr of [...node.attributes]) {
-                if (attr.name === "data-reactroot" || attr.name.startsWith("data-react")) {
+                if (attr.name.startsWith("data-")) {
                     node.removeAttribute(attr.name);
                 }
             }
@@ -111,56 +271,130 @@ const stripReactArtifacts = (root: Node): void => {
     }
 };
 
-const inlineStyles = (root: Node): void => {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+const createSvgText = (
+    x: number,
+    y: number,
+    text: string,
+    fontFamily: string,
+    fontSize: number,
+    textAnchor: "start" | "middle",
+): SVGTextElement => {
+    const label = document.createElementNS(SVG_NS, "text");
+    label.setAttribute("x", String(x));
+    label.setAttribute("y", String(y));
+    label.setAttribute("fill", AT_RISK_FILL);
+    label.setAttribute("font-family", fontFamily);
+    label.setAttribute("font-size", String(fontSize));
+    label.setAttribute("text-anchor", textAnchor);
+    label.textContent = text;
 
-    let node: Node | null = walker.currentNode;
+    return label;
+};
 
-    while (node !== null) {
-        if (isElement(node) && isStyledElement(node)) {
-            for (const sheet of document.styleSheets) {
-                let rules: CSSRuleList;
+const atRiskTableToSvg = (
+    tableEl: HTMLTableElement,
+    plotWidth: number,
+    marginLeft: number,
+    fontFamily: string,
+    fontSize: number,
+): SVGGElement => {
+    const group = document.createElementNS(SVG_NS, "g");
+    group.setAttribute("class", "km-at-risk-export");
 
-                try {
-                    rules = sheet.cssRules;
-                } catch {
-                    continue;
-                }
+    const captionText =
+        tableEl.querySelector("caption")?.textContent?.trim().toUpperCase() ?? "AT RISK";
+    const timeHeaders = [...tableEl.querySelectorAll("thead th[scope='col']")]
+        .slice(1)
+        .map((cell) => cell.textContent?.trim() ?? "");
+    const bodyRows = [...tableEl.querySelectorAll("tbody tr")];
+    const colCount = timeHeaders.length;
+    const dataWidth = Math.max(0, plotWidth - marginLeft - AT_RISK_ROW_HEADER_WIDTH);
+    const colWidth = colCount > 0 ? dataWidth / colCount : 0;
+    const tableTopY = AT_RISK_HEADER_TOP_Y;
 
-                for (const rule of rules) {
-                    if (!(rule instanceof CSSStyleRule) || rule.selectorText.startsWith("@")) {
-                        continue;
-                    }
+    group.appendChild(
+        createSvgText(marginLeft, fontSize + 2, captionText, fontFamily, fontSize, "start"),
+    );
 
-                    try {
-                        if (!node.matches(rule.selectorText)) {
-                            continue;
-                        }
-                    } catch {
-                        continue;
-                    }
+    const headerY = tableTopY + fontSize;
 
-                    for (let i = 0; i < rule.style.length; i += 1) {
-                        const prop = rule.style.item(i);
-                        node.style.setProperty(prop, rule.style.getPropertyValue(prop));
-                    }
-                }
-            }
+    for (let i = 0; i < timeHeaders.length; i += 1) {
+        const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (i + 0.5) * colWidth;
+        group.appendChild(
+            createSvgText(x, headerY, timeHeaders[i] ?? "", fontFamily, fontSize, "middle"),
+        );
+    }
 
-            if (node.style.length === 0) {
-                const computed = getComputedStyle(node);
+    for (let rowIndex = 0; rowIndex < bodyRows.length; rowIndex += 1) {
+        const row = bodyRows[rowIndex]!;
+        const rowHeader = row.querySelector("th[scope='row']")?.textContent?.trim() ?? "";
+        const cells = [...row.querySelectorAll("td")];
+        const rowY = headerY + AT_RISK_ROW_HEIGHT + rowIndex * AT_RISK_ROW_HEIGHT;
 
-                for (const prop of ALLOWED_PROPS) {
-                    const value = computed.getPropertyValue(prop);
+        group.appendChild(
+            createSvgText(
+                marginLeft,
+                rowY,
+                rowHeader,
+                fontFamily,
+                fontSize,
+                "start",
+            ),
+        );
 
-                    if (value.length > 0) {
-                        node.style.setProperty(prop, value);
-                    }
-                }
-            }
+        for (let colIndex = 0; colIndex < cells.length; colIndex += 1) {
+            const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (colIndex + 0.5) * colWidth;
+            const value = cells[colIndex]?.textContent?.trim() ?? "";
+            group.appendChild(
+                createSvgText(x, rowY, value, fontFamily, fontSize, "middle"),
+            );
         }
+    }
 
-        node = walker.nextNode();
+    return group;
+};
+
+const appendAtRiskTable = (
+    container: HTMLElement,
+    liveSvg: SVGElement,
+    clone: SVGElement,
+): void => {
+    const tableEl = findAtRiskTable(container);
+
+    if (tableEl === null) {
+        return;
+    }
+
+    const plotWidth = liveSvg.getBoundingClientRect().width;
+    const plotHeight =
+        Number.parseFloat(liveSvg.getAttribute("height") ?? "") ||
+        liveSvg.getBoundingClientRect().height;
+    const marginLeft = Number.parseFloat(window.getComputedStyle(tableEl).marginLeft) || 0;
+    const fontFamily = window.getComputedStyle(liveSvg).fontFamily || "ui-monospace, monospace";
+    const bodyRowCount = tableEl.querySelectorAll("tbody tr").length;
+    const extraHeight = measureAtRiskExportHeight(bodyRowCount, AT_RISK_FONT_SIZE);
+    const atRiskGroup = atRiskTableToSvg(
+        tableEl,
+        plotWidth,
+        marginLeft,
+        fontFamily,
+        AT_RISK_FONT_SIZE,
+    );
+
+    atRiskGroup.setAttribute("transform", `translate(0, ${plotHeight})`);
+    clone.appendChild(atRiskGroup);
+
+    const newHeight = plotHeight + extraHeight;
+    clone.setAttribute("height", String(newHeight));
+
+    const viewBox = clone.getAttribute("viewBox");
+
+    if (viewBox !== null) {
+        const parts = viewBox.split(/[\s,]+/).map(Number);
+
+        if (parts.length === 4 && parts.every((value) => Number.isFinite(value))) {
+            clone.setAttribute("viewBox", `0 0 ${parts[2]} ${newHeight}`);
+        }
     }
 };
 
@@ -203,9 +437,12 @@ export async function exportSvg(
     const svgEl = getPlotSvg(container);
     const clone = svgEl.cloneNode(true) as SVGElement;
 
+    // INVARIANT: clone must not be mutated between cloneNode(true) and
+    // walkLiveAndClone — walker assumes structural parity with the live tree.
+    walkLiveAndClone(svgEl, clone);
     mergeLabelLayer(container, clone);
-    stripReactArtifacts(clone);
-    inlineStyles(clone);
+    stripDataAttributes(clone);
+    appendAtRiskTable(container, svgEl, clone);
     await embedFont(clone, options);
 
     let xml = "";
