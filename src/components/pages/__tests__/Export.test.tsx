@@ -12,9 +12,15 @@ import type { ChartSpec } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
 
+import { saveChart } from "@/app/charts/actions";
+import * as buildReceiptModule from "@/lib/receipt/buildReceipt";
+import * as composeReceiptModule from "@/lib/receipt/composeReceipt";
+import * as summarizeComputationsModule from "@/lib/receipt/summarizeComputations";
+
 import { Export } from "../Export";
 
 const push = vi.fn();
+const saveChartMock = vi.mocked(saveChart);
 
 vi.mock("next/navigation", () => ({
     useRouter: (): { push: typeof push } => ({ push }),
@@ -120,6 +126,8 @@ afterEach(() => {
 beforeEach(() => {
     window.sessionStorage.clear();
     push.mockClear();
+    saveChartMock.mockClear();
+    saveChartMock.mockResolvedValue({ success: true, id: "test-id" });
 });
 
 describe("Export customization rail", () => {
@@ -146,7 +154,8 @@ describe("Export customization rail", () => {
                         column_mapping: {},
                         receipt: {
                             generated_at: "2026-05-28T08:00:00.000Z",
-                            config_hash: "hash",
+                            config_hash:
+                                "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
                             method: "method",
                             sample: "sample",
                             palette: "editorial",
@@ -188,7 +197,8 @@ describe("Export customization rail", () => {
                         column_mapping: {},
                         receipt: {
                             generated_at: "2026-05-28T08:00:00.000Z",
-                            config_hash: "sha256·abcdef12…beef",
+                            config_hash:
+                                "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
                             method: "Kaplan-Meier estimator, Greenwood log-log CI",
                             sample: "n = 100 · censored = 0",
                             palette: "editorial",
@@ -269,13 +279,18 @@ describe("Export customization rail", () => {
         });
     });
 
-    it("shows live palette name in the receipt when using spec figure", async () => {
+    it("updates reproducibility receipt hash when palette changes", async () => {
         renderExport();
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /copy receipt/i })).toBeTruthy();
+        });
+
+        const hashBefore = screen.getByText(/config hash:/i).textContent;
         fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
 
         await waitFor(() => {
-            const paletteEntry = screen.getByText("okabe-ito");
-            expect(paletteEntry.closest("dd")).toBeTruthy();
+            expect(screen.getByText(/config hash:/i).textContent).not.toBe(hashBefore);
         });
     });
 
@@ -298,4 +313,117 @@ describe("Export customization rail", () => {
     //   Test: "renders the customization rail on /export".
     //   findByRole("complementary", { name: /customize chart/i }) rejects → RED.
     //   Verified manually: 2026-05-25. REVERTED.
+});
+
+describe("computation snapshot", () => {
+    it("panel hash and saved config_hash share one computation snapshot", async () => {
+        const summarizeSpy = vi.spyOn(summarizeComputationsModule, "summarizeComputations");
+        const buildSpy = vi.spyOn(buildReceiptModule, "buildReceipt");
+        const composeSpy = vi.spyOn(composeReceiptModule, "composeReceipt");
+
+        renderExport();
+
+        await waitFor(() => {
+            expect(summarizeSpy).toHaveBeenCalled();
+            expect(buildSpy).toHaveBeenCalled();
+            expect(composeSpy).toHaveBeenCalled();
+        });
+
+        const buildInput = buildSpy.mock.calls.at(-1)?.[0];
+        const composeInput = composeSpy.mock.calls.at(-1)?.[0];
+
+        expect(buildInput?.computations).toBe(composeInput?.computations);
+
+        const composedResult = composeSpy.mock.results.at(-1);
+        const savedResult = buildSpy.mock.results.at(-1);
+        expect(composedResult?.type).toBe("return");
+        expect(savedResult?.type).toBe("return");
+
+        const composed = await (composedResult?.value as Promise<Awaited<ReturnType<typeof composeReceiptModule.composeReceipt>>>);
+        const saved = await (savedResult?.value as Promise<Awaited<ReturnType<typeof buildReceiptModule.buildReceipt>>>);
+
+        expect(saved.config_hash).toBe(composed.hash);
+
+        summarizeSpy.mockRestore();
+        buildSpy.mockRestore();
+        composeSpy.mockRestore();
+    });
+
+    it("snapshot recomputes when spec changes", async () => {
+        const summarizeSpy = vi.spyOn(summarizeComputationsModule, "summarizeComputations");
+
+        renderExport();
+
+        await waitFor(() => {
+            expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+        });
+
+        const firstSnapshot = summarizeSpy.mock.results.at(-1)?.value;
+
+        fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
+
+        await waitFor(() => {
+            expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+        });
+
+        const secondSnapshot = summarizeSpy.mock.results.at(-1)?.value;
+
+        expect(secondSnapshot).not.toBe(firstSnapshot);
+
+        summarizeSpy.mockRestore();
+    });
+
+    it("save is blocked when computation snapshot is null", async () => {
+        const summarizeSpy = vi.spyOn(summarizeComputationsModule, "summarizeComputations");
+        const buildSpy = vi.spyOn(buildReceiptModule, "buildReceipt");
+
+        render(
+            <AppStateProvider>
+                <Export
+                    initialChartId="box-1"
+                    initialChart={{
+                        id: "box-1",
+                        name: "Saved scatter",
+                        chart_spec: createDefaultChartSpec(
+                            "box",
+                            { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
+                            { inferences: [], mapping: {}, rows: brandRows([]) },
+                        ),
+                        column_mapping: {},
+                        receipt: {
+                            generated_at: "2026-05-28T08:00:00.000Z",
+                            config_hash:
+                                "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                            method: "method",
+                            sample: "sample",
+                            palette: "editorial",
+                            software: "Loupe v0.1.0 · client-side",
+                            ai_rationale: "why",
+                            csv_columns: ["arm"],
+                            n_rows_input: 1,
+                        },
+                        plot_data: null,
+                        thumbnail: "data:image/svg+xml;utf8,test",
+                        chart_kind: "box",
+                        created_at: "2026-05-28T08:00:00.000Z",
+                        updated_at: "2026-05-28T08:00:00.000Z",
+                    }}
+                />
+            </AppStateProvider>,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText(/saved as a snapshot to protect patient data/i)).toBeTruthy();
+        });
+
+        expect(summarizeSpy).not.toHaveBeenCalled();
+        expect(buildSpy).not.toHaveBeenCalled();
+        expect(saveChartMock).not.toHaveBeenCalled();
+
+        summarizeSpy.mockRestore();
+        buildSpy.mockRestore();
+    });
+
+    // MUTATION-VERIFY: mock summarizeComputations to return two distinct objects on successive calls;
+    // test "panel hash and saved config_hash share one computation snapshot" must RED. Verified manually: 2026-05-30. REVERTED.
 });

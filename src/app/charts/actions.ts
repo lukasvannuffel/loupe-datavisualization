@@ -8,7 +8,8 @@ import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
 import { chartSpecSchema } from "@/lib/chartSpec/schemas";
 import type { ChartSpec, PlotData, SpecKind } from "@/lib/chartSpec/types";
 import { assertNoRawRows } from "@/lib/privacy/assertNoRawRows";
-import { computeConfigHash } from "@/lib/receipt/configHash";
+import { hashSpecAndComputations } from "@/lib/receipt/hashSpec";
+import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
 import { methodString } from "@/lib/receipt/methodStrings";
 import { sampleString } from "@/lib/receipt/sampleStrings";
 import { receiptSchema } from "@/lib/receipt/schemas";
@@ -103,7 +104,13 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
             : null;
         const chartKind = DASHBOARD_KIND_BY_SPEC_KIND[parsed.chart_spec.kind];
 
-        const recomputedHash = await computeConfigHash(parsed.chart_spec);
+        const computations = summarizeComputations(
+            parsed.chart_spec,
+            validatedPlotData,
+            parsed.column_mapping,
+            parsed.receipt.generated_at,
+        );
+        const recomputedHash = await hashSpecAndComputations(parsed.chart_spec, computations);
         if (recomputedHash !== parsed.receipt.config_hash) {
             return {
                 success: false,

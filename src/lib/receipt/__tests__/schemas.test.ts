@@ -4,7 +4,7 @@ import { receiptSchema } from "@/lib/receipt/schemas";
 
 const baseReceipt = {
     generated_at: "2026-05-28T08:00:00.000Z",
-    config_hash: "sha256·abcdef12…beef",
+    config_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     method: "Kaplan-Meier estimator, Greenwood log-log CI",
     sample: "n = 100 · censored = 0",
     palette: "editorial",

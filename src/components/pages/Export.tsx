@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -41,7 +41,10 @@ import { RingLoader } from "@/components/primitives/RingLoader";
 import { exportPng } from "@/lib/export/exportPng";
 import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
+import type { ComputationSummary, ReceiptInput } from "@/lib/receipt/composeReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
+import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
+import { ReproducibilityReceiptPanel } from "@/components/pages/ReproducibilityReceiptPanel";
 import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
 import { ViewOnlyNotice } from "./ViewOnlyNotice";
 import { CustomSection } from "./CustomSection";
@@ -558,6 +561,7 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [computationSnapshot, setComputationSnapshot] = useState<ComputationSummary | null>(null);
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState<boolean>(false);
@@ -656,33 +660,58 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const specFigureTitle =
         useSpecFigure && liveSpec !== null ? resolveChartLabels(liveSpec).title : title;
 
-    const receiptPaletteLabel =
-        useSpecFigure && liveSpec !== null
-            ? resolvePalette(liveSpec)
-            : palette.name.toLowerCase();
+    const aiRationale =
+        dataset !== null
+            ? (receipt?.recommendation.because ?? slugDefaults.rationale)
+            : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
+
+    const exportPlotData = useMemo((): PlotData | null => {
+        if (!useSpecFigure || liveSpec === null) {
+            return null;
+        }
+
+        return dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+    }, [dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
+
+    useEffect(() => {
+        if (liveSpec === null || exportPlotData === null) {
+            setComputationSnapshot(null);
+            return;
+        }
+
+        setComputationSnapshot(summarizeComputations(liveSpec, exportPlotData, mapping));
+    }, [exportPlotData, liveSpec, mapping]);
+
+    const reproducibilityInput = useMemo((): ReceiptInput | null => {
+        if (!useSpecFigure || liveSpec === null || computationSnapshot === null) {
+            return null;
+        }
+
+        return {
+            spec: liveSpec,
+            aiReasoning: aiRationale,
+            computations: computationSnapshot,
+        };
+    }, [aiRationale, computationSnapshot, liveSpec, useSpecFigure]);
 
     useEffect(() => {
         let isCancelled = false;
-        if (!useSpecFigure || liveSpec === null) {
+        if (!useSpecFigure || liveSpec === null || exportPlotData === null || computationSnapshot === null) {
             setComputedReceipt(null);
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
-            setComputedReceipt(null);
-            return;
-        }
+
         const nextPalette: PaletteName = resolvePalette(liveSpec);
-        const aiRationale =
-            dataset !== null ? (receipt?.recommendation.because ?? slugDefaults.rationale) : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
         const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
         void buildReceipt({
             aiRationale,
             chartSpec: liveSpec,
             columnMapping: mapping,
+            computations: computationSnapshot,
+            generatedAt: computationSnapshot.computedAt,
             nRowsInput,
             palette: nextPalette,
-            plotData,
+            plotData: exportPlotData,
         })
             .then((nextReceipt) => {
                 if (!isCancelled) {
@@ -698,7 +727,16 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         return () => {
             isCancelled = true;
         };
-    }, [dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, receipt, slugDefaults.rationale, useSpecFigure]);
+    }, [
+        aiRationale,
+        computationSnapshot,
+        dataset,
+        exportPlotData,
+        liveSpec,
+        loadedReceipt,
+        mapping,
+        useSpecFigure,
+    ]);
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -825,12 +863,15 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     };
 
     const handleSaveToProject = async (): Promise<void> => {
+        if (computationSnapshot === null) {
+            setSaveError("Save unavailable: computation snapshot not ready.");
+            return;
+        }
         if (liveSpec === null || computedReceipt === null) {
             setSaveError("Save unavailable: chart data is incomplete.");
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
+        if (exportPlotData === null) {
             setSaveError("Save unavailable: unable to compute aggregated plot data.");
             return;
         }
@@ -839,14 +880,14 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         setSaving(true);
         try {
             const chartSvg = chartCanvasRef.current?.querySelector<SVGSVGElement>("svg.rec-chart-svg") ?? null;
-            const thumbnail = await generateThumbnail(liveSpec.kind, plotData.kind, chartSvg);
+            const thumbnail = await generateThumbnail(liveSpec.kind, exportPlotData.kind, chartSvg);
             const result = await saveChart({
                 id: loadedChartId ?? undefined,
                 name: liveSpec.title,
                 chart_spec: liveSpec,
                 column_mapping: mapping,
                 receipt: computedReceipt,
-                plot_data: plotData,
+                plot_data: exportPlotData,
                 thumbnail,
             });
             if (!result.success) {
@@ -1161,6 +1202,8 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                         </p>
                     )}
 
+                    <ReproducibilityReceiptPanel input={reproducibilityInput} />
+
                     {viewOnlySnapshot === null ? (
                     <div className="export-secondary">
                         <button
@@ -1185,48 +1228,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                             Save failed: {saveError}
                         </p>
                     )}
-
-                    <div className="export-receipt">
-                        <h4>Reproducibility receipt</h4>
-                        <p>
-                            Paste into supplementary materials. Records the AI&apos;s reasoning, the
-                            configuration hash, and the local computations.
-                        </p>
-                        <dl>
-                            <dt>Generated</dt>
-                            <dd>{computedReceipt?.generated_at ?? "—"}</dd>
-                            <dt>Config hash</dt>
-                            <dd>{computedReceipt?.config_hash ?? "—"}</dd>
-                            <dt>Method</dt>
-                            <dd>{computedReceipt?.method ?? slugDefaults.method}</dd>
-                            <dt>Sample</dt>
-                            <dd>{computedReceipt?.sample ?? slugDefaults.metaLine}</dd>
-                            <dt>Palette</dt>
-                            <dd>{computedReceipt?.palette ?? receiptPaletteLabel}</dd>
-                            <dt>Software</dt>
-                            <dd>{computedReceipt?.software ?? "—"}</dd>
-                            <dt>AI rationale</dt>
-                            <dd className="export-receipt-prose">
-                                {computedReceipt?.ai_rationale ?? slugDefaults.rationale}
-                            </dd>
-                            <dt>CSV COLUMNS</dt>
-                            <dd>{computedReceipt?.csv_columns.join(", ") ?? "—"}</dd>
-                            <dt>INPUT ROWS</dt>
-                            <dd>{computedReceipt?.n_rows_input ?? "—"}</dd>
-                            {chatRevisions.length > 0 && (
-                                <>
-                                    <dt>Chat revisions</dt>
-                                    <dd>
-                                        <ol className="export-receipt-list">
-                                            {chatRevisions.map((r) => (
-                                                <li key={r.id}>{r.entry}</li>
-                                            ))}
-                                        </ol>
-                                    </dd>
-                                </>
-                            )}
-                        </dl>
-                    </div>
 
                 </div>
 

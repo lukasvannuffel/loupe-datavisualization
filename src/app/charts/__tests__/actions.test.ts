@@ -5,8 +5,9 @@ import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
 import { methodString } from "@/lib/receipt/methodStrings";
 import { sampleString } from "@/lib/receipt/sampleStrings";
-import { computeConfigHash } from "@/lib/receipt/configHash";
+import { hashSpecAndComputations } from "@/lib/receipt/hashSpec";
 import type { Receipt } from "@/lib/receipt/schemas";
+import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
 
 const { cookiesMock, createClientMock, revalidatePathMock } = vi.hoisted(() => ({
     cookiesMock: vi.fn(async () => ({})),
@@ -181,7 +182,8 @@ const createSupabaseMock = (
                     column_mapping: { time: "time_months", event: "event_status", group: "arm" },
                     receipt: {
                         generated_at: new Date().toISOString(),
-                        config_hash: "sha256·abcdef12…beef",
+                        config_hash:
+                            "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
                         method: "Kaplan-Meier estimator, Greenwood log-log CI",
                         sample: "n = 100 · censored = 0",
                         palette: "editorial",
@@ -254,9 +256,20 @@ const createValidPayload = async (
 ): Promise<SaveChartPayload> => {
     const nextChartSpec = overrides?.chartSpec ?? chartSpec;
     const nextPlotData = overrides?.plotData ?? plotData;
-    const hash = await computeConfigHash(nextChartSpec);
+    const generatedAt = new Date().toISOString();
+    const computations = summarizeComputations(
+        nextChartSpec,
+        nextPlotData,
+        {
+            time: "time_months",
+            event: "event_status",
+            group: "arm",
+        },
+        generatedAt,
+    );
+    const hash = await hashSpecAndComputations(nextChartSpec, computations);
     const receipt: Receipt = {
-        generated_at: new Date().toISOString(),
+        generated_at: generatedAt,
         config_hash: hash,
         method: methodString(nextChartSpec.kind),
         sample: sampleString(nextChartSpec, nextPlotData),
@@ -421,12 +434,21 @@ describe("saveChart", () => {
         const { client } = createSupabaseMock();
         createClientMock.mockReturnValue(client);
         const payload = await createValidPayload();
+        const staleGeneratedAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const staleComputations = summarizeComputations(
+            payload.chart_spec,
+            payload.plot_data,
+            payload.column_mapping,
+            staleGeneratedAt,
+        );
+        const staleHash = await hashSpecAndComputations(payload.chart_spec, staleComputations);
 
         const result = await saveChart({
             ...payload,
             receipt: {
                 ...payload.receipt,
-                generated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+                generated_at: staleGeneratedAt,
+                config_hash: staleHash,
             },
         });
 
@@ -445,7 +467,7 @@ describe("saveChart", () => {
             ...payload,
             receipt: {
                 ...payload.receipt,
-                config_hash: "sha256·deadbe…ef00",
+                config_hash: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
             },
         });
 
