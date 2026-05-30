@@ -1,7 +1,9 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 const EXPORT_TEXT_FILL = "#0e0e0e";
 const AT_RISK_ROW_HEIGHT = 18;
-const AT_RISK_ROW_HEADER_WIDTH = 72;
+const AT_RISK_ROW_HEADER_COL_WIDTH = 72;
+const AT_RISK_COL_PADDING = 4;
+const AT_RISK_LINE_HEIGHT_EXTRA = 3;
 const AT_RISK_HEADER_TOP_Y = 32;
 const AT_RISK_FONT_SIZE = 11;
 const LEGEND_GAP_BELOW = 16;
@@ -65,16 +67,136 @@ const resolveLegendGlyphFill = (glyphChild: Element): string => {
     return fillAttr ?? strokeAttr ?? "#000";
 };
 
-const measureAtRiskExportHeight = (bodyRowCount: number, fontSize: number): number => {
+type AtRiskRowLayout = {
+    readonly labelLines: readonly string[];
+    readonly values: readonly string[];
+    readonly rowHeight: number;
+};
+
+const measureRowHeaderColWidth = (tableEl: HTMLTableElement): number => {
+    const headerTh = tableEl.querySelector("thead th:first-child");
+
+    if (headerTh instanceof HTMLElement) {
+        if (headerTh.offsetWidth > 0) {
+            return headerTh.offsetWidth;
+        }
+
+        const styleWidth = headerTh.style.width.trim();
+
+        if (styleWidth.endsWith("px")) {
+            const parsed = Number.parseFloat(styleWidth);
+
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+    }
+
+    return AT_RISK_ROW_HEADER_COL_WIDTH;
+};
+
+const measureTextWidth = (
+    text: string,
+    fontFamily: string,
+    fontSize: number,
+): number => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (ctx === null) {
+        return text.length * fontSize * LABEL_WIDTH_FACTOR;
+    }
+
+    ctx.font = `${fontSize}px ${fontFamily}`;
+
+    return ctx.measureText(text).width;
+};
+
+const wrapTextToLines = (
+    text: string,
+    maxWidth: number,
+    fontSize: number,
+    fontFamily: string,
+): readonly string[] => {
+    const trimmed = text.trim();
+
+    if (trimmed.length === 0) {
+        return [""];
+    }
+
+    const maxLineWidth = Math.max(fontSize, maxWidth - AT_RISK_COL_PADDING);
+    const words = trimmed.split(/\s+/);
+    const lines: string[] = [];
+    let current = "";
+
+    const pushLine = (line: string): void => {
+        if (line.length > 0) {
+            lines.push(line);
+        }
+    };
+
+    for (const word of words) {
+        const candidate = current.length === 0 ? word : `${current} ${word}`;
+        const candidateWidth = measureTextWidth(candidate, fontFamily, fontSize);
+
+        if (candidateWidth <= maxLineWidth) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            pushLine(current);
+            current = word;
+            continue;
+        }
+
+        // Single word wider than the column — keep whole word on its own line.
+        pushLine(word);
+        current = "";
+    }
+
+    pushLine(current);
+
+    return lines.length === 0 ? [trimmed] : lines;
+};
+
+const computeAtRiskRowLayouts = (
+    tableEl: HTMLTableElement,
+    rowHeaderColWidth: number,
+    fontSize: number,
+    fontFamily: string,
+): readonly AtRiskRowLayout[] => {
+    const lineHeight = fontSize + AT_RISK_LINE_HEIGHT_EXTRA;
+    const bodyRows = [...tableEl.querySelectorAll("tbody tr")];
+
+    return bodyRows.map((row) => {
+        const label = row.querySelector('th[scope="row"]')?.textContent?.trim() ?? "";
+        const values = [...row.querySelectorAll("td")].map(
+            (cell) => cell.textContent?.trim() ?? "",
+        );
+        const labelLines = wrapTextToLines(label, rowHeaderColWidth, fontSize, fontFamily);
+        const rowHeight = Math.max(
+            AT_RISK_ROW_HEIGHT,
+            labelLines.length * lineHeight,
+        );
+
+        return { labelLines, values, rowHeight };
+    });
+};
+
+const measureAtRiskExportHeight = (
+    rowLayouts: readonly AtRiskRowLayout[],
+    fontSize: number,
+): number => {
     const headerY = AT_RISK_HEADER_TOP_Y + fontSize;
 
-    if (bodyRowCount === 0) {
+    if (rowLayouts.length === 0) {
         return headerY + fontSize;
     }
 
-    const lastRowY = headerY + AT_RISK_ROW_HEIGHT + (bodyRowCount - 1) * AT_RISK_ROW_HEIGHT;
+    const bodyHeight = rowLayouts.reduce((sum, row) => sum + row.rowHeight, 0);
 
-    return lastRowY + fontSize;
+    return headerY + bodyHeight + fontSize;
 };
 
 const createSvgText = (
@@ -84,6 +206,7 @@ const createSvgText = (
     fontFamily: string,
     fontSize: number,
     textAnchor: "start" | "middle",
+    dominantBaseline?: "middle",
 ): SVGTextElement => {
     const label = document.createElementNS(SVG_NS, "text");
     label.setAttribute("x", String(x));
@@ -92,9 +215,42 @@ const createSvgText = (
     label.setAttribute("font-family", fontFamily);
     label.setAttribute("font-size", String(fontSize));
     label.setAttribute("text-anchor", textAnchor);
+
+    if (dominantBaseline !== undefined) {
+        label.setAttribute("dominant-baseline", dominantBaseline);
+    }
+
     label.textContent = text;
 
     return label;
+};
+
+const createWrappedSvgText = (
+    x: number,
+    y: number,
+    lines: readonly string[],
+    fontFamily: string,
+    fontSize: number,
+): SVGTextElement => {
+    const textEl = document.createElementNS(SVG_NS, "text");
+    textEl.setAttribute("x", String(x));
+    textEl.setAttribute("y", String(y));
+    textEl.setAttribute("fill", EXPORT_TEXT_FILL);
+    textEl.setAttribute("font-family", fontFamily);
+    textEl.setAttribute("font-size", String(fontSize));
+    textEl.setAttribute("text-anchor", "start");
+
+    const lineHeight = fontSize + AT_RISK_LINE_HEIGHT_EXTRA;
+
+    lines.forEach((line, index) => {
+        const tspan = document.createElementNS(SVG_NS, "tspan");
+        tspan.setAttribute("x", String(x));
+        tspan.setAttribute("dy", index === 0 ? "0" : String(lineHeight));
+        tspan.textContent = line;
+        textEl.appendChild(tspan);
+    });
+
+    return textEl;
 };
 
 export const getCloneSvgHeight = (clone: SVGElement): number =>
@@ -149,6 +305,8 @@ const atRiskTableToSvg = (
     marginLeft: number,
     fontFamily: string,
     fontSize: number,
+    rowHeaderColWidth: number,
+    rowLayouts: readonly AtRiskRowLayout[],
 ): SVGGElement => {
     const group = document.createElementNS(SVG_NS, "g");
     group.setAttribute("class", "km-at-risk-export");
@@ -158,9 +316,8 @@ const atRiskTableToSvg = (
     const timeHeaders = [...tableEl.querySelectorAll("thead th[scope='col']")]
         .slice(1)
         .map((cell) => cell.textContent?.trim() ?? "");
-    const bodyRows = [...tableEl.querySelectorAll("tbody tr")];
     const colCount = timeHeaders.length;
-    const dataWidth = Math.max(0, plotWidth - marginLeft - AT_RISK_ROW_HEADER_WIDTH);
+    const dataWidth = Math.max(0, plotWidth - marginLeft - rowHeaderColWidth);
     const colWidth = colCount > 0 ? dataWidth / colCount : 0;
     const tableTopY = AT_RISK_HEADER_TOP_Y;
 
@@ -171,36 +328,44 @@ const atRiskTableToSvg = (
     const headerY = tableTopY + fontSize;
 
     for (let i = 0; i < timeHeaders.length; i += 1) {
-        const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (i + 0.5) * colWidth;
+        const x = marginLeft + rowHeaderColWidth + (i + 0.5) * colWidth;
         group.appendChild(
             createSvgText(x, headerY, timeHeaders[i] ?? "", fontFamily, fontSize, "middle"),
         );
     }
 
-    for (let rowIndex = 0; rowIndex < bodyRows.length; rowIndex += 1) {
-        const row = bodyRows[rowIndex]!;
-        const rowHeader = row.querySelector("th[scope='row']")?.textContent?.trim() ?? "";
-        const cells = [...row.querySelectorAll("td")];
-        const rowY = headerY + AT_RISK_ROW_HEIGHT + rowIndex * AT_RISK_ROW_HEIGHT;
+    let rowBlockTop = headerY + AT_RISK_ROW_HEIGHT;
 
+    for (const rowLayout of rowLayouts) {
         group.appendChild(
-            createSvgText(
+            createWrappedSvgText(
                 marginLeft,
-                rowY,
-                rowHeader,
+                rowBlockTop + fontSize,
+                rowLayout.labelLines,
                 fontFamily,
                 fontSize,
-                "start",
             ),
         );
 
-        for (let colIndex = 0; colIndex < cells.length; colIndex += 1) {
-            const x = marginLeft + AT_RISK_ROW_HEADER_WIDTH + (colIndex + 0.5) * colWidth;
-            const value = cells[colIndex]?.textContent?.trim() ?? "";
+        const valueY = rowBlockTop + rowLayout.rowHeight / 2;
+
+        for (let colIndex = 0; colIndex < rowLayout.values.length; colIndex += 1) {
+            const x = marginLeft + rowHeaderColWidth + (colIndex + 0.5) * colWidth;
+            const value = rowLayout.values[colIndex] ?? "";
             group.appendChild(
-                createSvgText(x, rowY, value, fontFamily, fontSize, "middle"),
+                createSvgText(
+                    x,
+                    valueY,
+                    value,
+                    fontFamily,
+                    fontSize,
+                    "middle",
+                    "middle",
+                ),
             );
         }
+
+        rowBlockTop += rowLayout.rowHeight;
     }
 
     return group;
@@ -297,14 +462,28 @@ export const appendAtRiskTable = (
         liveSvg.getBoundingClientRect().height;
     const marginLeft = Number.parseFloat(window.getComputedStyle(tableEl).marginLeft) || 0;
     const fontFamily = window.getComputedStyle(liveSvg).fontFamily || "ui-monospace, monospace";
-    const bodyRowCount = tableEl.querySelectorAll("tbody tr").length;
-    const extraHeight = measureAtRiskExportHeight(bodyRowCount, AT_RISK_FONT_SIZE);
+    const tbody = tableEl.querySelector("tbody");
+
+    if (tbody === null || !(tbody instanceof HTMLTableSectionElement)) {
+        return;
+    }
+
+    const rowHeaderColWidth = measureRowHeaderColWidth(tableEl);
+    const rowLayouts = computeAtRiskRowLayouts(
+        tableEl,
+        rowHeaderColWidth,
+        AT_RISK_FONT_SIZE,
+        fontFamily,
+    );
+    const extraHeight = measureAtRiskExportHeight(rowLayouts, AT_RISK_FONT_SIZE);
     const atRiskGroup = atRiskTableToSvg(
         tableEl,
         plotWidth,
         marginLeft,
         fontFamily,
         AT_RISK_FONT_SIZE,
+        rowHeaderColWidth,
+        rowLayouts,
     );
 
     atRiskGroup.setAttribute("transform", `translate(0, ${plotHeight})`);

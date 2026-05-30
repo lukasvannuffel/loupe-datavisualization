@@ -37,6 +37,8 @@ import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { BarErrorPlotData, ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { saveChart } from "@/app/charts/actions";
 import type { ChartRow } from "@/app/charts/actions";
+import { RingLoader } from "@/components/primitives/RingLoader";
+import { exportPng } from "@/lib/export/exportPng";
 import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
@@ -529,7 +531,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const slugDefaults = SLUG_DEFAULTS[slug];
     const ChartComponent = getPublicationChart(slug);
 
-    const [dpi, setDpi] = useState<number>(300);
     const [copied, setCopied] = useState<boolean>(false);
 
     const [paletteId, setPaletteId] = useState<string>("editorial");
@@ -562,6 +563,8 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const [saving, setSaving] = useState<boolean>(false);
     const [exportError, setExportError] = useState<string | null>(null);
     const [exporting, setExporting] = useState<boolean>(false);
+    const [pngLoading, setPngLoading] = useState<false | 300 | 600>(false);
+    const [fontWarningToast, setFontWarningToast] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
     const chartCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -740,6 +743,57 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const onCopy = (): void => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
+    };
+
+    useEffect(() => {
+        const onFontWarning = (): void => {
+            setFontWarningToast(true);
+        };
+
+        document.addEventListener("loupe:font-warning", onFontWarning);
+
+        return () => {
+            document.removeEventListener("loupe:font-warning", onFontWarning);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!fontWarningToast) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setFontWarningToast(false);
+        }, 4000);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [fontWarningToast]);
+
+    const handlePngExport = async (dpi: 300 | 600): Promise<void> => {
+        const surface = chartCanvasRef.current?.querySelector<HTMLElement>(".chart-surface");
+
+        if (surface === null || surface === undefined) {
+            setExportError("Export unavailable: chart surface not found.");
+            return;
+        }
+
+        setExportError(null);
+        setPngLoading(dpi);
+
+        try {
+            await exportPng(surface, specFigureTitle, { dpi });
+        } catch (error) {
+            if (error instanceof ExportError) {
+                setExportError(error.message);
+                return;
+            }
+
+            setExportError(error instanceof Error ? error.message : "PNG export failed.");
+        } finally {
+            setPngLoading(false);
+        }
     };
 
     const handleDownloadSvg = async (): Promise<void> => {
@@ -1065,7 +1119,7 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                         <button
                             type="button"
                             className="btn btn--primary btn--lg"
-                            disabled={exporting}
+                            disabled={exporting || pngLoading !== false}
                             onClick={handleDownloadSvg}
                         >
                             {exporting ? "Exporting…" : "Download SVG"}{" "}
@@ -1073,21 +1127,30 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                                 <span className="export-recommended-tag">· recommended</span>
                             ) : null}
                         </button>
-                        <span className="btn btn--ghost btn--lg export-png">
-                            Download PNG
+                        <div className="btn btn--ghost btn--lg export-png">
+                            <span>Download PNG</span>
                             <span className="export-dpi">
-                                {[300, 600].map((v) => (
+                                {([300, 600] as const).map((v) => (
                                     <button
                                         key={v}
                                         type="button"
-                                        className={dpi === v ? "active" : ""}
-                                        onClick={() => setDpi(v)}
+                                        className={pngLoading === v ? "active" : ""}
+                                        disabled={pngLoading !== false || exporting}
+                                        onClick={() => {
+                                            void handlePngExport(v);
+                                        }}
                                     >
-                                        {v} dpi
+                                        {pngLoading === v ? (
+                                            <>
+                                                <RingLoader /> Exporting…
+                                            </>
+                                        ) : (
+                                            `${v} dpi`
+                                        )}
                                     </button>
                                 ))}
                             </span>
-                        </span>
+                        </div>
                         <button type="button" className="btn btn--ghost btn--lg" onClick={onCopy}>
                             {copied ? "Copied to clipboard ✓" : "Copy to clipboard"}
                         </button>
@@ -1666,6 +1729,12 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                     aria-hidden="true"
                 />
             )}
+
+            {fontWarningToast ? (
+                <div className="dash-toast" role="status">
+                    Exported with fallback fonts — font files could not be fetched.
+                </div>
+            ) : null}
 
             <ExportChatLauncher open={chatOpen} onOpen={openChat} />
             <ExportChatPanel

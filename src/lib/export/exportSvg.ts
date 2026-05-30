@@ -1,4 +1,5 @@
 import { toSvgFilename } from "./filenameHelper";
+import { fetchFontAsBase64 } from "./fontCache";
 import { appendAtRiskTable, appendLegend } from "./svgTableHelpers";
 
 export class ExportError extends Error {
@@ -17,7 +18,7 @@ export interface ExportOptions {
 }
 
 export const CHART_EXPORT_FONT = {
-    url: "https://fonts.gstatic.com/s/sourceserif4/v13/10Uf7uJ_341V8Wp32H1kYgVvL1_z.woff2",
+    url: "/fonts/source-serif-4-latin.woff2",
     family: "Source Serif 4",
 } as const;
 
@@ -68,29 +69,6 @@ const getPlotSvg = (container: HTMLElement): SVGElement => {
     }
 
     return directSvgs[0]!;
-};
-
-const fetchFontAsBase64 = async (url: string): Promise<string | null> => {
-    try {
-        const res = await fetch(url);
-
-        if (!res.ok) {
-            console.warn("Loupe export: font fetch failed, exporting without embedded font");
-            return null;
-        }
-
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        let binary = "";
-
-        for (let i = 0; i < bytes.length; i += 1) {
-            binary += String.fromCharCode(bytes[i]!);
-        }
-
-        return btoa(binary);
-    } catch {
-        console.warn("Loupe export: font fetch failed, exporting without embedded font");
-        return null;
-    }
 };
 
 const resolveVarAttrs = (liveEl: Element, cloneEl: Element): void => {
@@ -248,16 +226,16 @@ const embedFont = async (
         return;
     }
 
-    const base64 = await fetchFontAsBase64(options.fontUrl);
+    const entry = await fetchFontAsBase64(options.fontUrl, options.fontFamily, "normal", "400");
 
-    if (base64 === null) {
+    if (entry === null) {
         return;
     }
 
     const style = document.createElementNS(SVG_NS, "style");
     style.textContent =
         `@font-face{font-family:'${options.fontFamily}';` +
-        `src:url(data:font/woff2;base64,${base64}) format('woff2');}`;
+        `src:url(data:font/woff2;base64,${entry.base64}) format('woff2');}`;
     clone.insertBefore(style, clone.firstChild);
 };
 
@@ -271,11 +249,12 @@ const downloadSvg = (xml: string, title: string): void => {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
-export async function exportSvg(
+export async function exportSvgString(
     container: HTMLElement,
-    title: string,
+    _title: string,
     options?: ExportOptions,
-): Promise<void> {
+): Promise<string> {
+
     const svgEl = getPlotSvg(container);
     const clone = svgEl.cloneNode(true) as SVGElement;
 
@@ -297,5 +276,14 @@ export async function exportSvg(
         throw new ExportError("SERIALIZE_FAILED", message);
     }
 
-    downloadSvg(`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`, title);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+}
+
+export async function exportSvg(
+    container: HTMLElement,
+    title: string,
+    options?: ExportOptions,
+): Promise<void> {
+    const xml = await exportSvgString(container, title, options);
+    downloadSvg(xml, title);
 }
