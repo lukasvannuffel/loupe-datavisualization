@@ -37,6 +37,7 @@ import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { BarErrorPlotData, ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { saveChart } from "@/app/charts/actions";
 import type { ChartRow } from "@/app/charts/actions";
+import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
 import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
@@ -559,6 +560,8 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState<boolean>(false);
+    const [exportError, setExportError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
     const chartCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -737,6 +740,34 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const onCopy = (): void => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
+    };
+
+    const handleDownloadSvg = async (): Promise<void> => {
+        const surface = chartCanvasRef.current?.querySelector<HTMLElement>(".chart-surface");
+
+        if (surface === null || surface === undefined) {
+            setExportError("Export unavailable: chart surface not found.");
+            return;
+        }
+
+        setExportError(null);
+        setExporting(true);
+
+        try {
+            await exportSvg(surface, specFigureTitle, {
+                fontFamily: CHART_EXPORT_FONT.family,
+                fontUrl: CHART_EXPORT_FONT.url,
+            });
+        } catch (error) {
+            if (error instanceof ExportError) {
+                setExportError(error.message);
+                return;
+            }
+
+            setExportError(error instanceof Error ? error.message : "SVG export failed.");
+        } finally {
+            setExporting(false);
+        }
     };
 
     const handleSaveToProject = async (): Promise<void> => {
@@ -1031,9 +1062,16 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                     </div>
 
                     <div className="export-actions">
-                        <button type="button" className="btn btn--primary btn--lg">
-                            Download SVG{" "}
-                            <span className="export-recommended-tag">· recommended</span>
+                        <button
+                            type="button"
+                            className="btn btn--primary btn--lg"
+                            disabled={exporting}
+                            onClick={handleDownloadSvg}
+                        >
+                            {exporting ? "Exporting…" : "Download SVG"}{" "}
+                            {!exporting ? (
+                                <span className="export-recommended-tag">· recommended</span>
+                            ) : null}
                         </button>
                         <span className="btn btn--ghost btn--lg export-png">
                             Download PNG
@@ -1054,6 +1092,11 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                             {copied ? "Copied to clipboard ✓" : "Copy to clipboard"}
                         </button>
                     </div>
+                    {exportError !== null && (
+                        <p role="alert" className="muted">
+                            Export failed: {exportError}
+                        </p>
+                    )}
 
                     {viewOnlySnapshot === null ? (
                     <div className="export-secondary">
