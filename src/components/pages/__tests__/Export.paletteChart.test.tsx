@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, type ReactNode } from "react";
 
 import { AppStateProvider, useAppState, type LoupeDataset } from "@/app/providers";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { resolvePalette } from "@/components/charts/d3/palettes";
 import { createDefaultChartSpec } from "@/lib/chartSpec";
 import type { BarErrorSpec, ChartSpec } from "@/lib/chartSpec/types";
@@ -126,11 +127,13 @@ beforeEach(() => {
 describe("Export palette chart integration", () => {
     it("okabe-ito palette tints bar fills in the live chart", async () => {
         render(
-            <AppStateProvider>
-                <SeedExportState>
-                    <Export />
-                </SeedExportState>
-            </AppStateProvider>,
+            <ToastProvider>
+                <AppStateProvider>
+                    <SeedExportState>
+                        <Export />
+                    </SeedExportState>
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         await screen.findByRole("complementary", { name: /customize chart/i });
@@ -159,12 +162,14 @@ describe("Export palette chart integration", () => {
         };
 
         render(
-            <AppStateProvider>
-                <SeedExportState>
-                    <ChartSpecProbe onChartSpec={onChartSpec} />
-                    <Export />
-                </SeedExportState>
-            </AppStateProvider>,
+            <ToastProvider>
+                <AppStateProvider>
+                    <SeedExportState>
+                        <ChartSpecProbe onChartSpec={onChartSpec} />
+                        <Export />
+                    </SeedExportState>
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         await screen.findByRole("complementary", { name: /customize chart/i });

@@ -10,9 +10,30 @@ const ExportPage = async ({ searchParams }: ExportPageProps): Promise<JSX.Elemen
     await requireUser();
     const resolvedSearchParams = (await searchParams) ?? {};
     const chartId = resolvedSearchParams.id;
-    const loadedChart = chartId === undefined ? null : await getChart(chartId);
 
-    return <Export initialChart={loadedChart} initialChartId={chartId ?? null} />;
+    if (chartId === undefined) {
+        return <Export initialChart={null} initialChartId={null} initialLoadReason={null} />;
+    }
+
+    const loaded = await getChart(chartId);
+
+    if (!loaded.ok) {
+        return (
+            <Export
+                initialChart={null}
+                initialChartId={chartId}
+                initialLoadReason={loaded.reason}
+            />
+        );
+    }
+
+    return (
+        <Export
+            initialChart={loaded.chart}
+            initialChartId={chartId}
+            initialLoadReason={null}
+        />
+    );
 };
 
 export default ExportPage;

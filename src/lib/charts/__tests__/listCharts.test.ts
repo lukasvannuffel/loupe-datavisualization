@@ -61,13 +61,13 @@ describe("listCharts", () => {
         cookiesMock.mockClear();
     });
 
-    it("returns empty array when unauthenticated", async () => {
+    it("returns unauthenticated when no user", async () => {
         const { client } = createSupabaseMock({ authUserId: null });
         createClientMock.mockReturnValue(client);
 
-        const charts = await listCharts();
+        const result = await listCharts();
 
-        expect(charts).toEqual([]);
+        expect(result).toEqual({ error: "unauthenticated", ok: false });
     });
 
     it("scopes the query by user_id", async () => {
@@ -79,14 +79,36 @@ describe("listCharts", () => {
         expect(mocks.eqMock).toHaveBeenCalledWith("user_id", "user-123");
     });
 
-    it("returns empty array when the supabase client throws", async () => {
+    it("returns fetch_failed when the supabase client throws", async () => {
         createClientMock.mockImplementationOnce(() => {
             throw new Error("connection lost");
         });
 
-        const charts = await listCharts();
+        const result = await listCharts();
 
-        expect(charts).toEqual([]);
+        expect(result).toEqual({ error: "fetch_failed", ok: false });
+    });
+
+    it("returns fetch_failed when the query errors", async () => {
+        const { client } = createSupabaseMock({ selectError: "timeout" });
+        createClientMock.mockReturnValue(client);
+
+        const result = await listCharts();
+
+        expect(result).toEqual({ error: "fetch_failed", ok: false });
+    });
+
+    it("returns charts when the query succeeds", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const result = await listCharts();
+
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.charts).toHaveLength(1);
+            expect(result.charts[0]?.id).toBe("chart-1");
+        }
     });
 
     // MUTATION-VERIFY:
@@ -98,7 +120,7 @@ describe("listCharts", () => {
 
     // MUTATION-VERIFY:
     //   In src/lib/charts/listCharts.ts, remove the outer `try { ... } catch { ... }` wrapper.
-    //   Re-run "returns empty array when the supabase client throws".
-    //   The thrown error now propagates instead of returning [] -> test RED.
+    //   Re-run "returns fetch_failed when the supabase client throws".
+    //   The thrown error now propagates instead of returning fetch_failed -> test RED.
     //   Verified manually: 2026-05-28. REVERTED.
 });

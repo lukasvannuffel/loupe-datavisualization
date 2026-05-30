@@ -9,6 +9,7 @@ import {
     type ReceiptInput,
 } from "@/lib/receipt/composeReceipt";
 import { copyToClipboard } from "@/lib/receipt/copyToClipboard";
+import { useToast } from "@/lib/toast/useToast";
 
 type ReproducibilityReceiptPanelProps = {
     readonly input: ReceiptInput | null;
@@ -30,10 +31,10 @@ const downloadTextFile = (filename: string, content: string, mime: string): void
 export const ReproducibilityReceiptPanel = ({
     input,
 }: ReproducibilityReceiptPanelProps): JSX.Element | null => {
+    const { toast } = useToast();
     const [receipt, setReceipt] = useState<ComposedReceipt | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [copied, setCopied] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (input === null) {
@@ -44,7 +45,6 @@ export const ReproducibilityReceiptPanel = ({
 
         let cancelled = false;
         setLoading(true);
-        setError(null);
 
         void composeReceipt(input)
             .then((next) => {
@@ -52,10 +52,14 @@ export const ReproducibilityReceiptPanel = ({
                     setReceipt(next);
                 }
             })
-            .catch((cause: unknown) => {
+            .catch(() => {
                 if (!cancelled) {
                     setReceipt(null);
-                    setError(cause instanceof Error ? cause.message : "Receipt could not be generated.");
+                    toast({
+                        description: "Try again in a moment.",
+                        title: "Receipt could not be generated.",
+                        variant: "error",
+                    });
                 }
             })
             .finally(() => {
@@ -67,7 +71,7 @@ export const ReproducibilityReceiptPanel = ({
         return () => {
             cancelled = true;
         };
-    }, [input]);
+    }, [input, toast]);
 
     useEffect(() => {
         if (!copied) {
@@ -88,16 +92,23 @@ export const ReproducibilityReceiptPanel = ({
             return;
         }
 
-        setError(null);
-
         try {
             await copyToClipboard(receipt.markdown);
             setCopied(true);
-        } catch (cause: unknown) {
+            toast({
+                description: "Paste it into supplementary materials.",
+                title: "Receipt copied.",
+                variant: "success",
+            });
+        } catch {
             setCopied(false);
-            setError(cause instanceof Error ? cause.message : "Clipboard copy failed.");
+            toast({
+                description: "Try downloading the receipt as a file instead.",
+                title: "Clipboard copy failed.",
+                variant: "error",
+            });
         }
-    }, [receipt]);
+    }, [receipt, toast]);
 
     const onDownloadTxt = useCallback((): void => {
         if (receipt === null) {
@@ -164,11 +175,6 @@ export const ReproducibilityReceiptPanel = ({
                     {loading ? "Preparing…" : "Download .md"}
                 </button>
             </div>
-            {error !== null ? (
-                <p role="alert" className="muted export-receipt-error">
-                    {error}
-                </p>
-            ) : null}
             {receipt !== null ? (
                 <p className="muted mono small export-receipt-hash">
                     Config hash: {receipt.hash.slice(0, 12)}… · Generated {receipt.generatedAt}

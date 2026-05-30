@@ -150,6 +150,7 @@ const createSupabaseMock = (
         insertError?: string;
         updateError?: string;
         getError?: string;
+        getErrorCode?: string;
         deleteError?: string;
         getDataOverride?: Record<string, unknown>;
     },
@@ -171,7 +172,10 @@ const createSupabaseMock = (
     const updateMock = vi.fn(() => ({ match: matchMock }));
     const singleGetMock = vi.fn(async () =>
         options?.getError !== undefined
-            ? { data: null, error: { message: options.getError } }
+            ? {
+                data: null,
+                error: { code: options.getErrorCode, message: options.getError },
+            }
             : {
                 data: {
                     id: "chart-1",
@@ -658,75 +662,78 @@ describe("getChart and deleteChart", () => {
         const { client, mocks } = createSupabaseMock();
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart?.id).toBe("chart-1");
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.chart.id).toBe("chart-1");
+        }
         expect(mocks.eqSecondMock).toHaveBeenCalledWith("user_id", "user-123");
     });
 
-    it("getChart returns null when missing", async () => {
-        const { client } = createSupabaseMock({ getError: "not found" });
+    it("getChart returns not_found when missing", async () => {
+        const { client } = createSupabaseMock({ getError: "not found", getErrorCode: "PGRST116" });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("missing");
+        const result = await getChart("missing");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "not_found" });
     });
 
-    it("getChart returns null when no authenticated user", async () => {
+    it("getChart returns unauthenticated when no authenticated user", async () => {
         const { client } = createSupabaseMock({ authUserId: null });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "unauthenticated" });
     });
 
-    it("getChart returns null when chart_spec fails schema validation", async () => {
+    it("getChart returns load_failed when chart_spec fails schema validation", async () => {
         const { client } = createSupabaseMock({
             getDataOverride: { chart_spec: { kind: "bogus" } },
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "load_failed" });
     });
 
-    it("getChart returns null when receipt fails schema validation", async () => {
+    it("getChart returns load_failed when receipt fails schema validation", async () => {
         const { client } = createSupabaseMock({
             getDataOverride: { receipt: { bogus: true } },
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "load_failed" });
     });
 
-    it("getChart returns null when chart_kind is unknown", async () => {
+    it("getChart returns load_failed when chart_kind is unknown", async () => {
         const { client } = createSupabaseMock({
             getDataOverride: { chart_kind: "pie" },
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "load_failed" });
     });
 
-    it("getChart returns null when column_mapping fails schema validation", async () => {
+    it("getChart returns load_failed when column_mapping fails schema validation", async () => {
         const { client } = createSupabaseMock({
             getDataOverride: { column_mapping: { bogus: 123 } },
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "load_failed" });
     });
 
-    it("getChart returns null when loaded plot_data contains a forbidden key", async () => {
+    it("getChart returns load_failed when loaded plot_data contains a forbidden key", async () => {
         const { client } = createSupabaseMock({
             getDataOverride: {
                 plot_data: {
@@ -737,18 +744,18 @@ describe("getChart and deleteChart", () => {
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).toBeNull();
+        expect(result).toEqual({ ok: false, reason: "load_failed" });
     });
 
     it("getChart returns the row when loaded plot_data is clean", async () => {
         const { client } = createSupabaseMock();
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).not.toBeNull();
+        expect(result.ok).toBe(true);
     });
 
     it("getChart returns the row when loaded KM plot_data has null CI fields", async () => {
@@ -773,9 +780,9 @@ describe("getChart and deleteChart", () => {
         });
         createClientMock.mockReturnValue(client);
 
-        const chart = await getChart("chart-1");
+        const result = await getChart("chart-1");
 
-        expect(chart).not.toBeNull();
+        expect(result.ok).toBe(true);
     });
 
     // MUTATION-VERIFY:

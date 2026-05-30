@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, type ReactNode } from "react";
 
 import { AppStateProvider, useAppState, type LoupeDataset } from "@/app/providers";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { createDefaultChartSpec } from "@/lib/chartSpec";
 import { updateCustomizationTitle } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
@@ -111,11 +112,13 @@ vi.mock("@/components/charts/SpecChartPanel", () => ({
 
 const renderExport = (spec: ChartSpec = defaultSpec): ReturnType<typeof render> =>
     render(
-        <AppStateProvider>
-            <SeedExportState spec={spec}>
-                <Export />
-            </SeedExportState>
-        </AppStateProvider>,
+        <ToastProvider>
+            <AppStateProvider>
+                <SeedExportState spec={spec}>
+                    <Export />
+                </SeedExportState>
+            </AppStateProvider>
+        </ToastProvider>,
     );
 
 afterEach(() => {
@@ -140,8 +143,9 @@ describe("Export customization rail", () => {
 
     it("shows view-only notice and hides editing controls when loaded plot_data is null", async () => {
         render(
-            <AppStateProvider>
-                <Export
+            <ToastProvider>
+                <AppStateProvider>
+                    <Export
                     initialChartId="box-1"
                     initialChart={{
                         id: "box-1",
@@ -170,8 +174,9 @@ describe("Export customization rail", () => {
                         created_at: "2026-05-28T08:00:00.000Z",
                         updated_at: "2026-05-28T08:00:00.000Z",
                     }}
-                />
-            </AppStateProvider>,
+                    />
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         expect(
@@ -183,8 +188,9 @@ describe("Export customization rail", () => {
 
     it("shows customization rail when loaded chart has plot_data", async () => {
         render(
-            <AppStateProvider>
-                <Export
+            <ToastProvider>
+                <AppStateProvider>
+                    <Export
                     initialChartId="km-1"
                     initialChart={{
                         id: "km-1",
@@ -225,8 +231,9 @@ describe("Export customization rail", () => {
                         created_at: "2026-05-28T08:00:00.000Z",
                         updated_at: "2026-05-28T08:00:00.000Z",
                     }}
-                />
-            </AppStateProvider>,
+                    />
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         expect(await screen.findByRole("complementary", { name: /customize chart/i })).toBeTruthy();
@@ -378,38 +385,40 @@ describe("computation snapshot", () => {
         const buildSpy = vi.spyOn(buildReceiptModule, "buildReceipt");
 
         render(
-            <AppStateProvider>
-                <Export
-                    initialChartId="box-1"
-                    initialChart={{
-                        id: "box-1",
-                        name: "Saved scatter",
-                        chart_spec: createDefaultChartSpec(
-                            "box",
-                            { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
-                            { inferences: [], mapping: {}, rows: brandRows([]) },
-                        ),
-                        column_mapping: {},
-                        receipt: {
-                            generated_at: "2026-05-28T08:00:00.000Z",
-                            config_hash:
-                                "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-                            method: "method",
-                            sample: "sample",
-                            palette: "editorial",
-                            software: "Loupe v0.1.0 · client-side",
-                            ai_rationale: "why",
-                            csv_columns: ["arm"],
-                            n_rows_input: 1,
-                        },
-                        plot_data: null,
-                        thumbnail: "data:image/svg+xml;utf8,test",
-                        chart_kind: "box",
-                        created_at: "2026-05-28T08:00:00.000Z",
-                        updated_at: "2026-05-28T08:00:00.000Z",
-                    }}
-                />
-            </AppStateProvider>,
+            <ToastProvider>
+                <AppStateProvider>
+                    <Export
+                        initialChartId="box-1"
+                        initialChart={{
+                            id: "box-1",
+                            name: "Saved scatter",
+                            chart_spec: createDefaultChartSpec(
+                                "box",
+                                { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
+                                { inferences: [], mapping: {}, rows: brandRows([]) },
+                            ),
+                            column_mapping: {},
+                            receipt: {
+                                generated_at: "2026-05-28T08:00:00.000Z",
+                                config_hash:
+                                    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                                method: "method",
+                                sample: "sample",
+                                palette: "editorial",
+                                software: "Loupe v0.1.0 · client-side",
+                                ai_rationale: "why",
+                                csv_columns: ["arm"],
+                                n_rows_input: 1,
+                            },
+                            plot_data: null,
+                            thumbnail: "data:image/svg+xml;utf8,test",
+                            chart_kind: "box",
+                            created_at: "2026-05-28T08:00:00.000Z",
+                            updated_at: "2026-05-28T08:00:00.000Z",
+                        }}
+                    />
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         await waitFor(() => {

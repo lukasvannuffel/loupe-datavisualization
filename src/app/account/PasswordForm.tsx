@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 
 import { MIN_NEW_PASSWORD_LENGTH } from "@/lib/auth";
+import { useToast } from "@/lib/toast/useToast";
 
 import {
     requestPasswordChangeCode,
@@ -17,6 +18,9 @@ const INITIAL_STATE: FormActionState = {
 };
 
 export const PasswordForm = (): JSX.Element => {
+    const { toast } = useToast();
+    const lastRequestOkRef = useRef<boolean>(false);
+    const lastUpdateOkRef = useRef<boolean>(false);
     const [requestState, requestAction, isRequesting] = useActionState<
         FormActionState,
         FormData
@@ -34,13 +38,32 @@ export const PasswordForm = (): JSX.Element => {
         }
     }, [updateState.ok]);
 
+    useEffect(() => {
+        if (requestState.ok && requestState.message !== null && !lastRequestOkRef.current) {
+            toast({
+                description: requestState.message,
+                title: "Verification code sent.",
+                variant: "info",
+            });
+        }
+
+        lastRequestOkRef.current = requestState.ok;
+    }, [requestState.message, requestState.ok, toast]);
+
+    useEffect(() => {
+        if (updateState.ok && updateState.message !== null && !lastUpdateOkRef.current) {
+            toast({
+                description: updateState.message,
+                title: "Password updated.",
+                variant: "success",
+            });
+        }
+
+        lastUpdateOkRef.current = updateState.ok;
+    }, [updateState.message, updateState.ok, toast]);
+
     const codeSent = requestState.ok;
     const error = updateState.error ?? requestState.error;
-    const successMessage = updateState.ok
-        ? updateState.message
-        : codeSent
-            ? requestState.message
-            : null;
 
     return (
         <section className="profile-card">
@@ -113,11 +136,6 @@ export const PasswordForm = (): JSX.Element => {
                 {error !== null ? (
                     <p className="auth-error profile-grid-full" role="alert">
                         {error}
-                    </p>
-                ) : null}
-                {successMessage !== null ? (
-                    <p className="account-success profile-grid-full" role="status">
-                        {successMessage}
                     </p>
                 ) : null}
 
