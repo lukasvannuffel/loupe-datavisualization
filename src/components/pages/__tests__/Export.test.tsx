@@ -269,13 +269,18 @@ describe("Export customization rail", () => {
         });
     });
 
-    it("shows live palette name in the receipt when using spec figure", async () => {
+    it("updates reproducibility receipt hash when palette changes", async () => {
         renderExport();
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /copy receipt/i })).toBeTruthy();
+        });
+
+        const hashBefore = screen.getByText(/config hash:/i).textContent;
         fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
 
         await waitFor(() => {
-            const paletteEntry = screen.getByText("okabe-ito");
-            expect(paletteEntry.closest("dd")).toBeTruthy();
+            expect(screen.getByText(/config hash:/i).textContent).not.toBe(hashBefore);
         });
     });
 

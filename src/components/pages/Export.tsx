@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -41,7 +41,10 @@ import { RingLoader } from "@/components/primitives/RingLoader";
 import { exportPng } from "@/lib/export/exportPng";
 import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
+import type { ReceiptInput } from "@/lib/receipt/composeReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
+import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
+import { ReproducibilityReceiptPanel } from "@/components/pages/ReproducibilityReceiptPanel";
 import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
 import { ViewOnlyNotice } from "./ViewOnlyNotice";
 import { CustomSection } from "./CustomSection";
@@ -656,10 +659,28 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const specFigureTitle =
         useSpecFigure && liveSpec !== null ? resolveChartLabels(liveSpec).title : title;
 
-    const receiptPaletteLabel =
-        useSpecFigure && liveSpec !== null
-            ? resolvePalette(liveSpec)
-            : palette.name.toLowerCase();
+    const aiRationale =
+        dataset !== null
+            ? (receipt?.recommendation.because ?? slugDefaults.rationale)
+            : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
+
+    const reproducibilityInput = useMemo((): ReceiptInput | null => {
+        if (!useSpecFigure || liveSpec === null) {
+            return null;
+        }
+
+        const plotData =
+            dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+        if (plotData === null) {
+            return null;
+        }
+
+        return {
+            spec: liveSpec,
+            aiReasoning: aiRationale,
+            computations: summarizeComputations(liveSpec, plotData, mapping),
+        };
+    }, [aiRationale, dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
 
     useEffect(() => {
         let isCancelled = false;
@@ -673,8 +694,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
             return;
         }
         const nextPalette: PaletteName = resolvePalette(liveSpec);
-        const aiRationale =
-            dataset !== null ? (receipt?.recommendation.because ?? slugDefaults.rationale) : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
         const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
         void buildReceipt({
             aiRationale,
@@ -698,7 +717,7 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         return () => {
             isCancelled = true;
         };
-    }, [dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, receipt, slugDefaults.rationale, useSpecFigure]);
+    }, [aiRationale, dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, useSpecFigure]);
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -1161,6 +1180,8 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                         </p>
                     )}
 
+                    <ReproducibilityReceiptPanel input={reproducibilityInput} />
+
                     {viewOnlySnapshot === null ? (
                     <div className="export-secondary">
                         <button
@@ -1185,48 +1206,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                             Save failed: {saveError}
                         </p>
                     )}
-
-                    <div className="export-receipt">
-                        <h4>Reproducibility receipt</h4>
-                        <p>
-                            Paste into supplementary materials. Records the AI&apos;s reasoning, the
-                            configuration hash, and the local computations.
-                        </p>
-                        <dl>
-                            <dt>Generated</dt>
-                            <dd>{computedReceipt?.generated_at ?? "—"}</dd>
-                            <dt>Config hash</dt>
-                            <dd>{computedReceipt?.config_hash ?? "—"}</dd>
-                            <dt>Method</dt>
-                            <dd>{computedReceipt?.method ?? slugDefaults.method}</dd>
-                            <dt>Sample</dt>
-                            <dd>{computedReceipt?.sample ?? slugDefaults.metaLine}</dd>
-                            <dt>Palette</dt>
-                            <dd>{computedReceipt?.palette ?? receiptPaletteLabel}</dd>
-                            <dt>Software</dt>
-                            <dd>{computedReceipt?.software ?? "—"}</dd>
-                            <dt>AI rationale</dt>
-                            <dd className="export-receipt-prose">
-                                {computedReceipt?.ai_rationale ?? slugDefaults.rationale}
-                            </dd>
-                            <dt>CSV COLUMNS</dt>
-                            <dd>{computedReceipt?.csv_columns.join(", ") ?? "—"}</dd>
-                            <dt>INPUT ROWS</dt>
-                            <dd>{computedReceipt?.n_rows_input ?? "—"}</dd>
-                            {chatRevisions.length > 0 && (
-                                <>
-                                    <dt>Chat revisions</dt>
-                                    <dd>
-                                        <ol className="export-receipt-list">
-                                            {chatRevisions.map((r) => (
-                                                <li key={r.id}>{r.entry}</li>
-                                            ))}
-                                        </ol>
-                                    </dd>
-                                </>
-                            )}
-                        </dl>
-                    </div>
 
                 </div>
 
