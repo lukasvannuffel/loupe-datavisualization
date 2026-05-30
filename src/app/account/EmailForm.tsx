@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+
+import { useToast } from "@/lib/toast/useToast";
 
 import { updateEmail, type FormActionState } from "./actions";
 
@@ -15,10 +17,24 @@ type EmailFormProps = {
 };
 
 export const EmailForm = ({ currentEmail }: EmailFormProps): JSX.Element => {
+    const { toast } = useToast();
+    const lastOkRef = useRef<boolean>(false);
     const [state, formAction, isPending] = useActionState<FormActionState, FormData>(
         updateEmail,
         INITIAL_STATE,
     );
+
+    useEffect(() => {
+        if (state.ok && state.message !== null && !lastOkRef.current) {
+            toast({
+                description: state.message,
+                title: "Confirmation links sent.",
+                variant: "info",
+            });
+        }
+
+        lastOkRef.current = state.ok;
+    }, [state.message, state.ok, toast]);
 
     return (
         <section className="profile-card">
@@ -58,11 +74,6 @@ export const EmailForm = ({ currentEmail }: EmailFormProps): JSX.Element => {
                 {state.error !== null ? (
                     <p className="auth-error profile-grid-full" role="alert">
                         {state.error}
-                    </p>
-                ) : null}
-                {state.ok && state.message !== null ? (
-                    <p className="account-success profile-grid-full" role="status">
-                        {state.message}
                     </p>
                 ) : null}
 

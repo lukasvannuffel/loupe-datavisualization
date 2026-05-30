@@ -1,0 +1,80 @@
+.viewport {
+    position: fixed;
+    z-index: calc(var(--z-chat-panel) + 1);
+    inset: auto 12px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+@media (min-width: 640px) {
+    .viewport {
+        inset: auto 16px 16px auto;
+        width: min(100%, 360px);
+    }
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--r-3);
+    border: 1px solid var(--hairline);
+    background: var(--paper-card);
+    box-shadow: 0 10px 24px rgba(14, 14, 14, 0.12);
+    animation: fadeIn 200ms var(--ease) both;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.35;
+}
+
+.description {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--gray);
+    line-height: 1.45;
+}
+
+.close {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--gray);
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--ink);
+}
+
+.success {
+    border-left: 3px solid #2F6B4F;
+}
+
+.error {
+    border-left: 3px solid #9B2C2C;
+}
+
+.warning {
+    border-left: 3px solid var(--amber);
+}
+
+.info {
+    border-left: 3px solid var(--blue);
+}

@@ -94,6 +94,19 @@
   color: color-mix(in srgb, var(--ink, #111827) 68%, white);
 }
 
+.errorState {
+  margin-top: 20px;
+  border: 1px solid color-mix(in srgb, #9B2C2C 24%, transparent);
+  border-radius: 16px;
+  padding: 20px;
+  background: color-mix(in srgb, #9B2C2C 6%, white);
+}
+
+.errorTitle {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
 @media (min-width: 700px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

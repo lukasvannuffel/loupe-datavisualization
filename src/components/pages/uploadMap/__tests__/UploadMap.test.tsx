@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppStateProvider } from "@/app/providers";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { toAiColumns } from "@/lib/ai/toAiColumns";
 import type { ColumnInference } from "@/lib/parser/inference.types";
 import type { Receipt } from "@/lib/chartSpec/types";
@@ -84,9 +85,11 @@ const seedDataset = (
 const renderPage = (): void => {
     act(() => {
         render(
-            <AppStateProvider>
-                <UploadMap />
-            </AppStateProvider>,
+            <ToastProvider>
+                <AppStateProvider>
+                    <UploadMap />
+                </AppStateProvider>
+            </ToastProvider>,
         );
     });
 };
@@ -377,7 +380,9 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(screen.getByText(/Too many recommendations/i)).toBeTruthy();
+            expect(document.querySelector(".map-ai-error-title")?.textContent).toMatch(
+                /Too many recommendations/i,
+            );
         });
         const tryAgain = screen.getByRole("button", { name: /Try again/i });
         const manual = screen.getByRole("button", { name: /Pick chart manually/i });
@@ -401,10 +406,11 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(screen.getByRole("alert")).not.toBeNull();
+            expect(document.querySelector(".map-ai-error")).not.toBeNull();
         });
-        const alert = screen.getByRole("alert");
-        expect(alert.textContent).toContain("AI gateway upstream error.");
+        const alert = document.querySelector(".map-ai-error");
+        expect(alert?.textContent).toContain("Could not get chart recommendation.");
+        expect(alert?.textContent).toContain("Check your connection and try again.");
         expect(screen.getByRole("button", { name: /Try again/i })).not.toBeDisabled();
         await act(async () => {
             recommendChartMock.mockResolvedValueOnce({
@@ -434,10 +440,10 @@ describe("UploadMap", () => {
             continueButton().click();
         });
         await waitFor(() => {
-            expect(screen.getByRole("alert")).not.toBeNull();
+            expect(document.querySelector(".map-ai-error")).not.toBeNull();
         });
-        const alert = screen.getByRole("alert");
-        expect(alert.textContent).toContain("AI gateway upstream error.");
+        const alert = document.querySelector(".map-ai-error");
+        expect(alert?.textContent).toContain("Could not get chart recommendation.");
         const manualButton = screen.getByRole("button", { name: /Pick chart manually/i });
         expect(manualButton).not.toBeDisabled();
         await act(async () => {

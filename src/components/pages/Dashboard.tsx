@@ -7,6 +7,7 @@ import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { CHART_PREVIEWS, type ChartSlug } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { greetingByHour } from "@/lib/profile";
+import { useToast } from "@/lib/toast/useToast";
 import { ReRunModal } from "./ReRunModal";
 
 type ChartCard = {
@@ -97,9 +98,9 @@ type DashboardProps = {
 
 export const Dashboard = ({ displayName, affiliation }: DashboardProps): JSX.Element => {
     const router = useRouter();
+    const { toast } = useToast();
     const [hoverProject, setHoverProject] = useState<string | null>(null);
     const [openMenu, setOpenMenu] = useState<CardMenuKey | null>(null);
-    const [toast, setToast] = useState<string | null>(null);
     const [reRunTarget, setReRunTarget] = useState<ReRunTarget>(null);
     const [greeting, setGreeting] = useState<string>("Welcome back");
 
@@ -119,16 +120,6 @@ export const Dashboard = ({ displayName, affiliation }: DashboardProps): JSX.Ele
         return () => window.removeEventListener("click", onClick);
     }, [openMenu]);
 
-    useEffect(() => {
-        if (toast === null) {
-            return;
-        }
-
-        const t = setTimeout(() => setToast(null), 1800);
-
-        return () => clearTimeout(t);
-    }, [toast]);
-
     const onKebabClick = (key: CardMenuKey, e: ReactMouseEvent): void => {
         e.stopPropagation();
         setOpenMenu(openMenu === key ? null : key);
@@ -136,7 +127,10 @@ export const Dashboard = ({ displayName, affiliation }: DashboardProps): JSX.Ele
 
     const onDownload = (label: string, e: ReactMouseEvent): void => {
         e.stopPropagation();
-        setToast(`Saved · ${label}`);
+        toast({
+            title: `Saved · ${label}`,
+            variant: "success",
+        });
         setOpenMenu(null);
     };
 
@@ -328,17 +322,16 @@ export const Dashboard = ({ displayName, affiliation }: DashboardProps): JSX.Ele
                 </section>
             </div>
 
-            {toast && (
-                <div className="dash-toast" role="status">
-                    {toast}
-                </div>
-            )}
-
             <ReRunModal
                 open={reRunTarget !== null}
                 chartName={reRunTarget?.name ?? ""}
                 onClose={() => setReRunTarget(null)}
-                onComplete={() => setToast("Chart updated · new data applied")}
+                onComplete={() => {
+                    toast({
+                        title: "Chart updated · new data applied",
+                        variant: "success",
+                    });
+                }}
             />
         </div>
     );

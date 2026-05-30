@@ -678,15 +678,15 @@ Compose receipt uit ChartSpec + AI-redenering + lokale berekeningen. Copy-to-cli
 Walk door élke async actie en zorg voor expliciete loading + error UI. De jury merkt onmiddellijk wanneer iets "vastloopt" zonder feedback.
 
 **Actie-items**
-- [ ] Audit-lijst van alle async-flows (parsing, AI-call, save, load, export, delete)
-- [ ] Per flow: loading indicator + error fallback met retry indien zinvol
-- [ ] Globale error boundary in app router
-- [ ] Friendly error-copy in design system voice (geen "An error occurred")
-- [ ] Toast-systeem voor non-blocking feedback (save success, etc.)
+- [x] Audit-lijst van alle async-flows (parsing, AI-call, save, load, export, delete)
+- [x] Per flow: loading indicator + error fallback met retry indien zinvol
+- [x] Globale error boundary in app router
+- [x] Friendly error-copy in design system voice (geen "An error occurred")
+- [x] Toast-systeem voor non-blocking feedback (save success, etc.)
 
 **Acceptance criteria**
-- [ ] Disable network → elke flow toont gracefull error
-- [ ] Geen white-screen crashes in 30 minuten use
+- [x] Disable network → elke flow toont gracefull error
+- [x] Geen white-screen crashes in 30 minuten use
 
 ---
 

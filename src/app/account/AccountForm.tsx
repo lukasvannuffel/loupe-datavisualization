@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import type { Profile } from "@/lib/profile";
+import { useToast } from "@/lib/toast/useToast";
 
 import { updateProfile, type FormActionState } from "./actions";
 
@@ -29,10 +30,24 @@ type AccountFormProps = {
 };
 
 export const AccountForm = ({ profile }: AccountFormProps): JSX.Element => {
+    const { toast } = useToast();
+    const lastOkRef = useRef<boolean>(false);
     const [state, formAction, isPending] = useActionState<FormActionState, FormData>(
         updateProfile,
         INITIAL_STATE,
     );
+
+    useEffect(() => {
+        if (state.ok && state.message !== null && !lastOkRef.current) {
+            toast({
+                description: state.message,
+                title: "Profile updated.",
+                variant: "success",
+            });
+        }
+
+        lastOkRef.current = state.ok;
+    }, [state.message, state.ok, toast]);
 
     return (
         <form className="profile-form" action={formAction}>
@@ -227,11 +242,6 @@ export const AccountForm = ({ profile }: AccountFormProps): JSX.Element => {
                 {state.error !== null ? (
                     <p className="auth-error profile-form-message" role="alert">
                         {state.error}
-                    </p>
-                ) : null}
-                {state.ok && state.message !== null ? (
-                    <p className="account-success profile-form-message" role="status">
-                        {state.message}
                     </p>
                 ) : null}
             </div>

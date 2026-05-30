@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, type ReactNode } from "react";
 
 import { AppStateProvider, useAppState, type LoupeDataset } from "@/app/providers";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import type { Receipt } from "@/lib/chartSpec/types";
 import { brandRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
@@ -83,11 +84,13 @@ beforeEach(() => {
 describe("Export wizard spec bootstrap", () => {
     it("shows live customization rail when chartSpec was not pre-seeded", async () => {
         render(
-            <AppStateProvider>
-                <SeedWizardExportState>
-                    <Export />
-                </SeedWizardExportState>
-            </AppStateProvider>,
+            <ToastProvider>
+                <AppStateProvider>
+                    <SeedWizardExportState>
+                        <Export />
+                    </SeedWizardExportState>
+                </AppStateProvider>
+            </ToastProvider>,
         );
 
         await waitFor(() => {
