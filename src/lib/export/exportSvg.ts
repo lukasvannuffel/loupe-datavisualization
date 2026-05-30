@@ -1,4 +1,5 @@
 import { toSvgFilename } from "./filenameHelper";
+import { fetchFontAsBase64 } from "./fontCache";
 import { appendAtRiskTable, appendLegend } from "./svgTableHelpers";
 
 export class ExportError extends Error {
@@ -68,29 +69,6 @@ const getPlotSvg = (container: HTMLElement): SVGElement => {
     }
 
     return directSvgs[0]!;
-};
-
-const fetchFontAsBase64 = async (url: string): Promise<string | null> => {
-    try {
-        const res = await fetch(url);
-
-        if (!res.ok) {
-            console.warn("Loupe export: font fetch failed, exporting without embedded font");
-            return null;
-        }
-
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        let binary = "";
-
-        for (let i = 0; i < bytes.length; i += 1) {
-            binary += String.fromCharCode(bytes[i]!);
-        }
-
-        return btoa(binary);
-    } catch {
-        console.warn("Loupe export: font fetch failed, exporting without embedded font");
-        return null;
-    }
 };
 
 const resolveVarAttrs = (liveEl: Element, cloneEl: Element): void => {
@@ -248,16 +226,16 @@ const embedFont = async (
         return;
     }
 
-    const base64 = await fetchFontAsBase64(options.fontUrl);
+    const entry = await fetchFontAsBase64(options.fontUrl, options.fontFamily, "normal", "400");
 
-    if (base64 === null) {
+    if (entry === null) {
         return;
     }
 
     const style = document.createElementNS(SVG_NS, "style");
     style.textContent =
         `@font-face{font-family:'${options.fontFamily}';` +
-        `src:url(data:font/woff2;base64,${base64}) format('woff2');}`;
+        `src:url(data:font/woff2;base64,${entry.base64}) format('woff2');}`;
     clone.insertBefore(style, clone.firstChild);
 };
 

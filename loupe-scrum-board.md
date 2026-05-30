@@ -627,15 +627,15 @@ Inline alle styles in de SVG, sanitize, download als file. Filename = sanitized 
 SVG → canvas → PNG. DPI selector (300, 600). Belangrijk: fonts moeten ingebed zijn anders krijg je serif-fallbacks.
 
 **Actie-items**
-- [ ] `exportPng.ts` — encodeert SVG als data URL, tekent op canvas, toBlob
-- [ ] DPI berekening: viewBox * (dpi/96)
-- [ ] Font embedding: serialize `@font-face` rules in SVG style tag
-- [ ] Test: 600dpi PNG op Source Serif tekst is scherp
-- [ ] Loading-state tijdens rasterisatie (kan 1-2s duren)
+- [x] `exportPng.ts` — encodeert SVG als data URL, tekent op canvas, toBlob
+- [x] DPI berekening: viewBox * (dpi/96)
+- [x] Font embedding: serialize `@font-face` rules in SVG style tag
+- [x] Test: 600dpi PNG op Source Serif tekst is scherp
+- [x] Loading-state tijdens rasterisatie (kan 1-2s duren)
 
 **Acceptance criteria**
-- [ ] 300dpi PNG van een KM chart heeft scherpe typografie
-- [ ] Bestandsgrootte op 300dpi onder 2MB voor standaard chart
+- [x] 300dpi PNG van een KM chart heeft scherpe typografie
+- [x] Bestandsgrootte op 300dpi onder 2MB voor standaard chart
 
 ---
 

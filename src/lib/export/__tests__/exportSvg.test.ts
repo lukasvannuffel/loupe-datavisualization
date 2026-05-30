@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ExportError, exportSvg } from "@/lib/export/exportSvg";
+import { resetFontCacheForTests } from "@/lib/export/fontCache";
 import { toSvgFilename } from "@/lib/export/filenameHelper";
 
 const mockDomRect = (width: number, height: number): DOMRect =>
@@ -20,6 +21,8 @@ const mockDomRect = (width: number, height: number): DOMRect =>
 
 const buildPlotContainer = (options?: {
     readonly withAtRiskTable?: boolean;
+    readonly rowHeaderLabel?: string;
+    readonly rowHeaderColWidth?: number;
 }): { container: HTMLDivElement; serialized: () => string; svg: SVGElement } => {
     let captured = "";
 
@@ -59,7 +62,15 @@ const buildPlotContainer = (options?: {
 
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        headerRow.appendChild(document.createElement("th"));
+        const cornerTh = document.createElement("th");
+        const colWidth = options?.rowHeaderColWidth ?? 72;
+        cornerTh.scope = "col";
+        cornerTh.style.width = `${colWidth}px`;
+        Object.defineProperty(cornerTh, "offsetWidth", {
+            configurable: true,
+            value: colWidth,
+        });
+        headerRow.appendChild(cornerTh);
 
         for (const time of ["0", "10"]) {
             const th = document.createElement("th");
@@ -75,7 +86,7 @@ const buildPlotContainer = (options?: {
         const row = document.createElement("tr");
         const rowHeader = document.createElement("th");
         rowHeader.scope = "row";
-        rowHeader.textContent = "Standard Therapy";
+        rowHeader.textContent = options?.rowHeaderLabel ?? "Standard Therapy";
         row.appendChild(rowHeader);
 
         for (const value of ["50", "42"]) {
@@ -88,6 +99,18 @@ const buildPlotContainer = (options?: {
         tbody.appendChild(row);
         table.appendChild(tbody);
         table.style.marginLeft = "48px";
+        vi.spyOn(window, "getComputedStyle").mockImplementation((el) => {
+            const base = {
+                fontFamily: "ui-monospace, monospace",
+                getPropertyValue: (): string => "",
+            } as unknown as CSSStyleDeclaration;
+
+            if (el === table) {
+                return { ...base, marginLeft: "48px" } as CSSStyleDeclaration;
+            }
+
+            return base;
+        });
         wrap.appendChild(table);
         container.appendChild(wrap);
     }
@@ -301,6 +324,7 @@ const buildChartSurfaceWithLegend = (options?: {
 
 describe("exportSvg", () => {
     afterEach(() => {
+        resetFontCacheForTests();
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
@@ -453,7 +477,7 @@ describe("exportSvg", () => {
         });
 
         expect(warnSpy).toHaveBeenCalledWith(
-            "Loupe export: font fetch failed, exporting without embedded font",
+            "Loupe export: font fetch failed for https://example.com/font.woff2",
         );
         expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
         expect(serialized()).not.toContain("data:font/woff2;base64,");
@@ -464,10 +488,117 @@ describe("exportSvg", () => {
 
         await exportSvg(container, "KM at risk");
 
-        expect(serialized()).toContain("Standard Therapy");
+        expect(serialized()).toContain("Standard");
+        expect(serialized()).toContain("Therapy");
         expect(serialized()).toContain("50");
         expect(serialized()).not.toMatch(/data-testid/i);
     });
+
+    it("wraps long at-risk row header into tspans within column width", async () => {
+        const { container, serialized } = buildPlotContainer({
+            withAtRiskTable: true,
+            rowHeaderLabel: "Experimental Therapy",
+            rowHeaderColWidth: 72,
+        });
+
+        await exportSvg(container, "KM wrapped header");
+
+        const output = serialized();
+
+        expect(output).toContain("<tspan");
+        expect((output.match(/<tspan/g) ?? []).length).toBeGreaterThan(1);
+        expect(output).not.toMatch(/<text[^>]*>Experimental Therapy<\/text>/);
+        expect(output).toContain(">Experimental</tspan>");
+        expect(output).toContain(">Therapy</tspan>");
+        expect(output).not.toMatch(/<tspan[^>]*>Experiment<\/tspan>/);
+        expect(output).not.toMatch(/<tspan[^>]*>al<\/tspan>/);
+    });
+
+    it("keeps value cells at fixed column boundary when label wraps", async () => {
+        const marginLeft = 48;
+        const rowHeaderColWidth = 72;
+        const plotWidth = 500;
+        const colWidth = (plotWidth - marginLeft - rowHeaderColWidth) / 2;
+        const expectedValueX = marginLeft + rowHeaderColWidth + colWidth / 2;
+
+        const { container, serialized } = buildPlotContainer({
+            withAtRiskTable: true,
+            rowHeaderLabel: "Experimental Therapy",
+            rowHeaderColWidth: 72,
+        });
+
+        await exportSvg(container, "KM fixed boundary");
+
+        const valueMatch = serialized().match(/<text[^>]*>50<\/text>/);
+        const xMatch = valueMatch?.[0]?.match(/\sx="([^"]+)"/);
+
+        expect(xMatch).toBeDefined();
+        expect(Number(xMatch?.[1])).toBeCloseTo(expectedValueX, 5);
+    });
+
+    it("expands export height for multi-line at-risk rows", async () => {
+        const shortLabel = buildPlotContainer({
+            withAtRiskTable: true,
+            rowHeaderLabel: "Arm A",
+            rowHeaderColWidth: 72,
+        });
+        await exportSvg(shortLabel.container, "Short label");
+        const shortHeight = Number(
+            shortLabel.serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+        );
+
+        const longLabel = buildPlotContainer({
+            withAtRiskTable: true,
+            rowHeaderLabel: "Experimental Therapy",
+            rowHeaderColWidth: 72,
+        });
+        await exportSvg(longLabel.container, "Long label");
+        const longHeight = Number(
+            longLabel.serialized().match(/<svg[^>]*\sheight="(\d+)"/)?.[1],
+        );
+
+        expect(longHeight).toBeGreaterThan(shortHeight);
+    });
+
+    it("falls back to default column width when thead offsetWidth is 0", async () => {
+        const marginLeft = 48;
+        const rowHeaderColWidth = 72;
+        const plotWidth = 500;
+        const colWidth = (plotWidth - marginLeft - rowHeaderColWidth) / 2;
+        const expectedValueX = marginLeft + rowHeaderColWidth + colWidth / 2;
+
+        const { container, serialized } = buildPlotContainer({
+            withAtRiskTable: true,
+            rowHeaderLabel: "Experimental Therapy",
+            rowHeaderColWidth: 0,
+        });
+
+        const cornerTh = container.querySelector("thead th:first-child");
+
+        if (cornerTh instanceof HTMLElement) {
+            Object.defineProperty(cornerTh, "offsetWidth", {
+                configurable: true,
+                value: 0,
+            });
+            cornerTh.style.width = "";
+        }
+
+        await expect(exportSvg(container, "KM fallback col width")).resolves.toBeUndefined();
+
+        expect(serialized()).toContain("<tspan");
+
+        const valueMatch = serialized().match(/<text[^>]*>50<\/text>/);
+        const xMatch = valueMatch?.[0]?.match(/\sx="([^"]+)"/);
+
+        expect(xMatch).toBeDefined();
+        expect(Number(xMatch?.[1])).toBeCloseTo(expectedValueX, 5);
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/svgTableHelpers.ts wrapTextToLines, return [text.trim()] unconditionally.
+    //   Re-run "wraps long at-risk row header into tspans within column width".
+    //   Output lacks <tspan> for long label -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
 
     it("increases SVG height when an at-risk table is present", async () => {
         const withoutTable = buildPlotContainer();

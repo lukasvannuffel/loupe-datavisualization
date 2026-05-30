@@ -6,7 +6,6 @@ import { toSvgFilename } from "./filenameHelper";
 
 export interface PngExportOptions {
     readonly dpi: 300 | 600;
-    readonly onFontWarning?: () => void;
 }
 
 const parseViewBox = (xml: string): { readonly width: number; readonly height: number } => {
@@ -113,6 +112,8 @@ export async function exportPng(
     }
 
     ctx.scale(scale, scale);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, viewBoxWidth, viewBoxHeight);
     const svgBlob = new Blob([svgXml], { type: "image/svg+xml" });
     const objectUrl = URL.createObjectURL(svgBlob);
 
@@ -127,7 +128,6 @@ export async function exportPng(
     downloadPng(pngBlob, title);
 
     if (fontWarning) {
-        options.onFontWarning?.();
         document.dispatchEvent(new CustomEvent("loupe:font-warning"));
     }
 }

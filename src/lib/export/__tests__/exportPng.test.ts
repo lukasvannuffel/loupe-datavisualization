@@ -29,17 +29,32 @@ const mockFontEntry = {
     weight: "400",
 };
 
-const setupPngMocks = (): {
+type PngMockOptions = {
+    readonly imageOnError?: boolean;
+};
+
+const setupPngMocks = (
+    options?: PngMockOptions,
+): {
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
+    drawImage: ReturnType<typeof vi.fn>;
+    fillRect: ReturnType<typeof vi.fn>;
     downloadName: () => string;
     svgBlobPayload: () => string;
+    revokeSpy: ReturnType<typeof vi.spyOn>;
 } => {
     let capturedSvg = "";
     let download = "";
+    let objectUrlCounter = 0;
+    const fillRect = vi.fn();
+    const drawImage = vi.fn();
+    const scale = vi.fn();
     const ctx = {
-        scale: vi.fn(),
-        drawImage: vi.fn(),
+        scale,
+        fillStyle: "",
+        fillRect,
+        drawImage,
     } as unknown as CanvasRenderingContext2D;
     const canvas = document.createElement("canvas");
 
@@ -73,8 +88,16 @@ const setupPngMocks = (): {
         callback(new Blob(["png"], { type: "image/png" }));
     });
 
-    vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:png-test");
-    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+        objectUrlCounter += 1;
+
+        if (blob instanceof Blob && blob.type === "image/svg+xml") {
+            return "blob:svg-url";
+        }
+
+        return "blob:png-url";
+    });
 
     const originalBlob = globalThis.Blob;
     vi.stubGlobal(
@@ -97,6 +120,11 @@ const setupPngMocks = (): {
 
         constructor() {
             queueMicrotask(() => {
+                if (options?.imageOnError === true) {
+                    this.onerror?.();
+                    return;
+                }
+
                 this.onload?.();
             });
         }
@@ -107,8 +135,11 @@ const setupPngMocks = (): {
     return {
         canvas,
         ctx,
+        drawImage,
+        fillRect,
         downloadName: () => download,
         svgBlobPayload: () => capturedSvg,
+        revokeSpy,
     };
 };
 
@@ -149,6 +180,24 @@ describe("exportPng", () => {
         expect(canvas.height).toBe(Math.round(240 * (600 / 96)));
     });
 
+    it("canvas has white background before chart is drawn", async () => {
+        const { ctx, drawImage, fillRect } = setupPngMocks();
+
+        await exportPng(container, "KM chart", { dpi: 300 });
+
+        expect(ctx.fillStyle).toBe("#ffffff");
+        expect(fillRect).toHaveBeenCalledWith(0, 0, 658, 240);
+        expect(fillRect.mock.invocationCallOrder[0]).toBeLessThan(
+            drawImage.mock.invocationCallOrder[0]!,
+        );
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/exportPng.ts exportPng, move fillRect after drawImage.
+    //   Re-run "canvas has white background before chart is drawn".
+    //   fillRect call order no longer precedes drawImage -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
+
     it("injects @font-face block into SVG string before rasterization", async () => {
         const { svgBlobPayload } = setupPngMocks();
 
@@ -187,6 +236,22 @@ describe("exportPng", () => {
         expect(downloadName()).toMatch(/\.png$/);
         expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "loupe:font-warning" }));
     });
+
+    it("revokes SVG object URL when Image fires onerror", async () => {
+        const { revokeSpy } = setupPngMocks({ imageOnError: true });
+
+        await expect(exportPng(container, "KM chart", { dpi: 300 })).rejects.toMatchObject({
+            reason: "SERIALIZE_FAILED",
+        });
+
+        expect(revokeSpy).toHaveBeenCalledWith("blob:svg-url");
+    });
+
+    // MUTATION-VERIFY:
+    //   In src/lib/export/exportPng.ts exportPng, remove URL.revokeObjectURL from finally.
+    //   Re-run "revokes SVG object URL when Image fires onerror".
+    //   revokeSpy not called with blob:svg-url -> test RED.
+    //   Verified manually: 2026-05-30. REVERTED.
 
     it("toBlob null produces ExportError", async () => {
         const { canvas } = setupPngMocks();
