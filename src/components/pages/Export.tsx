@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     getPublicationChart,
@@ -37,8 +37,14 @@ import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { BarErrorPlotData, ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import { saveChart } from "@/app/charts/actions";
 import type { ChartRow } from "@/app/charts/actions";
+import { RingLoader } from "@/components/primitives/RingLoader";
+import { exportPng } from "@/lib/export/exportPng";
+import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
+import type { ComputationSummary, ReceiptInput } from "@/lib/receipt/composeReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
+import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
+import { ReproducibilityReceiptPanel } from "@/components/pages/ReproducibilityReceiptPanel";
 import { generateThumbnail } from "@/lib/thumbnail/generateThumbnail";
 import { ViewOnlyNotice } from "./ViewOnlyNotice";
 import { CustomSection } from "./CustomSection";
@@ -528,7 +534,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const slugDefaults = SLUG_DEFAULTS[slug];
     const ChartComponent = getPublicationChart(slug);
 
-    const [dpi, setDpi] = useState<number>(300);
     const [copied, setCopied] = useState<boolean>(false);
 
     const [paletteId, setPaletteId] = useState<string>("editorial");
@@ -556,9 +561,14 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [computationSnapshot, setComputationSnapshot] = useState<ComputationSummary | null>(null);
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState<boolean>(false);
+    const [exportError, setExportError] = useState<string | null>(null);
+    const [exporting, setExporting] = useState<boolean>(false);
+    const [pngLoading, setPngLoading] = useState<false | 300 | 600>(false);
+    const [fontWarningToast, setFontWarningToast] = useState<boolean>(false);
 
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
     const chartCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -650,33 +660,58 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     const specFigureTitle =
         useSpecFigure && liveSpec !== null ? resolveChartLabels(liveSpec).title : title;
 
-    const receiptPaletteLabel =
-        useSpecFigure && liveSpec !== null
-            ? resolvePalette(liveSpec)
-            : palette.name.toLowerCase();
+    const aiRationale =
+        dataset !== null
+            ? (receipt?.recommendation.because ?? slugDefaults.rationale)
+            : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
+
+    const exportPlotData = useMemo((): PlotData | null => {
+        if (!useSpecFigure || liveSpec === null) {
+            return null;
+        }
+
+        return dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+    }, [dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
+
+    useEffect(() => {
+        if (liveSpec === null || exportPlotData === null) {
+            setComputationSnapshot(null);
+            return;
+        }
+
+        setComputationSnapshot(summarizeComputations(liveSpec, exportPlotData, mapping));
+    }, [exportPlotData, liveSpec, mapping]);
+
+    const reproducibilityInput = useMemo((): ReceiptInput | null => {
+        if (!useSpecFigure || liveSpec === null || computationSnapshot === null) {
+            return null;
+        }
+
+        return {
+            spec: liveSpec,
+            aiReasoning: aiRationale,
+            computations: computationSnapshot,
+        };
+    }, [aiRationale, computationSnapshot, liveSpec, useSpecFigure]);
 
     useEffect(() => {
         let isCancelled = false;
-        if (!useSpecFigure || liveSpec === null) {
+        if (!useSpecFigure || liveSpec === null || exportPlotData === null || computationSnapshot === null) {
             setComputedReceipt(null);
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
-            setComputedReceipt(null);
-            return;
-        }
+
         const nextPalette: PaletteName = resolvePalette(liveSpec);
-        const aiRationale =
-            dataset !== null ? (receipt?.recommendation.because ?? slugDefaults.rationale) : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
         const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
         void buildReceipt({
             aiRationale,
             chartSpec: liveSpec,
             columnMapping: mapping,
+            computations: computationSnapshot,
+            generatedAt: computationSnapshot.computedAt,
             nRowsInput,
             palette: nextPalette,
-            plotData,
+            plotData: exportPlotData,
         })
             .then((nextReceipt) => {
                 if (!isCancelled) {
@@ -692,7 +727,16 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         return () => {
             isCancelled = true;
         };
-    }, [dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, receipt, slugDefaults.rationale, useSpecFigure]);
+    }, [
+        aiRationale,
+        computationSnapshot,
+        dataset,
+        exportPlotData,
+        liveSpec,
+        loadedReceipt,
+        mapping,
+        useSpecFigure,
+    ]);
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -739,13 +783,95 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         setTimeout(() => setCopied(false), 1600);
     };
 
+    useEffect(() => {
+        const onFontWarning = (): void => {
+            setFontWarningToast(true);
+        };
+
+        document.addEventListener("loupe:font-warning", onFontWarning);
+
+        return () => {
+            document.removeEventListener("loupe:font-warning", onFontWarning);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!fontWarningToast) {
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setFontWarningToast(false);
+        }, 4000);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [fontWarningToast]);
+
+    const handlePngExport = async (dpi: 300 | 600): Promise<void> => {
+        const surface = chartCanvasRef.current?.querySelector<HTMLElement>(".chart-surface");
+
+        if (surface === null || surface === undefined) {
+            setExportError("Export unavailable: chart surface not found.");
+            return;
+        }
+
+        setExportError(null);
+        setPngLoading(dpi);
+
+        try {
+            await exportPng(surface, specFigureTitle, { dpi });
+        } catch (error) {
+            if (error instanceof ExportError) {
+                setExportError(error.message);
+                return;
+            }
+
+            setExportError(error instanceof Error ? error.message : "PNG export failed.");
+        } finally {
+            setPngLoading(false);
+        }
+    };
+
+    const handleDownloadSvg = async (): Promise<void> => {
+        const surface = chartCanvasRef.current?.querySelector<HTMLElement>(".chart-surface");
+
+        if (surface === null || surface === undefined) {
+            setExportError("Export unavailable: chart surface not found.");
+            return;
+        }
+
+        setExportError(null);
+        setExporting(true);
+
+        try {
+            await exportSvg(surface, specFigureTitle, {
+                fontFamily: CHART_EXPORT_FONT.family,
+                fontUrl: CHART_EXPORT_FONT.url,
+            });
+        } catch (error) {
+            if (error instanceof ExportError) {
+                setExportError(error.message);
+                return;
+            }
+
+            setExportError(error instanceof Error ? error.message : "SVG export failed.");
+        } finally {
+            setExporting(false);
+        }
+    };
+
     const handleSaveToProject = async (): Promise<void> => {
+        if (computationSnapshot === null) {
+            setSaveError("Save unavailable: computation snapshot not ready.");
+            return;
+        }
         if (liveSpec === null || computedReceipt === null) {
             setSaveError("Save unavailable: chart data is incomplete.");
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
+        if (exportPlotData === null) {
             setSaveError("Save unavailable: unable to compute aggregated plot data.");
             return;
         }
@@ -754,14 +880,14 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         setSaving(true);
         try {
             const chartSvg = chartCanvasRef.current?.querySelector<SVGSVGElement>("svg.rec-chart-svg") ?? null;
-            const thumbnail = await generateThumbnail(liveSpec.kind, plotData.kind, chartSvg);
+            const thumbnail = await generateThumbnail(liveSpec.kind, exportPlotData.kind, chartSvg);
             const result = await saveChart({
                 id: loadedChartId ?? undefined,
                 name: liveSpec.title,
                 chart_spec: liveSpec,
                 column_mapping: mapping,
                 receipt: computedReceipt,
-                plot_data: plotData,
+                plot_data: exportPlotData,
                 thumbnail,
             });
             if (!result.success) {
@@ -1031,29 +1157,52 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                     </div>
 
                     <div className="export-actions">
-                        <button type="button" className="btn btn--primary btn--lg">
-                            Download SVG{" "}
-                            <span className="export-recommended-tag">· recommended</span>
+                        <button
+                            type="button"
+                            className="btn btn--primary btn--lg"
+                            disabled={exporting || pngLoading !== false}
+                            onClick={handleDownloadSvg}
+                        >
+                            {exporting ? "Exporting…" : "Download SVG"}{" "}
+                            {!exporting ? (
+                                <span className="export-recommended-tag">· recommended</span>
+                            ) : null}
                         </button>
-                        <span className="btn btn--ghost btn--lg export-png">
-                            Download PNG
+                        <div className="btn btn--ghost btn--lg export-png">
+                            <span>Download PNG</span>
                             <span className="export-dpi">
-                                {[300, 600].map((v) => (
+                                {([300, 600] as const).map((v) => (
                                     <button
                                         key={v}
                                         type="button"
-                                        className={dpi === v ? "active" : ""}
-                                        onClick={() => setDpi(v)}
+                                        className={pngLoading === v ? "active" : ""}
+                                        disabled={pngLoading !== false || exporting}
+                                        onClick={() => {
+                                            void handlePngExport(v);
+                                        }}
                                     >
-                                        {v} dpi
+                                        {pngLoading === v ? (
+                                            <>
+                                                <RingLoader /> Exporting…
+                                            </>
+                                        ) : (
+                                            `${v} dpi`
+                                        )}
                                     </button>
                                 ))}
                             </span>
-                        </span>
+                        </div>
                         <button type="button" className="btn btn--ghost btn--lg" onClick={onCopy}>
                             {copied ? "Copied to clipboard ✓" : "Copy to clipboard"}
                         </button>
                     </div>
+                    {exportError !== null && (
+                        <p role="alert" className="muted">
+                            Export failed: {exportError}
+                        </p>
+                    )}
+
+                    <ReproducibilityReceiptPanel input={reproducibilityInput} />
 
                     {viewOnlySnapshot === null ? (
                     <div className="export-secondary">
@@ -1079,48 +1228,6 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                             Save failed: {saveError}
                         </p>
                     )}
-
-                    <div className="export-receipt">
-                        <h4>Reproducibility receipt</h4>
-                        <p>
-                            Paste into supplementary materials. Records the AI&apos;s reasoning, the
-                            configuration hash, and the local computations.
-                        </p>
-                        <dl>
-                            <dt>Generated</dt>
-                            <dd>{computedReceipt?.generated_at ?? "—"}</dd>
-                            <dt>Config hash</dt>
-                            <dd>{computedReceipt?.config_hash ?? "—"}</dd>
-                            <dt>Method</dt>
-                            <dd>{computedReceipt?.method ?? slugDefaults.method}</dd>
-                            <dt>Sample</dt>
-                            <dd>{computedReceipt?.sample ?? slugDefaults.metaLine}</dd>
-                            <dt>Palette</dt>
-                            <dd>{computedReceipt?.palette ?? receiptPaletteLabel}</dd>
-                            <dt>Software</dt>
-                            <dd>{computedReceipt?.software ?? "—"}</dd>
-                            <dt>AI rationale</dt>
-                            <dd className="export-receipt-prose">
-                                {computedReceipt?.ai_rationale ?? slugDefaults.rationale}
-                            </dd>
-                            <dt>CSV COLUMNS</dt>
-                            <dd>{computedReceipt?.csv_columns.join(", ") ?? "—"}</dd>
-                            <dt>INPUT ROWS</dt>
-                            <dd>{computedReceipt?.n_rows_input ?? "—"}</dd>
-                            {chatRevisions.length > 0 && (
-                                <>
-                                    <dt>Chat revisions</dt>
-                                    <dd>
-                                        <ol className="export-receipt-list">
-                                            {chatRevisions.map((r) => (
-                                                <li key={r.id}>{r.entry}</li>
-                                            ))}
-                                        </ol>
-                                    </dd>
-                                </>
-                            )}
-                        </dl>
-                    </div>
 
                 </div>
 
@@ -1623,6 +1730,12 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
                     aria-hidden="true"
                 />
             )}
+
+            {fontWarningToast ? (
+                <div className="dash-toast" role="status">
+                    Exported with fallback fonts — font files could not be fetched.
+                </div>
+            ) : null}
 
             <ExportChatLauncher open={chatOpen} onOpen={openChat} />
             <ExportChatPanel

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const receiptSchema = z
     .object({
         generated_at: z.string().datetime({ offset: true }),
-        config_hash: z.string().regex(/^sha256·[a-f0-9]{6,8}…[a-f0-9]{4}$/),
+        config_hash: z.string().regex(/^[a-f0-9]{64}$/),
         method: z.string().min(1).max(200),
         sample: z.string().min(1).max(200),
         palette: z.enum([

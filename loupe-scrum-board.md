@@ -605,14 +605,14 @@ Server action die ChartSpec + aggregated PlotData + Receipt opslaat. **Privacy-k
 Inline alle styles in de SVG, sanitize, download als file. Filename = sanitized titel.
 
 **Actie-items**
-- [ ] `src/lib/export/exportSvg.ts` — pakt SVG node, inlines computed styles
-- [ ] Strip data-react attributes
-- [ ] Filename helper: titel → `kebab-case-truncated-50.svg`
-- [ ] Download trigger via `URL.createObjectURL` + `<a download>`
+- [x] `src/lib/export/exportSvg.ts` — pakt SVG node, inlines computed styles
+- [x] Strip data-react attributes
+- [x] Filename helper: titel → `kebab-case-truncated-50.svg`
+- [x] Download trigger via `URL.createObjectURL` + `<a download>`
 
 **Acceptance criteria**
-- [ ] Geëxporteerde SVG opent in Illustrator + Inkscape met correcte fonts (mits geïnstalleerd)
-- [ ] Bestandsnaam veilig op alle OS (geen `/` of `:`)
+- [x] Geëxporteerde SVG opent in Illustrator + Inkscape met correcte fonts (mits geïnstalleerd)
+- [x] Bestandsnaam veilig op alle OS (geen `/` of `:`)
 
 ---
 
@@ -627,15 +627,15 @@ Inline alle styles in de SVG, sanitize, download als file. Filename = sanitized 
 SVG → canvas → PNG. DPI selector (300, 600). Belangrijk: fonts moeten ingebed zijn anders krijg je serif-fallbacks.
 
 **Actie-items**
-- [ ] `exportPng.ts` — encodeert SVG als data URL, tekent op canvas, toBlob
-- [ ] DPI berekening: viewBox * (dpi/96)
-- [ ] Font embedding: serialize `@font-face` rules in SVG style tag
-- [ ] Test: 600dpi PNG op Source Serif tekst is scherp
-- [ ] Loading-state tijdens rasterisatie (kan 1-2s duren)
+- [x] `exportPng.ts` — encodeert SVG als data URL, tekent op canvas, toBlob
+- [x] DPI berekening: viewBox * (dpi/96)
+- [x] Font embedding: serialize `@font-face` rules in SVG style tag
+- [x] Test: 600dpi PNG op Source Serif tekst is scherp
+- [x] Loading-state tijdens rasterisatie (kan 1-2s duren)
 
 **Acceptance criteria**
-- [ ] 300dpi PNG van een KM chart heeft scherpe typografie
-- [ ] Bestandsgrootte op 300dpi onder 2MB voor standaard chart
+- [x] 300dpi PNG van een KM chart heeft scherpe typografie
+- [x] Bestandsgrootte op 300dpi onder 2MB voor standaard chart
 
 ---
 
@@ -650,15 +650,15 @@ SVG → canvas → PNG. DPI selector (300, 600). Belangrijk: fonts moeten ingebe
 Compose receipt uit ChartSpec + AI-redenering + lokale berekeningen. Copy-to-clipboard voor supplementary materials. Dit is een onderscheidend feature voor je jury — bewijst dat je "reasoning, not magic" claim niet leeg is.
 
 **Actie-items**
-- [ ] `src/lib/receipt/composeReceipt.ts` — neemt spec + reasoning + computations
-- [ ] Output formaat: leesbare plain text met sections (Intent, Recommendation, Alternatives considered, Computations performed, Configuration hash)
-- [ ] Configuration hash: SHA-256 over ChartSpec (deterministisch)
-- [ ] Copy-to-clipboard knop in `/export`
-- [ ] Download als `.txt`
+- [x] `src/lib/receipt/composeReceipt.ts` — neemt spec + reasoning + computations
+- [x] Output formaat: leesbare plain text met sections (Intent, Recommendation, Alternatives considered, Computations performed, Configuration hash)
+- [x] Configuration hash: SHA-256 over ChartSpec (deterministisch)
+- [x] Copy-to-clipboard knop in `/export`
+- [x] Download als `.txt`
 
 **Acceptance criteria**
-- [ ] Receipt van een KM chart vermeldt: intent, dat KM gekozen werd boven box, dat censoring werd toegepast op N patiënten, hash voor reproducibility
-- [ ] Copy-to-clipboard werkt in Chrome + Firefox + Safari
+- [x] Receipt van een KM chart vermeldt: intent, dat KM gekozen werd boven box, dat censoring werd toegepast op N patiënten, hash voor reproducibility
+- [x] Copy-to-clipboard werkt in Chrome + Firefox + Safari
 
 ---
 
