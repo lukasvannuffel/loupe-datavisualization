@@ -4,7 +4,9 @@ import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 import { buildReceipt } from "../buildReceipt";
+import { composeReceipt } from "../composeReceipt";
 import { receiptSchema } from "../schemas";
+import { summarizeComputations } from "../summarizeComputations";
 
 const baseInput = {
     aiRationale: "Time-to-event with censoring and two treatment arms.",
@@ -79,6 +81,29 @@ describe("buildReceipt", () => {
         });
 
         expect(a.config_hash).not.toBe(b.config_hash);
+    });
+
+    it("config_hash matches the hash from composeReceipt for the same inputs", async () => {
+        const generatedAt = "2026-05-27T12:00:00.000Z";
+        const computations = summarizeComputations(
+            baseInput.chartSpec,
+            baseInput.plotData,
+            baseInput.columnMapping,
+            generatedAt,
+        );
+        const composed = await composeReceipt({
+            spec: baseInput.chartSpec,
+            aiReasoning: baseInput.aiRationale,
+            computations,
+            generatedAt,
+        });
+        const saved = await buildReceipt({
+            ...baseInput,
+            generatedAt,
+        });
+
+        expect(saved.config_hash).toBe(composed.hash);
+        expect(saved.config_hash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it("does not include patient row data patterns in serialized receipt output", async () => {

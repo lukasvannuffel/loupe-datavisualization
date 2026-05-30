@@ -2,8 +2,9 @@ import type { ChartSpec, PaletteName, PlotData } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 import packageJson from "../../../package.json";
-import { computeConfigHash } from "./configHash";
+import { hashSpecAndComputations } from "./hashSpec";
 import { methodString } from "./methodStrings";
+import { summarizeComputations } from "./summarizeComputations";
 import { receiptSchema, type Receipt } from "./schemas";
 import { sampleString } from "./sampleStrings";
 
@@ -23,11 +24,19 @@ const csvColumnsFromMapping = (mapping: Mapping): readonly string[] =>
     [...new Set(Object.values(mapping).filter((value): value is string => typeof value === "string"))].sort();
 
 export const buildReceipt = async (input: BuildReceiptInput): Promise<Receipt> => {
+    const generatedAt = input.generatedAt ?? new Date().toISOString();
+    const computations = summarizeComputations(
+        input.chartSpec,
+        input.plotData,
+        input.columnMapping,
+        generatedAt,
+    );
+
     const receipt: Receipt = {
         ai_rationale: input.aiRationale,
-        config_hash: await computeConfigHash(input.chartSpec),
+        config_hash: await hashSpecAndComputations(input.chartSpec, computations),
         csv_columns: csvColumnsFromMapping(input.columnMapping),
-        generated_at: input.generatedAt ?? new Date().toISOString(),
+        generated_at: generatedAt,
         method: methodString(input.chartSpec.kind),
         n_rows_input: input.nRowsInput,
         palette: input.palette,

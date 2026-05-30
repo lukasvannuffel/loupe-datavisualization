@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 
 import {
+    assertNoRawData,
     composeReceipt,
     PRIVACY_STATEMENT,
+    wordWrap,
     type ComputationSummary,
     type ReceiptInput,
 } from "../composeReceipt";
@@ -119,6 +121,16 @@ describe("composeReceipt", () => {
         ).rejects.toThrow(/numeric arrays/);
     });
 
+    it("assertNoRawData allows empty dataColumns", () => {
+        expect(() =>
+            assertNoRawData({
+                chartType: "km",
+                dataColumns: [],
+                computedAt: "2026-05-27T12:00:00.000Z",
+            }),
+        ).not.toThrow();
+    });
+
     it("aiReasoning appears verbatim in INTENT section", async () => {
         const receipt = await composeReceipt(baseInput);
 
@@ -130,6 +142,39 @@ describe("composeReceipt", () => {
         const receipt = await composeReceipt(baseInput);
 
         for (const line of receipt.plainText.split("\n")) {
+            expect(line.length).toBeLessThanOrEqual(80);
+        }
+    });
+
+    it("plain text title line preserves centering", async () => {
+        const receipt = await composeReceipt(baseInput);
+        const firstLine = receipt.plainText.split("\n")[0] ?? "";
+
+        expect(firstLine).toContain("LOUPE REPRODUCIBILITY RECEIPT");
+        expect(firstLine).toMatch(/^\s+LOUPE REPRODUCIBILITY RECEIPT$/);
+        expect(firstLine.length).toBeLessThanOrEqual(80);
+    });
+
+    it("plain text INTENT body preserves two-space indent", async () => {
+        const receipt = await composeReceipt(baseInput);
+
+        expect(receipt.plainText).toContain("  Compare survival between arms");
+    });
+
+    it("wordWrap emits long tokens intact on their own line", () => {
+        const doi =
+            "https://doi.org/10.1234/" + "abcdefghij".repeat(7);
+        const wrapped = wordWrap(`See ${doi} for methods.`, 80);
+        const lines = wrapped.split("\n");
+
+        expect(wrapped).toContain(doi);
+        expect(lines.some((line) => line === doi)).toBe(true);
+
+        for (const line of lines) {
+            if (line === doi) {
+                continue;
+            }
+
             expect(line.length).toBeLessThanOrEqual(80);
         }
     });

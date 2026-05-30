@@ -65,10 +65,27 @@ describe("hashSpecAndComputations", () => {
             Object.entries(kmSpec).reverse(),
         ) as ChartSpec;
 
-        const hashA = await hashSpecAndComputations(kmSpec, baseComputations);
-        const hashB = await hashSpecAndComputations(specReordered, baseComputations);
+        const specNestedA: ChartSpec = {
+            ...kmSpec,
+            customizations: {
+                axes: { x: { label: "Days" }, y: { label: "Survival" } },
+            },
+        };
+        const specNestedB: ChartSpec = {
+            ...kmSpec,
+            customizations: {
+                axes: { y: { label: "Survival" }, x: { label: "Days" } },
+            },
+        };
 
-        expect(hashA).toBe(hashB);
+        const hashBaseline = await hashSpecAndComputations(kmSpec, baseComputations);
+        const hashTopReordered = await hashSpecAndComputations(specReordered, baseComputations);
+        const hashNestedA = await hashSpecAndComputations(specNestedA, baseComputations);
+        const hashNestedB = await hashSpecAndComputations(specNestedB, baseComputations);
+
+        expect(hashTopReordered).toBe(hashBaseline);
+        expect(hashNestedA).toBe(hashNestedB);
+        expect(hashNestedA).not.toBe(hashBaseline);
     });
 
     // MUTATION-VERIFY: hashSpec.ts line 24 — replace `JSON.stringify(payload, sortedReplacer)` with `JSON.stringify(payload)`.

@@ -86,7 +86,14 @@ export const wordWrap = (text: string, width: number): string =>
                 if (current.length > 0) {
                     lines.push(current);
                 }
-                current = word.length > width ? word.slice(0, width) : word;
+
+                if (word.length > width) {
+                    lines.push(word);
+                    current = "";
+                    continue;
+                }
+
+                current = word;
             }
 
             if (current.length > 0) {
@@ -107,9 +114,16 @@ const centerLine = (line: string, width: number): string => {
     return `${" ".repeat(padding)}${line}`;
 };
 
+// Shallow guard only — checks top-level values of ComputationSummary.
+// ComputationSummary MUST NOT be extended with nested objects containing
+// numeric arrays. This interface is the privacy boundary; see type definition.
+// Recursive guard deferred to V2.
 export const assertNoRawData = (summary: ComputationSummary): void => {
     const forbidden = Object.values(summary).filter(
-        (value) => Array.isArray(value) && (value as unknown[]).every((entry) => typeof entry === "number"),
+        (value) =>
+            Array.isArray(value) &&
+            value.length > 0 &&
+            (value as unknown[]).every((entry) => typeof entry === "number"),
     );
 
     if (forbidden.length > 0) {
@@ -289,7 +303,7 @@ const formatPlainText = (sections: readonly SectionBlock[]): string => {
 
     const footer = ["", "End of receipt."];
 
-    return wordWrap([...header, ...blocks, ...footer].join("\n"), LINE_WIDTH);
+    return [...header, ...blocks, ...footer].join("\n");
 };
 
 const formatMarkdown = (sections: readonly SectionBlock[]): string => {

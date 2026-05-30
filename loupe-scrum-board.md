@@ -650,15 +650,15 @@ SVG → canvas → PNG. DPI selector (300, 600). Belangrijk: fonts moeten ingebe
 Compose receipt uit ChartSpec + AI-redenering + lokale berekeningen. Copy-to-clipboard voor supplementary materials. Dit is een onderscheidend feature voor je jury — bewijst dat je "reasoning, not magic" claim niet leeg is.
 
 **Actie-items**
-- [ ] `src/lib/receipt/composeReceipt.ts` — neemt spec + reasoning + computations
-- [ ] Output formaat: leesbare plain text met sections (Intent, Recommendation, Alternatives considered, Computations performed, Configuration hash)
-- [ ] Configuration hash: SHA-256 over ChartSpec (deterministisch)
-- [ ] Copy-to-clipboard knop in `/export`
-- [ ] Download als `.txt`
+- [x] `src/lib/receipt/composeReceipt.ts` — neemt spec + reasoning + computations
+- [x] Output formaat: leesbare plain text met sections (Intent, Recommendation, Alternatives considered, Computations performed, Configuration hash)
+- [x] Configuration hash: SHA-256 over ChartSpec (deterministisch)
+- [x] Copy-to-clipboard knop in `/export`
+- [x] Download als `.txt`
 
 **Acceptance criteria**
-- [ ] Receipt van een KM chart vermeldt: intent, dat KM gekozen werd boven box, dat censoring werd toegepast op N patiënten, hash voor reproducibility
-- [ ] Copy-to-clipboard werkt in Chrome + Firefox + Safari
+- [x] Receipt van een KM chart vermeldt: intent, dat KM gekozen werd boven box, dat censoring werd toegepast op N patiënten, hash voor reproducibility
+- [x] Copy-to-clipboard werkt in Chrome + Firefox + Safari
 
 ---
 
