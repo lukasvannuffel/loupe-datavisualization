@@ -41,7 +41,7 @@ import { RingLoader } from "@/components/primitives/RingLoader";
 import { exportPng } from "@/lib/export/exportPng";
 import { CHART_EXPORT_FONT, ExportError, exportSvg } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
-import type { ReceiptInput } from "@/lib/receipt/composeReceipt";
+import type { ComputationSummary, ReceiptInput } from "@/lib/receipt/composeReceipt";
 import type { Receipt as SaveReceipt } from "@/lib/receipt/schemas";
 import { summarizeComputations } from "@/lib/receipt/summarizeComputations";
 import { ReproducibilityReceiptPanel } from "@/components/pages/ReproducibilityReceiptPanel";
@@ -561,6 +561,7 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
     const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [computationSnapshot, setComputationSnapshot] = useState<ComputationSummary | null>(null);
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState<boolean>(false);
@@ -664,44 +665,53 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
             ? (receipt?.recommendation.because ?? slugDefaults.rationale)
             : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
 
-    const reproducibilityInput = useMemo((): ReceiptInput | null => {
+    const exportPlotData = useMemo((): PlotData | null => {
         if (!useSpecFigure || liveSpec === null) {
             return null;
         }
 
-        const plotData =
-            dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
+        return dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
+    }, [dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
+
+    useEffect(() => {
+        if (liveSpec === null || exportPlotData === null) {
+            setComputationSnapshot(null);
+            return;
+        }
+
+        setComputationSnapshot(summarizeComputations(liveSpec, exportPlotData, mapping));
+    }, [exportPlotData, liveSpec, mapping]);
+
+    const reproducibilityInput = useMemo((): ReceiptInput | null => {
+        if (!useSpecFigure || liveSpec === null || computationSnapshot === null) {
             return null;
         }
 
         return {
             spec: liveSpec,
             aiReasoning: aiRationale,
-            computations: summarizeComputations(liveSpec, plotData, mapping),
+            computations: computationSnapshot,
         };
-    }, [aiRationale, dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
+    }, [aiRationale, computationSnapshot, liveSpec, useSpecFigure]);
 
     useEffect(() => {
         let isCancelled = false;
-        if (!useSpecFigure || liveSpec === null) {
+        if (!useSpecFigure || liveSpec === null || exportPlotData === null || computationSnapshot === null) {
             setComputedReceipt(null);
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
-            setComputedReceipt(null);
-            return;
-        }
+
         const nextPalette: PaletteName = resolvePalette(liveSpec);
         const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
         void buildReceipt({
             aiRationale,
             chartSpec: liveSpec,
             columnMapping: mapping,
+            computations: computationSnapshot,
+            generatedAt: computationSnapshot.computedAt,
             nRowsInput,
             palette: nextPalette,
-            plotData,
+            plotData: exportPlotData,
         })
             .then((nextReceipt) => {
                 if (!isCancelled) {
@@ -717,7 +727,16 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         return () => {
             isCancelled = true;
         };
-    }, [aiRationale, dataset, liveSpec, loadedPlotData, loadedReceipt, mapping, useSpecFigure]);
+    }, [
+        aiRationale,
+        computationSnapshot,
+        dataset,
+        exportPlotData,
+        liveSpec,
+        loadedReceipt,
+        mapping,
+        useSpecFigure,
+    ]);
 
     useEffect(() => {
         setTitle(slugDefaults.title);
@@ -844,12 +863,15 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
     };
 
     const handleSaveToProject = async (): Promise<void> => {
+        if (computationSnapshot === null) {
+            setSaveError("Save unavailable: computation snapshot not ready.");
+            return;
+        }
         if (liveSpec === null || computedReceipt === null) {
             setSaveError("Save unavailable: chart data is incomplete.");
             return;
         }
-        const plotData = dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-        if (plotData === null) {
+        if (exportPlotData === null) {
             setSaveError("Save unavailable: unable to compute aggregated plot data.");
             return;
         }
@@ -858,14 +880,14 @@ export const Export = ({ initialChart = null, initialChartId = null }: ExportPro
         setSaving(true);
         try {
             const chartSvg = chartCanvasRef.current?.querySelector<SVGSVGElement>("svg.rec-chart-svg") ?? null;
-            const thumbnail = await generateThumbnail(liveSpec.kind, plotData.kind, chartSvg);
+            const thumbnail = await generateThumbnail(liveSpec.kind, exportPlotData.kind, chartSvg);
             const result = await saveChart({
                 id: loadedChartId ?? undefined,
                 name: liveSpec.title,
                 chart_spec: liveSpec,
                 column_mapping: mapping,
                 receipt: computedReceipt,
-                plot_data: plotData,
+                plot_data: exportPlotData,
                 thumbnail,
             });
             if (!result.success) {
