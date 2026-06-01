@@ -44,6 +44,7 @@ const defaultMapping: Mapping = {
 vi.mock("@/app/providers", () => ({
     useAppState: (): {
         appendOverride: typeof appendOverride;
+        chartSpec: ChartSpec;
         intent: string;
         mapping: Mapping;
         setChartSpec: typeof setChartSpec;
@@ -51,6 +52,10 @@ vi.mock("@/app/providers", () => ({
         updateLatestOverrideReason: typeof updateLatestOverrideReason;
     } => ({
         appendOverride,
+        chartSpec: createDefaultChartSpec("km", {
+            id: "spec-test-mock",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        }),
         intent: "",
         mapping: defaultMapping,
         setChartSpec,

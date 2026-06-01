@@ -589,10 +589,33 @@ export const Export = ({
     const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(null);
     const [viewOnlySnapshot, setViewOnlySnapshot] = useState<{ name: string; thumbnail: string | null } | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const exportGuardFiredRef = useRef(false);
 
     useEffect(() => {
         setLiveSpec(chartSpec);
     }, [chartSpec]);
+
+    useEffect(() => {
+        if (
+            !hydrated ||
+            initialChartId !== null ||
+            initialChart !== null ||
+            chartSpec !== null ||
+            (chartKind !== null && dataset !== null)
+        ) {
+            return;
+        }
+        if (exportGuardFiredRef.current) {
+            return;
+        }
+        exportGuardFiredRef.current = true;
+        toast({
+            variant: "warning",
+            title: "No chart to export",
+            description: "Complete your recommendation first.",
+        });
+        router.push("/recommend");
+    }, [chartKind, chartSpec, dataset, hydrated, initialChart, initialChartId, router, toast]);
 
     useEffect(() => {
         if (initialLoadReason !== null) {
