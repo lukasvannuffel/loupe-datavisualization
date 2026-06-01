@@ -134,11 +134,11 @@ export const ExportChatPanel = ({
             <aside
                 className="chat-panel"
                 role="dialog"
-                aria-label="Refine with Loupe"
+                aria-label="Chat with Loupe"
             >
                 <header className="chat-panel-head">
                     <div>
-                        <div className="chat-panel-title">Refine with Loupe</div>
+                        <div className="chat-panel-title">Chat with Loupe</div>
                         <div className="chat-panel-sub">
                             For palette, legend, axes — use the rail.
                         </div>

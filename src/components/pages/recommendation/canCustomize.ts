@@ -21,6 +21,11 @@ export const canCustomizeRecommendation = ({
         return false;
     }
 
+    // NOTE: canCustomize checks mapping role presence only. For km/box/xy,
+    // SpecChartPanel may still show ChartError if the aggregator throws
+    // (e.g. n<3 for xy regression). Asymmetric vs barError (groups.length > 0).
+    // Accepted: aggregator stability is a separate concern. See LOUPE review 2026-06-01.
+
     if (chartKind === "barError") {
         return (barErrorAggregation?.groups.length ?? 0) > 0;
     }

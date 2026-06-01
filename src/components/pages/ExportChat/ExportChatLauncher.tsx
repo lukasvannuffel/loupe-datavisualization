@@ -44,7 +44,7 @@ export const ExportChatLauncher = ({
             {showNudge && (
                 <div className="chat-nudge" role="status">
                     <span className="chat-nudge-body">
-                        Want to tweak this chart? <strong>Chat with Loupe</strong> to re-fit, annotate, or apply a journal preset.
+                        Want to know more about this chart? <strong>Chat with Loupe</strong> to ask questions.
                     </span>
                     <button
                         type="button"
@@ -61,12 +61,12 @@ export const ExportChatLauncher = ({
                 type="button"
                 className={"chat-launcher" + (showNudge ? " is-nudging" : "")}
                 onClick={onClick}
-                aria-label="Refine with Loupe"
+                aria-label="Chat with Loupe"
             >
                 <span className="chat-launcher-icon" aria-hidden="true">
                     <span className="chat-launcher-dot" />
                 </span>
-                <span className="chat-launcher-label">Refine with Loupe</span>
+                <span className="chat-launcher-label">Chat with Loupe</span>
             </button>
         </div>
     );

@@ -28,6 +28,7 @@ const ExportError = ({ error, reset }: ExportErrorProps): JSX.Element => {
                 <button type="button" className="btn btn--primary btn--sm" onClick={reset}>
                     Try again
                 </button>
+                {/* NOTE: may redirect to /upload/map if wizard state is empty — expected RecommendGate behaviour. */}
                 <button
                     type="button"
                     className="btn btn--ghost btn--sm"
