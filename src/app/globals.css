@@ -4747,7 +4747,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     mix-blend-mode: multiply;
 }
 
-/* Analyzing loader (/recommend loading segment) */
+/* Analyzing loader (AI recommendation wait — RecommendationAiPending) */
 .analyzing-page {
     position: fixed;
     inset: 0;
