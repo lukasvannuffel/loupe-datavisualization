@@ -20,6 +20,10 @@ vi.mock("../Recommendation", () => ({
     Recommendation: (): JSX.Element => <div data-testid="recommendation-page" />,
 }));
 
+vi.mock("../recommendation/RecommendationAiPending", () => ({
+    RecommendationAiPending: (): JSX.Element => <div data-testid="recommendation-ai-pending" />,
+}));
+
 const sampleReceipt = (): Receipt => ({
     alternatives: [],
     intent: "Compare survival",
@@ -39,17 +43,28 @@ const sampleReceipt = (): Receipt => ({
 });
 
 const RecommendGateHarness = (): JSX.Element => {
-    const { chartSpec, hydrated, setChartKind, setDataset, setMapping, setReceipt } = useAppState();
+    const {
+        chartSpec,
+        hydrated,
+        setChartKind,
+        setDataset,
+        setIntent,
+        setMapping,
+        setReceipt,
+        setSelectionMode,
+    } = useAppState();
 
     useEffect(() => {
         if (!hydrated) {
             return;
         }
+        setSelectionMode("ai");
+        setIntent("Compare survival");
         setReceipt(sampleReceipt());
         setChartKind("km");
         setDataset([], brandRows([{ time: "1", event: "1", arm: "A" }]));
         setMapping({ time: "time", event: "event", group: "arm" });
-    }, [hydrated, setChartKind, setDataset, setMapping, setReceipt]);
+    }, [hydrated, setChartKind, setDataset, setIntent, setMapping, setReceipt, setSelectionMode]);
 
     return (
         <>

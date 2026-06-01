@@ -51,10 +51,14 @@ const CHOICES: readonly ChoiceCard[] = [
 
 export const RecommendChoose = (): JSX.Element => {
     const router = useRouter();
-    const { setSelectionMode } = useAppState();
+    const { setChartKind, setReceipt, setSelectionMode } = useAppState();
 
     const onChoose = (choice: ChoiceCard): void => {
         setSelectionMode(choice.mode);
+        if (choice.mode === "ai") {
+            setReceipt(null);
+            setChartKind(null);
+        }
         router.push(choice.route);
     };
 

@@ -2,6 +2,8 @@ import { Export } from "@/components/pages/Export";
 import { getChart } from "@/app/charts/actions";
 import { requireUser } from "@/utils/supabase/server";
 
+/** Wizard chartSpec lives in client sessionStorage — null guard is in Export.tsx, not here. */
+
 type ExportPageProps = {
     readonly searchParams?: Promise<{ readonly id?: string }>;
 };

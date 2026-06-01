@@ -103,7 +103,9 @@ const formatManualPickerMissing = (kind: SpecKind, compat: ChartCompatibility): 
 export const RecommendManual = (): JSX.Element => {
     const router = useRouter();
     const {
+        dataset,
         hydrated,
+        intent,
         mapping,
         selectionMode,
         setSelectionMode,
@@ -116,6 +118,15 @@ export const RecommendManual = (): JSX.Element => {
      * picked manual mode. A direct deep-link sends them back to the chooser so
      * provenance is always recorded before the picker UI is shown.
      */
+    useEffect(() => {
+        if (!hydrated) {
+            return;
+        }
+        if (!intent.trim() || dataset === null) {
+            router.replace("/upload");
+        }
+    }, [dataset, hydrated, intent, router]);
+
     useEffect(() => {
         if (!hydrated) {
             return;
