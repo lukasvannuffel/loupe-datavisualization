@@ -1,13 +1,10 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppStateProvider } from "@/app/providers";
-import { ToastProvider } from "@/components/ui/ToastProvider";
-import { toAiColumns } from "@/lib/ai/toAiColumns";
 import type { ColumnInference } from "@/lib/parser/inference.types";
-import type { Receipt } from "@/lib/chartSpec/types";
 
 import { UploadMap } from "../UploadMap";
 
@@ -52,24 +49,6 @@ const KM_DATASET: readonly ColumnInference[] = [
     }),
 ];
 
-const MOCK_RECEIPT: Receipt = {
-    alternatives: [],
-    intent: "Compare survival between arms",
-    overrides: [],
-    recommendation: {
-        because: "Because text.",
-        becauseTitle: "Because",
-        chartName: "Kaplan–Meier curve",
-        handles: "Handles text.",
-        handlesTitle: "Handles",
-        headline: "Headline.",
-    },
-    selectionMode: "ai",
-    tests: [],
-    testsTitle: "Tests",
-    transformations: [],
-};
-
 const seedDataset = (
     dataset: readonly ColumnInference[] | null,
     rows: ReadonlyArray<Readonly<Record<string, string>>> = [],
@@ -85,11 +64,9 @@ const seedDataset = (
 const renderPage = (): void => {
     act(() => {
         render(
-            <ToastProvider>
-                <AppStateProvider>
-                    <UploadMap />
-                </AppStateProvider>
-            </ToastProvider>,
+            <AppStateProvider>
+                <UploadMap />
+            </AppStateProvider>,
         );
     });
 };
@@ -98,19 +75,12 @@ const getSelect = (columnName: string): HTMLSelectElement =>
     screen.getByLabelText(`Chart role for ${columnName}`) as HTMLSelectElement;
 
 const continueButton = (): HTMLButtonElement =>
-    screen.getByRole("button", { name: /Get recommendation/ }) as HTMLButtonElement;
+    screen.getByRole("button", { name: /Continue/ }) as HTMLButtonElement;
 
 beforeEach(() => {
-    vi.useRealTimers();
     push.mockClear();
     replace.mockClear();
     recommendChartMock.mockReset();
-    recommendChartMock.mockResolvedValue({
-        chartType: "km",
-        costEstimateEur: 0.01,
-        ok: true,
-        receipt: MOCK_RECEIPT,
-    });
     window.sessionStorage.clear();
 });
 
@@ -165,107 +135,20 @@ describe("UploadMap", () => {
         expect(continueButton().disabled).toBe(true);
     });
 
-    it("Continue calls recommendChart then navigates to /recommend with receipt + chartKind", async () => {
+    // MUTATION-VERIFY: change router.push target in UploadMap.tsx handleContinue from
+    // "/recommend/choose" to "/recommend" → this test goes RED.
+    // Verified manually: 2026-06-01. REVERTED.
+    it("navigates to /recommend/choose on Continue", () => {
         seedDataset(KM_DATASET);
         renderPage();
         const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
         fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
         expect(continueButton().disabled).toBe(false);
-        await act(async () => {
+        act(() => {
             continueButton().click();
         });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
-        });
-
-        const mappingRaw = window.sessionStorage.getItem("loupe.mapping");
-        expect(mappingRaw).not.toBeNull();
-        const datasetRaw = window.sessionStorage.getItem("loupe.dataset");
-        expect(datasetRaw).not.toBeNull();
-        const parsedDataset = JSON.parse(datasetRaw as string) as ColumnInference[];
-        const expectedPayload = {
-            columns: toAiColumns(parsedDataset),
-            intent: "Compare survival between arms",
-            mapping: JSON.parse(mappingRaw as string),
-        };
-
-        expect(JSON.parse(JSON.stringify(recommendChartMock.mock.calls[0]?.[0]))).toEqual(
-            JSON.parse(JSON.stringify(expectedPayload)),
-        );
-
-        expect(push).toHaveBeenCalledWith("/recommend");
-        expect(window.sessionStorage.getItem("loupe.receipt")).not.toBeNull();
-        expect(window.sessionStorage.getItem("loupe.chartKind")).toBe(JSON.stringify("km"));
-    });
-
-    it("second identical recommendation skips the server action (session cache hit)", async () => {
-        seedDataset(KM_DATASET);
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
-        });
-        push.mockClear();
-        await waitFor(() => {
-            expect(continueButton().textContent).toMatch(/Get recommendation/);
-        });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
-        });
-        expect(push.mock.calls.length).toBeGreaterThan(0);
-    });
-
-    it("changes intent hash so the server action runs again", async () => {
-        seedDataset(KM_DATASET);
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "First intent" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
-        });
-        await waitFor(() => {
-            expect(continueButton().textContent).toMatch(/Get recommendation/);
-        });
-        fireEvent.change(textarea, { target: { value: "Second intent" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(2);
-        });
-    });
-
-    it("changes a mapping value so the server action runs again", async () => {
-        seedDataset(KM_DATASET);
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(1);
-        });
-        await waitFor(() => {
-            expect(continueButton().textContent).toMatch(/Get recommendation/);
-        });
-        fireEvent.change(getSelect("age_at_baseline"), { target: { value: "time" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(recommendChartMock).toHaveBeenCalledTimes(2);
-        });
+        expect(push).toHaveBeenCalledWith("/recommend/choose");
+        expect(recommendChartMock).not.toHaveBeenCalled();
     });
 
     it("PHI rename updates dataset column names and follows mapping roles", async () => {
@@ -364,95 +247,6 @@ describe("UploadMap", () => {
         const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
         fireEvent.change(textarea, { target: { value: "Compare scores" } });
         expect(continueButton().disabled).toBe(true);
-    });
-
-    it("disables Try again when rate limited but keeps Pick chart manually enabled", async () => {
-        seedDataset(KM_DATASET);
-        recommendChartMock.mockResolvedValueOnce({
-            code: "RATE_LIMITED",
-            message: "Too many recommendations in the last hour. Try again in 45 minutes.",
-            ok: false,
-        });
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(document.querySelector(".map-ai-error-title")?.textContent).toMatch(
-                /Too many recommendations/i,
-            );
-        });
-        const tryAgain = screen.getByRole("button", { name: /Try again/i });
-        const manual = screen.getByRole("button", { name: /Pick chart manually/i });
-        expect(tryAgain).toBeDisabled();
-        expect(manual).not.toBeDisabled();
-        expect(continueButton().disabled).toBe(true);
-        expect(recommendChartMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("shows error card and Try again on upstream failure", async () => {
-        seedDataset(KM_DATASET);
-        recommendChartMock.mockResolvedValueOnce({
-            code: "UPSTREAM_FAILURE",
-            message: "AI gateway upstream error.",
-            ok: false,
-        });
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(document.querySelector(".map-ai-error")).not.toBeNull();
-        });
-        const alert = document.querySelector(".map-ai-error");
-        expect(alert?.textContent).toContain("Could not get chart recommendation.");
-        expect(alert?.textContent).toContain("Check your connection and try again.");
-        expect(screen.getByRole("button", { name: /Try again/i })).not.toBeDisabled();
-        await act(async () => {
-            recommendChartMock.mockResolvedValueOnce({
-                chartType: "km",
-                costEstimateEur: 0.01,
-                ok: true,
-                receipt: MOCK_RECEIPT,
-            });
-            fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
-        });
-        await waitFor(() => {
-            expect(recommendChartMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-        });
-    });
-
-    it("Pick chart manually sets manual mode and navigates to /recommend/manual", async () => {
-        seedDataset(KM_DATASET);
-        recommendChartMock.mockResolvedValueOnce({
-            code: "UPSTREAM_FAILURE",
-            message: "AI gateway upstream error.",
-            ok: false,
-        });
-        renderPage();
-        const textarea = screen.getByLabelText("What did you find?") as HTMLTextAreaElement;
-        fireEvent.change(textarea, { target: { value: "Compare survival between arms" } });
-        await act(async () => {
-            continueButton().click();
-        });
-        await waitFor(() => {
-            expect(document.querySelector(".map-ai-error")).not.toBeNull();
-        });
-        const alert = document.querySelector(".map-ai-error");
-        expect(alert?.textContent).toContain("Could not get chart recommendation.");
-        const manualButton = screen.getByRole("button", { name: /Pick chart manually/i });
-        expect(manualButton).not.toBeDisabled();
-        await act(async () => {
-            fireEvent.click(manualButton);
-        });
-        await waitFor(() => {
-            expect(push).toHaveBeenCalledWith("/recommend/manual");
-        });
-        expect(window.sessionStorage.getItem("loupe.selectionMode")).toBe("manual");
     });
 
     it("validation strip text mirrors validateMapping output", () => {

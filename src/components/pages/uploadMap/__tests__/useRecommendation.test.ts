@@ -182,6 +182,44 @@ describe("useRecommendation", () => {
         expect(onSuccess).toHaveBeenCalledWith(r, "km", true);
     });
 
+    // MUTATION-VERIFY: remove isRunningRef guard at useRecommendation.ts run() L28-30
+    // Test: "calls recommendChart exactly once when run is invoked twice during loading"
+    // Verified manually: 2026-06-01. REVERTED.
+    it("calls recommendChart exactly once when run is invoked twice during loading", async () => {
+        let resolveChart: (value: {
+            chartType: "km";
+            costEstimateEur: number;
+            ok: true;
+            receipt: Receipt;
+        }) => void = () => undefined;
+
+        recommendChartMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveChart = resolve;
+                }),
+        );
+
+        const { result } = renderHook(() => useRecommendation());
+
+        await act(async () => {
+            void result.current.run(basePayload);
+            void result.current.run(basePayload);
+        });
+
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
+        expect(result.current.state.status).toBe("loading");
+
+        await act(async () => {
+            resolveChart({
+                chartType: "km",
+                costEstimateEur: 0.01,
+                ok: true,
+                receipt: successReceipt(),
+            });
+        });
+    });
+
     it("cache hit returns pristine AI receipt without user overrides", async () => {
         const pristine = successReceipt();
         const overridden: Receipt = {

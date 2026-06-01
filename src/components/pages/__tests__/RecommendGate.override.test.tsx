@@ -23,6 +23,10 @@ vi.mock("@/components/charts/PublicationKM", () => ({
     PublicationKM: (): JSX.Element => <div data-testid="publication-km">Publication KM</div>,
 }));
 
+vi.mock("../recommendation/RecommendationAiPending", () => ({
+    RecommendationAiPending: (): null => null,
+}));
+
 const aggregateBarErrorMock = vi.fn(
     (_rows: PrivateRows, _mapping: Mapping): BarErrorAggregation => ({
         groups: [{ label: "A", mean: 10, sd: 1, n: 5 }],
@@ -90,17 +94,28 @@ const receiptWithBarAlt = (): Receipt => ({
 });
 
 const SeedAndGate = (): JSX.Element => {
-    const { appendOverride, hydrated, setChartKind, setDataset, setMapping, setReceipt } = useAppState();
+    const {
+        appendOverride,
+        hydrated,
+        setChartKind,
+        setDataset,
+        setIntent,
+        setMapping,
+        setReceipt,
+        setSelectionMode,
+    } = useAppState();
 
     useEffect(() => {
         if (!hydrated) {
             return;
         }
+        setSelectionMode("ai");
+        setIntent("Compare survival");
         setReceipt(receiptWithBarAlt());
         setChartKind("km");
         setDataset([], brandRows([{ time: "1", event: "1", arm: "A", value: "10" }]));
         setMapping({ time: "time", event: "event", group: "arm", outcome: "value" });
-    }, [hydrated, setChartKind, setDataset, setMapping, setReceipt]);
+    }, [hydrated, setChartKind, setDataset, setIntent, setMapping, setReceipt, setSelectionMode]);
 
     return (
         <>
