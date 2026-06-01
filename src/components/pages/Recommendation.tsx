@@ -182,7 +182,7 @@ export const Recommendation = ({
                             <span className="muted mono rec-chart-tag">FIG · DRAFT</span>
                         </div>
                         <div className="rec-chart-frame">
-                            {!canCustomize ? <RecommendationMappingAlert /> : null}
+                            {phase >= 2 && !canCustomize ? <RecommendationMappingAlert /> : null}
                             {isDisplayOverridden ? (
                                 <span
                                     role="status"

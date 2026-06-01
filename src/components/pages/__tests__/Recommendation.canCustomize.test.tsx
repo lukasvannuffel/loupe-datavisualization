@@ -120,11 +120,15 @@ const renderKm = (spec: ChartSpec): void => {
     );
 };
 
-// MUTATION-VERIFY: In canCustomize.ts line 20, change `return false` to `return true`
-// inside `if (chartSpec === null || phase < 2)`.
+// MUTATION-VERIFY (null guard): canCustomize.ts line 20 `return false` → `return true`.
 // Tests "disables Customize button when chartSpec is null" and
 // "shows mapping-incomplete alert when chartSpec is null" go RED.
 // Verified manually: 2026-06-01. REVERTED.
+//
+// MUTATION-VERIFY (enabled path): canCustomize.ts line 40 final `return false` → `return true`
+// only (remove kind branches). Test "enables Customize button when chartSpec is non-null
+// and mapping is complete" goes RED when km branch is bypassed — use: replace entire body
+// with `return false`. Verified manually: 2026-06-01. REVERTED.
 
 describe("Recommendation — canCustomize gate", () => {
     beforeEach(() => {
@@ -139,6 +143,16 @@ describe("Recommendation — canCustomize gate", () => {
     afterEach(() => {
         cleanup();
         vi.useRealTimers();
+    });
+
+    it("does not show mapping alert during chart reveal animation (phase < 2)", () => {
+        chartSpecState = createDefaultChartSpec("km", {
+            id: "spec-can-customize",
+            createdAt: "2026-06-01T10:00:00.000Z",
+        });
+        renderKm(chartSpecState);
+
+        expect(screen.queryByRole("alert")).toBeNull();
     });
 
     it("disables Customize button when chartSpec is null", async () => {
@@ -166,6 +180,26 @@ describe("Recommendation — canCustomize gate", () => {
         );
         await advanceToChartPhase();
 
+        expect(screen.getByRole("alert")).not.toBeNull();
+    });
+
+    it("disables Customize when barError has no plottable groups", async () => {
+        chartSpecState = createDefaultChartSpec("barError", {
+            id: "spec-bar-empty",
+            createdAt: "2026-06-01T10:00:00.000Z",
+        });
+        render(
+            <Recommendation
+                chartKind="barError"
+                dataset={emptyDataset}
+                fromCache={false}
+                receipt={sampleReceipt()}
+                spec={chartSpecState}
+            />,
+        );
+        await advanceToChartPhase();
+
+        expect(screen.getByRole("button", { name: /customize/i })).toHaveProperty("disabled", true);
         expect(screen.getByRole("alert")).not.toBeNull();
     });
 

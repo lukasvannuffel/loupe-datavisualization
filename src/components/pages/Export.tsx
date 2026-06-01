@@ -600,7 +600,8 @@ export const Export = ({
             !hydrated ||
             initialChartId !== null ||
             initialChart !== null ||
-            chartSpec !== null
+            chartSpec !== null ||
+            (chartKind !== null && dataset !== null)
         ) {
             return;
         }
@@ -614,7 +615,7 @@ export const Export = ({
             description: "Complete your recommendation first.",
         });
         router.push("/recommend");
-    }, [chartSpec, hydrated, initialChart, initialChartId, router, toast]);
+    }, [chartKind, chartSpec, dataset, hydrated, initialChart, initialChartId, router, toast]);
 
     useEffect(() => {
         if (initialLoadReason !== null) {
