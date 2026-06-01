@@ -15,9 +15,11 @@ import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
 
 import { formatOverrideHistory } from "./formatOverrideHistory";
 import { getOverrideDisplayState } from "./overrideDisplay";
+import { canCustomizeRecommendation } from "./recommendation/canCustomize";
 import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
 import { ErrorBarsUnavailable } from "./recommendation/ErrorBarsUnavailable";
 import { MissingDataWarning } from "./recommendation/MissingDataWarning";
+import { RecommendationMappingAlert } from "./recommendation/RecommendationMappingAlert";
 import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
 
@@ -42,6 +44,7 @@ export const Recommendation = ({
     const router = useRouter();
     const {
         appendOverride,
+        chartSpec,
         intent,
         mapping,
         setSelectionMode,
@@ -79,6 +82,14 @@ export const Recommendation = ({
     const [phase, setPhase] = useState<number>(0);
     const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
     const { isDisplayOverridden, title } = getOverrideDisplayState(receipt, chartKind);
+
+    const canCustomize = canCustomizeRecommendation({
+        barErrorAggregation,
+        chartKind,
+        chartSpec,
+        mapping,
+        phase,
+    });
 
     useEffect(() => {
         let cancelled = false;
@@ -120,6 +131,12 @@ export const Recommendation = ({
         }
         appendOverride({ at: new Date().toISOString(), from: chartKind, to: target });
         setOverrideOpen(false);
+    };
+    const handleCustomize = (): void => {
+        if (!canCustomize) {
+            return;
+        }
+        router.push("/export");
     };
     const transformVerb = transform?.verb ?? "becomes a";
     const transformChart = transform?.chart ?? `${receipt.recommendation.chartName}.`;
@@ -165,6 +182,7 @@ export const Recommendation = ({
                             <span className="muted mono rec-chart-tag">FIG · DRAFT</span>
                         </div>
                         <div className="rec-chart-frame">
+                            {!canCustomize ? <RecommendationMappingAlert /> : null}
                             {isDisplayOverridden ? (
                                 <span
                                     role="status"
@@ -293,7 +311,14 @@ export const Recommendation = ({
                         <button type="button" className="btn btn--ghost btn--sm">
                             Save to project
                         </button>
-                        <button type="button" className="btn btn--primary btn--sm" onClick={() => router.push("/export")}>
+                        <button
+                            type="button"
+                            className="btn btn--primary btn--sm"
+                            disabled={!canCustomize}
+                            aria-disabled={!canCustomize}
+                            title={!canCustomize ? "Complete the column mapping first" : undefined}
+                            onClick={handleCustomize}
+                        >
                             Customize <span className="arrow">→</span>
                         </button>
                     </div>
