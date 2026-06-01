@@ -7,6 +7,7 @@ import { useAppState } from "@/app/providers";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingLoader } from "@/components/primitives/RingLoader";
 import { toAiColumns } from "@/lib/ai/toAiColumns";
+import { validateMapping } from "@/lib/roles";
 import { useToast } from "@/lib/toast/useToast";
 
 import { useRecommendation } from "../uploadMap/useRecommendation";
@@ -43,12 +44,15 @@ export const RecommendationAiPending = (): JSX.Element | null => {
         };
     }, [dataset, intent, mapping]);
 
+    const mappingValid =
+        dataset !== null && validateMapping(mapping, dataset.inferences).status === "valid";
+
     const shouldRecommend =
         hydrated &&
         selectionMode === "ai" &&
         intent.trim().length > 0 &&
         dataset !== null &&
-        payload !== null;
+        mappingValid;
 
     const { run, state } = useRecommendation({
         onSuccess: (rec, kind, fromCache) => {
@@ -60,12 +64,13 @@ export const RecommendationAiPending = (): JSX.Element | null => {
     });
 
     useEffect(() => {
-        if (!shouldRecommend || payload === null) {
+        if (!shouldRecommend || payload === null || state.status !== "idle") {
             return;
         }
 
+        // Concurrent / StrictMode re-invokes are deduped inside useRecommendation.run().
         void run(payload);
-    }, [payload, run, shouldRecommend]);
+    }, [payload, run, shouldRecommend, state.status]);
 
     useEffect(() => {
         if (state.status !== "error") {

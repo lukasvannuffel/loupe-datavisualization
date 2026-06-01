@@ -90,7 +90,7 @@ Server-side auth checks use `requireUser()` from `src/utils/supabase/server.ts`.
 
 Never import provider-specific packages like `@ai-sdk/anthropic` — all AI calls go through the gateway.
 
-`src/lib/ai/recommendChart.ts` is a `"use server"` Server Action invoked from the `useRecommendation` hook (`src/components/pages/uploadMap/useRecommendation.ts`), mounted in `Recommendation.tsx` (via `RecommendationAiPending`), gated on `selectionMode === "ai"`. It runs `generateObject` with a strict Zod output schema and returns a typed `RecommendResult` — either a `Receipt` + `chartType` on success, or an error code.
+`src/lib/ai/recommendChart.ts` is a `"use server"` Server Action invoked from the `useRecommendation` hook (`src/components/pages/uploadMap/useRecommendation.ts`), mounted in `RecommendGate.tsx` via `RecommendationAiPending`, gated on `selectionMode === "ai"`. It runs `generateObject` with a strict Zod output schema and returns a typed `RecommendResult` — either a `Receipt` + `chartType` on success, or an error code.
 
 **AI infrastructure sub-modules** (`src/lib/ai/`):
 - `rateLimit/` — per-actor rate limiting via `checkAndRecord`; actor key derived from user/IP

@@ -22,45 +22,59 @@ export const useRecommendation = (
 ): { readonly reset: () => void; readonly run: (payload: RecommendPayload) => Promise<void>; readonly state: RecommendationState } => {
     const [state, setState] = useState<RecommendationState>({ status: "idle" });
     const rateLimitedRef = useRef(false);
+    const isRunningRef = useRef(false);
 
     const run = async (payload: RecommendPayload): Promise<void> => {
-        const cached = await getCacheEntry(payload);
-        if (cached.ok) {
-            setState({
-                chartKind: cached.entry.chartKind,
-                fromCache: true,
-                receipt: cached.entry.receipt,
-                status: "success",
-            });
-            options?.onSuccess?.(cached.entry.receipt, cached.entry.chartKind, true);
+        if (isRunningRef.current) {
             return;
         }
 
-        if (rateLimitedRef.current) {
-            return;
-        }
+        isRunningRef.current = true;
 
-        setState({ fromCache: false, status: "loading" });
+        try {
+            const cached = await getCacheEntry(payload);
+            if (cached.ok) {
+                setState({
+                    chartKind: cached.entry.chartKind,
+                    fromCache: true,
+                    receipt: cached.entry.receipt,
+                    status: "success",
+                });
+                options?.onSuccess?.(cached.entry.receipt, cached.entry.chartKind, true);
 
-        const result: RecommendResult = await recommendChart(payload);
-        if (result.ok) {
-            await setCacheEntry(payload, result.receipt, result.chartType, result.costEstimateEur);
-            setState({
-                chartKind: result.chartType,
-                fromCache: false,
-                receipt: result.receipt,
-                status: "success",
-            });
-            options?.onSuccess?.(result.receipt, result.chartType, false);
-            return;
+                return;
+            }
+
+            if (rateLimitedRef.current) {
+                return;
+            }
+
+            setState({ fromCache: false, status: "loading" });
+
+            const result: RecommendResult = await recommendChart(payload);
+            if (result.ok) {
+                await setCacheEntry(payload, result.receipt, result.chartType, result.costEstimateEur);
+                setState({
+                    chartKind: result.chartType,
+                    fromCache: false,
+                    receipt: result.receipt,
+                    status: "success",
+                });
+                options?.onSuccess?.(result.receipt, result.chartType, false);
+
+                return;
+            }
+            rateLimitedRef.current = result.code === "RATE_LIMITED";
+            setState({ code: result.code, message: result.message, status: "error" });
+        } finally {
+            isRunningRef.current = false;
         }
-        rateLimitedRef.current = result.code === "RATE_LIMITED";
-        setState({ code: result.code, message: result.message, status: "error" });
     };
 
     return {
         reset: () => {
             rateLimitedRef.current = false;
+            isRunningRef.current = false;
             setState({ status: "idle" });
         },
         run,

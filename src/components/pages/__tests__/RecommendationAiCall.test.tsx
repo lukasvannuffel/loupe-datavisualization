@@ -3,23 +3,26 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppStateProvider } from "@/app/providers";
+import * as providers from "@/app/providers";
+import { AppStateProvider, useAppState } from "@/app/providers";
+import type { Receipt } from "@/lib/chartSpec/types";
 import type { ColumnInference } from "@/lib/parser/inference.types";
-import { toAiColumns } from "@/lib/ai/toAiColumns";
+import { brandRows } from "@/lib/parser/types";
 
 import { RecommendationAiPending } from "@/components/pages/recommendation/RecommendationAiPending";
 
-const runMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const useRecommendationMock = vi.hoisted(() =>
-    vi.fn(() => ({
-        reset: vi.fn(),
-        run: runMock,
-        state: { status: "idle" as const },
-    })),
-);
+const recommendChartMock = vi.hoisted(() => vi.fn());
+const getCacheEntryMock = vi.hoisted(() => vi.fn());
+const setCacheEntryMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../uploadMap/useRecommendation", () => ({
-    useRecommendation: useRecommendationMock,
+vi.mock("@/lib/ai/recommendChart", () => ({
+    recommendChart: recommendChartMock,
+}));
+
+vi.mock("@/lib/ai/recommendCache/cache", () => ({
+    clearCache: vi.fn(),
+    getCacheEntry: getCacheEntryMock,
+    setCacheEntry: setCacheEntryMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -41,35 +44,62 @@ const col = (
     ...over,
 });
 
-const KM_DATASET: readonly ColumnInference[] = [
+const KM_INFERENCES: readonly ColumnInference[] = [
     col({ name: "time_to_event_months", primaryType: "numeric", semanticTag: "time-to-event" }),
     col({ name: "event_observed", primaryType: "binary", semanticTag: "event-status" }),
 ];
 
+const VALID_MAPPING = { time: "time_to_event_months", event: "event_observed" } as const;
+
+const noop = vi.fn();
+
+const baseAiAppState = (
+    overrides: Partial<ReturnType<typeof useAppState>> = {},
+): ReturnType<typeof useAppState> => ({
+    appendOverride: noop,
+    chartKind: null,
+    chartSlug: null,
+    chartSpec: null,
+    clearDataset: noop,
+    clearRecommendCache: noop,
+    dataset: {
+        inferences: KM_INFERENCES,
+        rows: brandRows([]),
+    },
+    hydrated: true,
+    intent: "Compare survival between arms",
+    lastRecommendationFromCache: false,
+    mapping: { ...VALID_MAPPING },
+    receipt: null,
+    selectionMode: "ai",
+    setChartKind: noop,
+    setChartSlug: noop,
+    setChartSpec: noop,
+    setDataset: noop,
+    setIntent: noop,
+    setLastRecommendationFromCache: noop,
+    setMapping: noop,
+    setReceipt: noop,
+    setSelectionMode: noop,
+    updateLatestOverrideReason: noop,
+    ...overrides,
+});
+
 const seedAiWizard = (): void => {
-    window.sessionStorage.setItem("loupe.dataset", JSON.stringify(KM_DATASET));
+    window.sessionStorage.setItem("loupe.dataset", JSON.stringify(KM_INFERENCES));
     window.sessionStorage.setItem("loupe.datasetRows", JSON.stringify([]));
-    window.sessionStorage.setItem(
-        "loupe.mapping",
-        JSON.stringify({ time: "time_to_event_months", event: "event_observed" }),
-    );
+    window.sessionStorage.setItem("loupe.mapping", JSON.stringify(VALID_MAPPING));
     window.sessionStorage.setItem("loupe.intent", "Compare survival between arms");
     window.sessionStorage.setItem("loupe.selectionMode", "ai");
 };
 
-const renderPending = (): void => {
-    act(() => {
-        render(
-            <AppStateProvider>
-                <RecommendationAiPending />
-            </AppStateProvider>,
-        );
-    });
-};
-
 beforeEach(() => {
-    runMock.mockClear();
-    useRecommendationMock.mockClear();
+    recommendChartMock.mockReset();
+    getCacheEntryMock.mockReset();
+    setCacheEntryMock.mockReset();
+    getCacheEntryMock.mockResolvedValue({ ok: false });
+    setCacheEntryMock.mockResolvedValue(undefined);
+    vi.restoreAllMocks();
     window.sessionStorage.clear();
 });
 
@@ -78,49 +108,143 @@ afterEach(() => {
     window.sessionStorage.clear();
 });
 
+const successReceipt = (): Receipt => ({
+    alternatives: [],
+    intent: "Compare survival between arms",
+    overrides: [],
+    recommendation: {
+        because: "b",
+        becauseTitle: "Because",
+        chartName: "KM",
+        handles: "h",
+        handlesTitle: "Handles",
+        headline: "head",
+    },
+    selectionMode: "ai",
+    tests: [],
+    testsTitle: "Tests",
+    transformations: [],
+});
+
 describe("Recommendation — useRecommendation gate", () => {
-    it("fires useRecommendation when selectionMode is ai and state is complete", async () => {
+    it("calls recommendChart exactly once even when component re-renders during loading", async () => {
         seedAiWizard();
-        renderPending();
+
+        let releasePending: (value: {
+            chartType: "km";
+            costEstimateEur: number;
+            ok: true;
+            receipt: Receipt;
+        }) => void = () => undefined;
+
+        recommendChartMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    releasePending = resolve;
+                }),
+        );
+
+        render(
+            <AppStateProvider>
+                <RecommendationAiPending />
+            </AppStateProvider>,
+        );
 
         await waitFor(() => {
-            expect(useRecommendationMock).toHaveBeenCalled();
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
         });
 
-        await waitFor(() => {
-            expect(runMock).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            await new Promise((resolve) => {
+                window.setTimeout(resolve, 50);
+            });
         });
 
-        const parsedDataset = JSON.parse(
-            window.sessionStorage.getItem("loupe.dataset") as string,
-        ) as ColumnInference[];
-        const mapping = JSON.parse(window.sessionStorage.getItem("loupe.mapping") as string);
+        expect(recommendChartMock).toHaveBeenCalledTimes(1);
 
-        expect(runMock.mock.calls[0]?.[0]).toEqual({
-            columns: toAiColumns(parsedDataset),
-            intent: "Compare survival between arms",
-            mapping,
+        await act(async () => {
+            releasePending({
+                chartType: "km",
+                costEstimateEur: 0.01,
+                ok: true,
+                receipt: successReceipt(),
+            });
         });
     });
 
-    // MUTATION-VERIFY: remove `selectionMode === "ai"` from shouldRecommend in
-    // RecommendationAiPending.tsx → this test goes RED.
+    // MUTATION-VERIFY: remove `hydrated &&` from shouldRecommend in RecommendationAiPending.tsx
+    // Test: "does not call recommendChart before hydration"
     // Verified manually: 2026-06-01. REVERTED.
-    it("does NOT fire run when selectionMode is manual", async () => {
-        seedAiWizard();
-        window.sessionStorage.setItem("loupe.selectionMode", "manual");
-        renderPending();
+    it("does not call recommendChart before hydration", async () => {
+        const gate = { hydrated: false };
+
+        vi.spyOn(providers, "useAppState").mockImplementation(() =>
+            baseAiAppState({
+                hydrated: gate.hydrated,
+            }),
+        );
+
+        recommendChartMock.mockResolvedValue({
+            chartType: "km",
+            costEstimateEur: 0.01,
+            ok: true,
+            receipt: successReceipt(),
+        });
+
+        const { unmount } = render(<RecommendationAiPending />);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(recommendChartMock).not.toHaveBeenCalled();
+        unmount();
+
+        gate.hydrated = true;
+        render(<RecommendationAiPending />);
 
         await waitFor(() => {
-            expect(runMock).not.toHaveBeenCalled();
+            expect(recommendChartMock).toHaveBeenCalledTimes(1);
         });
     });
 
-    it("does NOT fire before hydration completes with incomplete session", () => {
-        window.sessionStorage.setItem("loupe.selectionMode", "ai");
-        window.sessionStorage.setItem("loupe.intent", "Compare survival");
-        renderPending();
+    // MUTATION-VERIFY: remove `&& mappingValid` from shouldRecommend in RecommendationAiPending.tsx
+    // Test: "does not call recommendChart when mapping is invalid"
+    // Verified manually: 2026-06-01. REVERTED.
+    it("does not call recommendChart when mapping is invalid", async () => {
+        vi.spyOn(providers, "useAppState").mockImplementation(() =>
+            baseAiAppState({
+                hydrated: true,
+                mapping: {},
+            }),
+        );
 
-        expect(runMock).not.toHaveBeenCalled();
+        render(<RecommendationAiPending />);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(recommendChartMock).not.toHaveBeenCalled();
+    });
+
+    // MUTATION-VERIFY: remove `selectionMode === "ai"` from shouldRecommend in RecommendationAiPending.tsx
+    // Test: "does NOT fire recommendChart when selectionMode is manual"
+    // Verified manually: 2026-06-01. REVERTED.
+    it("does NOT fire recommendChart when selectionMode is manual", async () => {
+        vi.spyOn(providers, "useAppState").mockImplementation(() =>
+            baseAiAppState({
+                hydrated: true,
+                selectionMode: "manual",
+            }),
+        );
+
+        render(<RecommendationAiPending />);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(recommendChartMock).not.toHaveBeenCalled();
     });
 });
