@@ -93,6 +93,27 @@ describe("RecommendChoose — decision step", () => {
         expect(window.sessionStorage.getItem("loupe.selectionMode")).toBe("ai");
     });
 
+    it("clicking the AI CTA clears stale receipt and chartKind before navigating", () => {
+        window.sessionStorage.setItem("loupe.receipt", JSON.stringify({ intent: "old" }));
+        window.sessionStorage.setItem("loupe.chartKind", JSON.stringify("km"));
+        const captured = captureRef();
+        act(() => {
+            render(
+                <AppStateProvider>
+                    <RecommendChoose />
+                    <StateProbe onState={(s) => (captured.current = s)} />
+                </AppStateProvider>,
+            );
+        });
+
+        act(() => aiCta().click());
+
+        expect(captured.current?.receipt).toBeNull();
+        expect(captured.current?.chartKind).toBeNull();
+        expect(window.sessionStorage.getItem("loupe.receipt")).toBeNull();
+        expect(window.sessionStorage.getItem("loupe.chartKind")).toBeNull();
+    });
+
     it("clicking the Manual CTA sets selectionMode='manual' and navigates to /recommend/manual", () => {
         const captured = captureRef();
         act(() => {

@@ -10,17 +10,20 @@ import { resolveWizardChartSpec } from "@/lib/chartSpec/resolveWizardChartSpec";
 import type { ChartSpec } from "@/lib/chartSpec/types";
 
 import { Recommendation } from "./Recommendation";
+import { RecommendationAiPending } from "./recommendation/RecommendationAiPending";
 
-export const RecommendGate = (): JSX.Element => {
+export const RecommendGate = (): JSX.Element | null => {
     const router = useRouter();
     const {
         chartKind,
         chartSpec,
         dataset,
         hydrated,
+        intent,
         lastRecommendationFromCache,
         mapping,
         receipt,
+        selectionMode,
         setChartSpec,
         setMapping,
     } = useAppState();
@@ -30,10 +33,19 @@ export const RecommendGate = (): JSX.Element => {
         if (!hydrated) {
             return;
         }
-        if (!receipt || !chartKind || dataset === null) {
-            router.replace("/upload/map");
+        if (!intent.trim() || dataset === null) {
+            router.replace("/upload");
         }
-    }, [chartKind, dataset, hydrated, receipt, router]);
+    }, [dataset, hydrated, intent, router]);
+
+    useEffect(() => {
+        if (!hydrated) {
+            return;
+        }
+        if (selectionMode !== "ai") {
+            router.replace("/recommend/choose");
+        }
+    }, [hydrated, router, selectionMode]);
 
     useEffect(() => {
         if (!chartKind) {
@@ -70,7 +82,19 @@ export const RecommendGate = (): JSX.Element => {
         setChartSpec(nextSpec);
     }, [chartKind, chartSpec, dataset, mapping, setChartSpec, setMapping]);
 
-    if (!hydrated || !receipt || !chartKind || !resolvedSpec || dataset === null) {
+    if (!hydrated || selectionMode !== "ai") {
+        return (
+            <div className="container page-enter" style={{ paddingTop: 32, paddingBottom: 32 }}>
+                <PageSkeleton lines={5} />
+            </div>
+        );
+    }
+
+    if (!receipt || !chartKind) {
+        return <RecommendationAiPending />;
+    }
+
+    if (!resolvedSpec || dataset === null) {
         return (
             <div className="container page-enter" style={{ paddingTop: 32, paddingBottom: 32 }}>
                 <PageSkeleton lines={5} />
