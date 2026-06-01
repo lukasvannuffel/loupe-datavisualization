@@ -25,10 +25,12 @@ export const readAnalyzingColours = (): AnalyzingColours => {
         amber: get("--amber"),
         paper: get("--paper"),
         paperCard: get("--paper-card"),
+        // hairline loaded for future use (noise currently uses ink/amber only).
         hairline: get("--hairline"),
     };
 };
 
+// Assumes hex colour tokens; revisit if design system moves to oklch/hsl.
 const withAlpha = (color: string, alpha: number): string => {
     const hex = color.replace("#", "");
     if (hex.length === 6) {
@@ -483,7 +485,12 @@ export const initAnalyzingScene = ({
     canvas.addEventListener("mousemove", onMove);
     canvas.addEventListener("touchmove", onTouch, { passive: true });
     canvas.addEventListener("touchstart", onTouch, { passive: true });
-    window.addEventListener("resize", onResize);
+
+    const resizeObserver = new ResizeObserver(() => {
+        onResize();
+    });
+    resizeObserver.observe(wrap);
+
     raf = requestAnimationFrame(frame);
 
     return () => {
@@ -491,6 +498,6 @@ export const initAnalyzingScene = ({
         canvas.removeEventListener("mousemove", onMove);
         canvas.removeEventListener("touchmove", onTouch);
         canvas.removeEventListener("touchstart", onTouch);
-        window.removeEventListener("resize", onResize);
+        resizeObserver.disconnect();
     };
 };

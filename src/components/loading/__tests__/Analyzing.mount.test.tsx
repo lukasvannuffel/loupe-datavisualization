@@ -88,6 +88,34 @@ describe("Analyzing", () => {
         expect(raf).not.toHaveBeenCalled();
     });
 
+    // MUTATION-VERIFY: insert `return () => undefined;` before `raf = requestAnimationFrame(frame)`
+    // in Analyzing.draw.ts initAnalyzingScene (after resizeObserver.observe).
+    // Expected red: "starts rAF loop when motion is allowed".
+    // Verified manually: 2026-06-01. REVERTED.
+    it("starts rAF loop when motion is allowed", () => {
+        stubCanvas2d();
+        const raf = vi.spyOn(globalThis, "requestAnimationFrame");
+
+        vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        }));
+
+        render(<Analyzing />);
+
+        expect(raf).toHaveBeenCalled();
+    });
+
+    // MUTATION-VERIFY: replace `return () => clearInterval(id)` with `return undefined` in
+    // Analyzing.tsx useEffect L20.
+    // Expected red: "clears interval on unmount".
+    // Verified manually: 2026-06-01. REVERTED.
     it("clears interval on unmount", () => {
         vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
             matches: query === reducedMotionQuery,

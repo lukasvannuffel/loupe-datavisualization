@@ -46,7 +46,7 @@ export default function Analyzing(): JSX.Element {
                 </div>
 
                 <div className="analyzing-field" ref={wrapRef}>
-                    <canvas ref={canvasRef} className="analyzing-canvas" aria-hidden />
+                    <canvas ref={canvasRef} className="analyzing-canvas" aria-hidden="true" />
                     <p className="analyzing-hint" aria-live="polite">
                         {HINTS[hintIndex]}
                     </p>
