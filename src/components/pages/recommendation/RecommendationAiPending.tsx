@@ -4,15 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 import { useAppState } from "@/app/providers";
-import { Eyebrow } from "@/components/primitives/Eyebrow";
-import { RingLoader } from "@/components/primitives/RingLoader";
+import Analyzing from "@/components/loading/Analyzing";
 import { toAiColumns } from "@/lib/ai/toAiColumns";
 import { validateMapping } from "@/lib/roles";
 import { useToast } from "@/lib/toast/useToast";
 
 import { useRecommendation } from "../uploadMap/useRecommendation";
 import { recommendationErrorCopy } from "./recommendationErrorCopy";
-import { useRecommendationPhase } from "./useRecommendationPhase";
 
 export const RecommendationAiPending = (): JSX.Element | null => {
     const router = useRouter();
@@ -29,8 +27,6 @@ export const RecommendationAiPending = (): JSX.Element | null => {
         setReceipt,
         setSelectionMode,
     } = useAppState();
-
-    const phase = useRecommendationPhase();
 
     const payload = useMemo(() => {
         if (dataset === null) {
@@ -91,57 +87,13 @@ export const RecommendationAiPending = (): JSX.Element | null => {
         return null;
     }
 
-    const words = intent.split(/(\s+)/);
-    const rateLimited = state.status === "error" && state.code === "RATE_LIMITED";
-    const errorCopy = state.status === "error" ? recommendationErrorCopy(state.code) : null;
+    if (state.status === "error") {
+        const rateLimited = state.code === "RATE_LIMITED";
+        const errorCopy = recommendationErrorCopy(state.code);
 
-    return (
-        <div className="rec-page page-enter">
-            <div className="container">
-                <div className="rec-intent-band">
-                    <div className="rec-intent-meta">
-                        <Eyebrow>The finding · 03 / 03 · RECOMMEND</Eyebrow>
-                    </div>
-                    <p className="rec-intent">
-                        <span className="rec-intent-stack">
-                            <span className={"rec-intent-line " + (phase >= 1 ? "is-out" : "")}>
-                                {words.map((w, i) => (
-                                    <span
-                                        key={i}
-                                        className={"rec-word " + (phase >= 1 ? "dissolving" : "")}
-                                        style={{ transitionDelay: phase === 1 ? `${i * 35}ms` : "0ms" }}
-                                    >
-                                        {w}
-                                    </span>
-                                ))}
-                            </span>
-                            <span
-                                className={
-                                    "rec-intent-line rec-intent-line--after " +
-                                    (phase >= 2 ? "is-in" : "")
-                                }
-                            >
-                                <span className="serif muted" style={{ fontStyle: "italic" }}>
-                                    {state.status === "loading"
-                                        ? "Analysing your data…"
-                                        : "…"}
-                                </span>
-                            </span>
-                        </span>
-                    </p>
-                </div>
-
-                <div className="rec-grid">
-                    <div className="rec-chart">
-                        <div className="rec-chart-frame">
-                            <div className="rec-chart-frame-loading">
-                                <RingLoader />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {errorCopy !== null ? (
+        return (
+            <div className="analyzing-page analyzing-page--error page-enter">
+                <div className="container">
                     <div className="map-ai-error" role="alert">
                         <div className="map-ai-error-title">{errorCopy.title}</div>
                         <p className="muted">{errorCopy.description}</p>
@@ -170,8 +122,10 @@ export const RecommendationAiPending = (): JSX.Element | null => {
                             </button>
                         </div>
                     </div>
-                ) : null}
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
+
+    return <Analyzing />;
 };

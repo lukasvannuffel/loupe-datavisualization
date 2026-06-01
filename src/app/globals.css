@@ -4749,11 +4749,21 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 
 /* Analyzing loader (/recommend loading segment) */
 .analyzing-page {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-nav-scrim);
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
     padding: 24px 0 32px;
     background: var(--paper);
+    overflow: auto;
+}
+
+.analyzing-page--error {
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
 }
 
 .analyzing-top {
