@@ -1,0 +1,4 @@
+PatientID,Age,Group,,SubjectID,Score,Arm
+1,45,A,,101,0.8,Treatment
+2,50,B,,102,0.6,Control
+3,38,A,,103,0.9,Treatment

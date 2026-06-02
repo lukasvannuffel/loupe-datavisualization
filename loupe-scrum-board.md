@@ -6,7 +6,7 @@
 **Jury:** 16-17 juni 2026
 **Tijdsbudget:** ±20u/week × 5,5 weken = 110u totaal
 **Repo:** https://github.com/lukasvannuffel/loupe-datavisualization
-**Laatste update:** 12 mei 2026 — schema-pivot na docent-feedback verwerkt
+**Laatste update:** 2 juni 2026 — LOUPE-31 toegevoegd (chart scale audit + witness tests)
 
 ---
 
@@ -659,6 +659,66 @@ Compose receipt uit ChartSpec + AI-redenering + lokale berekeningen. Copy-to-cli
 **Acceptance criteria**
 - [x] Receipt van een KM chart vermeldt: intent, dat KM gekozen werd boven box, dat censoring werd toegepast op N patiënten, hash voor reproducibility
 - [x] Copy-to-clipboard werkt in Chrome + Firefox + Safari
+
+---
+
+### LOUPE-31 · Chart scale audit + edge-case witness tests
+
+**Prioriteit:** P2
+**Einddatum:** 5 juni 2026
+**Geschatte tijd:** 3u
+**Hangt af van:** —
+
+**Over project**
+Statistische correctheid van as-domeinen. Audit van de huidige code (`KaplanMeierChart.tsx`, `BarErrorChart.tsx`, `XYChart.tsx`, `BoxChart.tsx`) wijst uit dat de scale-logica al goed zit:
+- KM: hardcoded `[0, 1]`
+- BarError: `[min(0, mean-err), max(0, mean+err)]` + 5%/10% padding + `.nice()`
+- XY/Box: extents ± 5% padding + `.nice()`, geen geforceerde zero
+
+Geen blinde fix dus. Doel van dit ticket is dubbel:
+1. Edge cases verifiëren waar de huidige logica onverwacht degradeert
+2. Witness-tests toevoegen die de gewenste eigenschappen vastpinnen, zodat een toekomstige refactor (of LLM-assist) niet stilletjes de schaal-logica breekt
+
+Dit is ook materiaal voor de technische documentatie — "hoe we statistische correctheid afdwingen via tests" is een sterk verhaal voor de jury.
+
+**Edge cases**
+
+| Chart | Scenario | Verwacht gedrag |
+|---|---|---|
+| KM | Alle survival = 1 (geen events) | y-as blijft [0, 1], curve is rechte lijn bovenaan |
+| KM | Survival daalt tot 0 voor t_max | y-as blijft [0, 1], curve raakt x-as |
+| BarError | Alle waarden negatief (bv. delta-scores) | y-as toont 0 als bovengrens, bars hangen omlaag |
+| BarError | Alle waarden constant | `.nice()` geeft zinvol bereik, error bars zichtbaar |
+| BarError | Eén groep met n=1 (geen error bar) | Bar rendert zonder error-segmenten, geen NaN in scale |
+| XY | Alle x-waarden identiek (verticale lijn) | `ySpan ≥ 1e-6` guard voorkomt division-by-zero |
+| XY | Twee punten | `.nice()` geeft leesbaar bereik, geen 1-pixel scale |
+| Box | Outliers ver buiten IQR | Padding toont outliers volledig |
+| Box | Eén groep, lage variantie | Box niet gedegenereerd tot lijn |
+
+**Actie-items**
+- [ ] Manueel doorlopen van alle 9 edge cases in dev environment, screenshot voor productiedossier
+- [ ] Per chart-component een `.scale.test.ts` toevoegen via bestaande `scaleLinearDomainCalls` spy (al gebruikt in `BarErrorChart.test.tsx`)
+- [ ] KM-test: `expect(domain).toEqual([0, 1])` ongeacht input — pin het hardcoded gedrag
+- [ ] BarError-test: bij all-negatieve groepen → `domain[1] === 0`; bij n=1 groep → geen error lines, scale niet NaN
+- [ ] XY-test: domain bevat alle datapunten ± padding, geen geforceerde zero; degenerate-domain guard getest
+- [ ] Box-test: outliers binnen y-domain
+- [ ] `docs/chart-scales.md` (nieuw): per chart kind welke domain-regel geldt + waarom; max één pagina; gelinkt vanuit `CLAUDE.md`
+- [ ] `docs/LOUPE-31-audit.md` (werknotities): audit-bevindingen per chart, 9 edge cases afgevinkt
+- [ ] Mutation-verify discipline per nieuwe test (zie `CLAUDE.md`)
+- [ ] Alleen productie-code aanpassen als audit een concreet probleem vindt; anders LOUPE-31a kandidaat rapporteren vóór implementatie
+
+**Wanneer wél echt iets aanpassen**
+Alleen bij concrete defect-vondst. Mogelijke vondsten:
+- `1e-6` epsilon te klein → bump naar `Number.EPSILON * 1000`
+- BarError padding-ratio's asymmetrisch → motiveren in docs of egaliseren
+- XY auto-zero-clip: **NIET doen** — onderzoeksrapport bevestigt dat zero-baseline opdringen een ggplot-criticism is, niet een verwachting van medische lezers
+
+**Acceptance criteria**
+- [ ] Alle 4 charts hebben witness-tests die het domein-gedrag vastleggen
+- [ ] `docs/chart-scales.md` bestaat en is gelinkt vanuit `CLAUDE.md`
+- [ ] Edge cases gedocumenteerd met screenshot in productiedossier
+- [ ] Geen visuele regressie t.o.v. huidige `/recommend` en `/export` rendering
+- [ ] Als audit een echte bug vindt: aparte mini-PR met titel "LOUPE-31a · `<korte beschrijving>`"
 
 ---
 

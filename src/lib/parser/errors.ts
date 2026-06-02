@@ -1,4 +1,8 @@
-import type { ParseError, ParseErrorCode } from "./types";
+import type {
+    MultiTableDetectedPayload,
+    ParseError,
+    ParseErrorCode,
+} from "./types";
 
 export class EmptyWorkbookError extends Error {
     public override readonly name = "EmptyWorkbookError";
@@ -21,11 +25,17 @@ const MESSAGES: Readonly<Record<ParseErrorCode, string>> = {
     ENCODING_UNSUPPORTED: "Save the file as UTF-8 and try again. Loupe doesn't auto-detect other encodings.",
     CORRUPT: "Loupe couldn't read this file. It may be corrupted or partially written.",
     ABORTED: "Parsing was cancelled.",
+    MULTI_TABLE_DETECTED: "Multiple tables detected in one worksheet.",
 };
 
-export const makeParseError = (code: ParseErrorCode, cause?: unknown): ParseError => {
-    return { code, message: MESSAGES[code], cause };
-};
+export function makeParseError(
+    code: "MULTI_TABLE_DETECTED",
+    cause?: MultiTableDetectedPayload,
+): ParseError;
+export function makeParseError(code: Exclude<ParseErrorCode, "MULTI_TABLE_DETECTED">, cause?: unknown): ParseError;
+export function makeParseError(code: ParseErrorCode, cause?: unknown): ParseError {
+    return { code, message: MESSAGES[code], cause } as ParseError;
+}
 
 export const toParseError = (error: unknown): ParseError => {
     if (error instanceof EmptyWorkbookError) {
