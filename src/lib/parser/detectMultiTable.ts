@@ -44,8 +44,8 @@ export function detectMultiTable(aoa: readonly (readonly unknown[])[]): MultiTab
         if (nonNumericCount / nonEmptyCells.length < 0.5) {
             continue;
         }
-        const headerLikeCount = nonEmptyCells.filter((cell) => isHeaderLikeText(cell)).length;
-        if (headerLikeCount < 2) {
+        const headerLikeCount = nonEmptyCells.filter((cell) => isHeaderLikeText(cell, numericProfile)).length;
+        if (headerLikeCount < 2 || headerLikeCount / nonEmptyCells.length < 0.5) {
             continue;
         }
 

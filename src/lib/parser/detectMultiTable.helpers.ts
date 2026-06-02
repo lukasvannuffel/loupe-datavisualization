@@ -44,10 +44,12 @@ export const isNumeric = (cell: unknown, profile: NumericProfile): boolean => {
 };
 
 export const inferNumericProfile = (aoa: readonly (readonly unknown[])[]): NumericProfile => {
+    const MAX_PROFILE_ROWS = 200;
     let dotScore = 0;
     let commaScore = 0;
 
-    for (const row of aoa) {
+    for (let rowIndex = 0; rowIndex < aoa.length && rowIndex < MAX_PROFILE_ROWS; rowIndex++) {
+        const row = aoa[rowIndex] ?? [];
         for (const cell of row) {
             if (typeof cell !== "string") {
                 continue;
@@ -78,7 +80,7 @@ export const inferNumericProfile = (aoa: readonly (readonly unknown[])[]): Numer
     return commaScore > dotScore ? "comma" : "dot";
 };
 
-export const isHeaderLikeText = (cell: unknown): boolean => {
+export const isHeaderLikeText = (cell: unknown, profile: NumericProfile): boolean => {
     if (typeof cell !== "string") {
         return false;
     }
@@ -88,7 +90,8 @@ export const isHeaderLikeText = (cell: unknown): boolean => {
         return false;
     }
 
-    return /[A-Za-z]/u.test(trimmed) && !/\d/u.test(trimmed);
+    const letterMatches = trimmed.match(/[A-Za-z]/gu);
+    return letterMatches !== null && letterMatches.length >= 2 && !isNumeric(trimmed, profile);
 };
 
 export const headerCellsWithoutTrailingEmpties = (headerRow: readonly unknown[]): readonly unknown[] => {

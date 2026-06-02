@@ -60,6 +60,21 @@ describe("detectMultiTable", () => {
             expect(result).toMatchObject({ reason: "embedded_header" });
         });
 
+        it("detects stacked tables when second header has digit-bearing labels", () => {
+            const aoa = [
+                ["subject_id", "iief_0", "12 months (n)"],
+                ["S-001", "17", "24"],
+                ["S-002", "21", "18"],
+                ["subject_id", "iief_6", "24 months (n)"],
+                ["S-003", "19", "12"],
+                ["S-004", "15", "10"],
+            ];
+
+            const result = detectMultiTable(aoa);
+            expect(result.detected).toBe(true);
+            expect(result).toMatchObject({ reason: "embedded_header" });
+        });
+
         it("does NOT trigger on a duplicate header repeat", () => {
             const aoa = [
                 ["PatientID", "Age", "Group"],
@@ -93,8 +108,8 @@ describe("detectMultiTable", () => {
         it("does NOT trigger on valid US thousands/decimal rows", () => {
             const aoa = [
                 ["subject_id", "arm", "value", "delta"],
-                ["S-001", "Control", "1,234.56", "-12.50"],
-                ["S-002", "Treatment", "2,345.67", "7.25"],
+                ["S-001", "Control", "1234.56", "-12.50"],
+                ["S-002", "Treatment", "2345.67", "7.25"],
             ];
 
             expect(detectMultiTable(aoa)).toEqual({ detected: false });

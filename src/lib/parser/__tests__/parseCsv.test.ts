@@ -113,4 +113,57 @@ describe("parseCsv", () => {
             "hba1c_change",
         ]);
     });
+
+    it("throws MULTI_TABLE_DETECTED for stacked tables with digit-bearing headers", async () => {
+        const file = fileFromText(
+            [
+                "subject_id,iief_0,12 months (n)",
+                "S-001,17,24",
+                "S-002,21,18",
+                "subject_id,iief_6,24 months (n)",
+                "S-003,19,12",
+                "S-004,15,10",
+            ].join("\n"),
+            "vertical-stacked-digit-headers.csv",
+        );
+
+        await expect(parseCsv(file)).rejects.toMatchObject({
+            code: "MULTI_TABLE_DETECTED",
+            cause: expect.objectContaining({ reason: "embedded_header" }),
+        });
+    });
+
+    it("parses single-table semicolon decimal-comma data with digit-bearing headers", async () => {
+        const file = fileFromText(
+            [
+                "subject_id;iief_0;12 months (n)",
+                "S-001;17,5;24",
+                "S-002;21,0;18",
+            ].join("\n"),
+            "single-table-digit-headers-decimal-comma.csv",
+        );
+
+        const result = await parseCsv(file);
+        expect(result.rowCount).toBe(2);
+        expect(result.headers).toEqual(["subject_id", "iief_0", "12 months (n)"]);
+    });
+
+    it("blocks stacked summary semicolon csv with repeated section headers", async () => {
+        const file = fileFromText(
+            [
+                "COUNT;PERCENT;varblname;levels;;;;;;;;;;;;;;;",
+                ";;iief_0;.;;;;;;;;;;;;;;;",
+                ";;iief_0;Invalid (0);;;;;;Baseline (n);%;1 month (n);%;3 months (n);%",
+                ";;iief_0;Severe (1-7);;;;;Severe (1-7);;;;;;;;;;",
+                ";;iief_1;.;;;;;;;;;;;;;;;",
+                ";;iief_1;Invalid (0);;;;;;;;;;;;;;;",
+            ].join("\n"),
+            "20230925tIIEF_Lucas.csv",
+        );
+
+        await expect(parseCsv(file)).rejects.toMatchObject({
+            code: "MULTI_TABLE_DETECTED",
+            cause: expect.objectContaining({ reason: "embedded_header" }),
+        });
+    });
 });
