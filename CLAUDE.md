@@ -158,6 +158,7 @@ ExportChat is currently scripted (no live AI call). It pattern-matches user inpu
 - `palettes.ts` + `palettes.module.css` — token → hex resolution; `PALETTE_SWATCH_HEX` for UI swatches
 - `useResizeObserver.ts` — ResizeObserver hook for responsive SVG sizing
 - `chart.types.ts` — shared D3 prop interfaces
+- Scale rules and domain invariants: `docs/chart-scales.md`
 
 `src/components/charts/annotations/` — `SignificanceBracket.tsx`, `PValueLabel.tsx`.
 `src/components/charts/legend/` — `ChartLegend.tsx` + glyph sub-components.
