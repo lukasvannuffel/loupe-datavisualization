@@ -2,6 +2,7 @@ import type { MultiTableReason } from "./types";
 import {
     countNonEmptyClusters,
     headerCellsWithoutTrailingEmpties,
+    inferNumericProfile,
     isEffectivelyEmpty,
     isHeaderLikeText,
     isNumeric,
@@ -22,6 +23,7 @@ export function detectMultiTable(aoa: readonly (readonly unknown[])[]): MultiTab
 
     const headerRow = headerCellsWithoutTrailingEmpties(aoa[0] ?? []);
     const headerClusters = countNonEmptyClusters(headerRow);
+    const numericProfile = inferNumericProfile(aoa);
 
     if (headerClusters >= 2) {
         return {
@@ -38,7 +40,7 @@ export function detectMultiTable(aoa: readonly (readonly unknown[])[]): MultiTab
             continue;
         }
 
-        const nonNumericCount = nonEmptyCells.filter((cell) => !isNumeric(cell)).length;
+        const nonNumericCount = nonEmptyCells.filter((cell) => !isNumeric(cell, numericProfile)).length;
         if (nonNumericCount / nonEmptyCells.length < 0.5) {
             continue;
         }

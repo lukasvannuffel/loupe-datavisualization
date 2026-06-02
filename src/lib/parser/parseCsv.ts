@@ -1,5 +1,6 @@
 import Papa, { type ParseResult as PapaResult } from "papaparse";
 
+import { detectMultiTable } from "./detectMultiTable";
 import { makeParseError } from "./errors";
 import { dedupeHeaders } from "./headers";
 import { brandRows, type ParseResult } from "./types";
@@ -73,6 +74,24 @@ export const parseCsv = async (file: File): Promise<ParseResult> => {
                         isEncodingError(fatal)
                             ? makeParseError("ENCODING_UNSUPPORTED", fatal)
                             : makeParseError("CORRUPT", fatal),
+                    );
+
+                    return;
+                }
+
+                const detectionAoa = Papa.parse<readonly unknown[]>(text, {
+                    header: false,
+                    dynamicTyping: false,
+                    skipEmptyLines: "greedy",
+                    delimiter: papa.meta.delimiter,
+                }).data;
+                const multiTable = detectMultiTable(detectionAoa);
+                if (multiTable.detected) {
+                    reject(
+                        makeParseError("MULTI_TABLE_DETECTED", {
+                            reason: multiTable.reason,
+                            hint: multiTable.hint,
+                        }),
                     );
 
                     return;

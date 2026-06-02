@@ -70,6 +70,35 @@ describe("detectMultiTable", () => {
             const result = detectMultiTable(aoa);
             expect(result).toEqual({ detected: false });
         });
+
+        it("does NOT trigger on valid Belgian decimal-comma rows", () => {
+            const aoa = [
+                [
+                    "patient_id",
+                    "treatment_group",
+                    "age",
+                    "sex",
+                    "bmi",
+                    "baseline_hba1c",
+                    "week12_hba1c",
+                    "hba1c_change",
+                ],
+                ["PT-1001", "Placebo", "63", "M", "37,6", "8,6", "8,4", "-0,16"],
+                ["PT-1002", "Placebo", "39", "F", "29,5", "7,7", "7,5", "-0,16"],
+            ];
+
+            expect(detectMultiTable(aoa)).toEqual({ detected: false });
+        });
+
+        it("does NOT trigger on valid US thousands/decimal rows", () => {
+            const aoa = [
+                ["subject_id", "arm", "value", "delta"],
+                ["S-001", "Control", "1,234.56", "-12.50"],
+                ["S-002", "Treatment", "2,345.67", "7.25"],
+            ];
+
+            expect(detectMultiTable(aoa)).toEqual({ detected: false });
+        });
     });
 
     describe("privacy invariant", () => {

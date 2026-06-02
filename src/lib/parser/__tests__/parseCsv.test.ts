@@ -59,4 +59,58 @@ describe("parseCsv", () => {
         expect(result.headers).toEqual(["only"]);
         expect(result.rowCount).toBe(3);
     });
+
+    it("throws MULTI_TABLE_DETECTED for side-by-side tables", async () => {
+        const file = fileFromText(
+            [
+                "PatientID,Age,Group,,SubjectID,Score,Arm",
+                "1,45,A,,101,0.8,Treatment",
+                "2,50,B,,102,0.6,Control",
+            ].join("\n"),
+            "horizontal-split.csv",
+        );
+
+        await expect(parseCsv(file)).rejects.toMatchObject({
+            code: "MULTI_TABLE_DETECTED",
+            cause: expect.objectContaining({ reason: "horizontal_split" }),
+        });
+    });
+
+    it("does NOT flag trailing empty columns as multi-table", async () => {
+        const file = fileFromText(
+            ["PatientID,Age,Group,,,", "1,45,A,,,", "2,50,B,,,"].join("\n"),
+            "trailing-empty-cols.csv",
+        );
+
+        const result = await parseCsv(file);
+        expect(result.headers[0]).toBe("PatientID");
+        expect(result.headers[1]).toBe("Age");
+        expect(result.headers[2]).toBe("Group");
+        expect(result.headers).toHaveLength(6);
+        expect(result.rowCount).toBe(2);
+    });
+
+    it("parses semicolon CSV with Belgian decimals without multi-table false positive", async () => {
+        const file = fileFromText(
+            [
+                "patient_id;treatment_group;age;sex;bmi;baseline_hba1c;week12_hba1c;hba1c_change",
+                "PT-1001;Placebo;63;M;37,6;8,6;8,4;-0,16",
+                "PT-1002;Placebo;39;F;29,5;7,7;7,5;-0,16",
+            ].join("\n"),
+            "diabetes_trial_hba1c.csv",
+        );
+
+        const result = await parseCsv(file);
+        expect(result.rowCount).toBe(2);
+        expect(result.headers).toEqual([
+            "patient_id",
+            "treatment_group",
+            "age",
+            "sex",
+            "bmi",
+            "baseline_hba1c",
+            "week12_hba1c",
+            "hba1c_change",
+        ]);
+    });
 });
