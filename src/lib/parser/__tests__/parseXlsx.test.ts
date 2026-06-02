@@ -42,6 +42,34 @@ describe("parseXlsxBuffer", () => {
         );
     });
 
+    it("throws MULTI_TABLE_DETECTED for side-by-side tables in one sheet", () => {
+        const buffer = buildWorkbook([
+            ["PatientID", "Age", "Group", "", "SubjectID", "Score", "Arm"],
+            [1, 45, "A", "", 101, 0.8, "Treatment"],
+            [2, 50, "B", "", 102, 0.6, "Control"],
+        ]);
+
+        expect(() => parseXlsxBuffer(buffer, "multi.xlsx")).toThrow(
+            expect.objectContaining({
+                code: "MULTI_TABLE_DETECTED",
+                cause: expect.objectContaining({
+                    reason: "horizontal_split",
+                }),
+            }),
+        );
+    });
+
+    it("does not flag trailing empty columns as multi-table", () => {
+        const buffer = buildWorkbook([
+            ["PatientID", "Age", "Group", "", "", ""],
+            [1, 45, "A", "", "", ""],
+            [2, 50, "B", "", "", ""],
+        ]);
+
+        const result = parseXlsxBuffer(buffer, "trailing.xlsx");
+        expect(result.rowCount).toBe(2);
+    });
+
     it("coerces numeric cells to strings", () => {
         const buffer = buildWorkbook([
             ["n"],

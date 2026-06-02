@@ -150,6 +150,10 @@ export const Upload = (): JSX.Element => {
 
     const result = state.status === "success" ? state.result : null;
     const errorMessage = state.status === "error" ? state.error.message : null;
+    const multiTableError =
+        state.status === "error" && state.error.code === "MULTI_TABLE_DETECTED"
+            ? state.error.cause
+            : undefined;
     const inferences = useMemo(
         () => (result !== null ? inferColumnTypes(result) : null),
         [result],
@@ -401,14 +405,25 @@ export const Upload = (): JSX.Element => {
 
                 {phase === "error" && errorMessage !== null && (
                     <div className="dropzone-error" role="alert">
-                        <p className="dropzone-error-msg">{errorMessage}</p>
+                        {multiTableError !== undefined ? (
+                            <>
+                                <p className="dropzone-error-msg">Multiple tables detected</p>
+                                <p className="dropzone-error-msg">{multiTableError.hint}</p>
+                                <p className="dropzone-error-msg">
+                                    Loupe currently parses silently with wrong data when tables share a sheet.
+                                    Clean the file first to get accurate results.
+                                </p>
+                            </>
+                        ) : (
+                            <p className="dropzone-error-msg">{errorMessage}</p>
+                        )}
                         <button
                             ref={tryAgainRef}
                             type="button"
                             className="btn btn--ghost btn--sm"
                             onClick={onReplace}
                         >
-                            Try again
+                            {multiTableError !== undefined ? "Replace file" : "Try again"}
                         </button>
                     </div>
                 )}

@@ -37,13 +37,27 @@ export type ParseErrorCode =
     | "UNSUPPORTED_FORMAT"
     | "ENCODING_UNSUPPORTED"
     | "CORRUPT"
-    | "ABORTED";
+    | "ABORTED"
+    | "MULTI_TABLE_DETECTED";
 
-export type ParseError = {
-    code: ParseErrorCode;
-    message: string;
-    cause?: unknown;
+export type MultiTableReason = "horizontal_split" | "vertical_split" | "embedded_header";
+
+export type MultiTableDetectedPayload = {
+    readonly reason: MultiTableReason;
+    readonly hint: string;
 };
+
+export type ParseError =
+    | {
+          code: "MULTI_TABLE_DETECTED";
+          message: string;
+          cause?: MultiTableDetectedPayload;
+      }
+    | {
+          code: Exclude<ParseErrorCode, "MULTI_TABLE_DETECTED">;
+          message: string;
+          cause?: unknown;
+      };
 
 export type ParseState =
     | { status: "idle" }
