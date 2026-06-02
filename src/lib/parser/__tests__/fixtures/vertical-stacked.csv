@@ -1,0 +1,6 @@
+PatientID,Survival,Event
+1,24.5,1
+2,18.2,0
+PatientID,Biomarker,Stage
+4,2.1,III
+5,3.4,II

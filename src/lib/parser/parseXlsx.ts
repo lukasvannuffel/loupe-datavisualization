@@ -3,6 +3,7 @@
 // kept on npm here for CI simplicity.
 import * as XLSX from "xlsx";
 
+import { detectMultiTable } from "./detectMultiTable";
 import { makeParseError } from "./errors";
 import { dedupeHeaders } from "./headers";
 import { brandRows, type ParseResult, type SheetMeta } from "./types";
@@ -87,6 +88,14 @@ export const parseWorkbookToResult = (
 
     if (headerRow === undefined || headerRow.every(isBlank)) {
         throw makeParseError("NO_COLUMNS");
+    }
+
+    const multiTable = detectMultiTable(aoa);
+    if (multiTable.detected) {
+        throw makeParseError("MULTI_TABLE_DETECTED", {
+            reason: multiTable.reason,
+            hint: multiTable.hint,
+        });
     }
 
     const headers = dedupeHeaders(headerRow.map((cell) => String(cell ?? "")));
