@@ -125,9 +125,9 @@ describe("BarErrorChart - y-axis domain", () => {
 
     it("produces a non-degenerate finite scale when all values are constant", async () => {
         const constant: readonly GroupStats[] = [
-            { label: "A", mean: 6, sd: 0, n: 20 },
-            { label: "B", mean: 6, sd: 0, n: 20 },
-            { label: "C", mean: 6, sd: 0, n: 20 },
+            { label: "A", mean: 0, sd: 0, n: 20 },
+            { label: "B", mean: 0, sd: 0, n: 20 },
+            { label: "C", mean: 0, sd: 0, n: 20 },
         ];
 
         render(<BarErrorChart spec={spec} groups={constant} />);

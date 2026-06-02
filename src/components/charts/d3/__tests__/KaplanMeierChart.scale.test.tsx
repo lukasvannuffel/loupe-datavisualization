@@ -9,6 +9,10 @@ import type { KMSpec } from "@/lib/chartSpec/types";
 import { KaplanMeierChart } from "../KaplanMeierChart";
 
 const scaleLinearDomainCalls: number[][] = [];
+const scaleLinearDomainRangeSnapshots: Array<{
+    readonly domain: readonly number[];
+    readonly range: readonly number[];
+}> = [];
 
 vi.mock("d3-scale", async (importOriginal) => {
     const actual = await importOriginal<typeof import("d3-scale")>();
@@ -18,6 +22,7 @@ vi.mock("d3-scale", async (importOriginal) => {
         scaleLinear: () => {
             const scale = actual.scaleLinear();
             const baseDomain = scale.domain.bind(scale);
+            const baseRange = scale.range.bind(scale);
             scale.domain = ((domain?: ReadonlyArray<number> | number) => {
                 if (Array.isArray(domain)) {
                     scaleLinearDomainCalls.push([...domain]);
@@ -29,6 +34,21 @@ vi.mock("d3-scale", async (importOriginal) => {
 
                 return baseDomain(domain as Parameters<typeof baseDomain>[0]);
             }) as typeof scale.domain;
+            scale.range = ((range?: ReadonlyArray<number> | number) => {
+                if (Array.isArray(range)) {
+                    const activeDomain = baseDomain();
+                    scaleLinearDomainRangeSnapshots.push({
+                        domain: [...activeDomain],
+                        range: [...range],
+                    });
+                }
+
+                if (range === undefined) {
+                    return baseRange();
+                }
+
+                return baseRange(range as Parameters<typeof baseRange>[0]);
+            }) as typeof scale.range;
 
             return scale;
         },
@@ -124,16 +144,26 @@ const reachesZeroData: KMPlotData = {
 
 const expectYDomainInvariant = async (): Promise<void> => {
     await waitFor(() => {
-        expect(scaleLinearDomainCalls.length).toBeGreaterThan(0);
+        expect(scaleLinearDomainRangeSnapshots.length).toBeGreaterThan(0);
     });
 
-    expect(scaleLinearDomainCalls).toContainEqual([0, 1]);
-    expect(scaleLinearDomainCalls).not.toContainEqual([0, 0]);
+    const yScaleSnapshots = scaleLinearDomainRangeSnapshots.filter(
+        (snapshot) =>
+            snapshot.range.length === 2 &&
+            snapshot.range[0] > snapshot.range[1] &&
+            snapshot.range[1] === 0,
+    );
+
+    expect(yScaleSnapshots.length).toBeGreaterThan(0);
+    for (const snapshot of yScaleSnapshots) {
+        expect(snapshot.domain).toEqual([0, 1]);
+    }
 };
 
 describe("KaplanMeierChart - y-axis domain", () => {
     beforeEach(() => {
         scaleLinearDomainCalls.length = 0;
+        scaleLinearDomainRangeSnapshots.length = 0;
         installResizeObserver();
         vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
             cb(0);
@@ -161,7 +191,7 @@ describe("KaplanMeierChart - y-axis domain", () => {
     // MUTATION-VERIFY:
     //   src/components/charts/d3/KaplanMeierChart.tsx:79
     //   - .domain([0, 1])
-    //   + .domain([0, Math.min(...data.groups.flatMap((group) => group.points.map((point) => point.survival)))])
+    //   + .domain([0, 0.5])
     //   Test: "is [0, 1] when survival reaches 0 before t_max" goes RED.
     //   Verified manually: 2026-06-02. REVERTED.
 });

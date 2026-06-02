@@ -145,21 +145,21 @@ describe("BoxChart - y-axis domain", () => {
         const data: BoxPlotData = {
             kind: "box",
             yMin: 5,
-            yMax: 5.2,
+            yMax: 5,
             groups: [
                 {
                     kind: "box",
                     label: "A",
                     n: 3,
                     min: 5,
-                    q1: 5.05,
-                    median: 5.1,
-                    q3: 5.15,
-                    max: 5.2,
-                    mean: 5.1,
+                    q1: 5,
+                    median: 5,
+                    q3: 5,
+                    max: 5,
+                    mean: 5,
                     outliers: [],
-                    notchLower: 5.07,
-                    notchUpper: 5.13,
+                    notchLower: 5,
+                    notchUpper: 5,
                 },
             ],
         };
@@ -176,6 +176,7 @@ describe("BoxChart - y-axis domain", () => {
     //   src/components/charts/d3/BoxChart.tsx:79-82
     //   - const ySpan = Math.max(data.yMax - data.yMin, 1e-6);
     //   - .domain([data.yMin - ySpan * Y_PADDING_RATIO, data.yMax + ySpan * Y_PADDING_RATIO])
+    //   + const whiskerMax = Math.max(...data.groups.map((group) => (group.kind === "box" ? group.max : 0)));
     //   + const ySpan = Math.max(whiskerMax - data.yMin, 1e-6);
     //   + .domain([data.yMin - ySpan * Y_PADDING_RATIO, whiskerMax + ySpan * Y_PADDING_RATIO])
     //   Test: "domain includes outliers beyond IQR fences" goes RED.
