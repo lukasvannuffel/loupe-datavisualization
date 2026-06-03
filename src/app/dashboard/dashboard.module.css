@@ -4,8 +4,9 @@
 
 .heading {
   margin: 0;
-  color: var(--ink, #111827);
+  color: var(--ink);
   font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem);
+  line-height: 1.15;
 }
 
 .tagFilter {
@@ -59,10 +60,8 @@
 
 .cardTitle {
   margin: 12px 12px 4px;
-  font-family: var(--serif);
   font-size: clamp(1.05rem, 1rem + 0.25vw, 1.15rem);
-  font-weight: 400;
-  letter-spacing: -0.011em;
+  line-height: 1.15;
   color: var(--ink);
 }
 
@@ -80,11 +79,11 @@
 }
 
 .badge {
-  border: 1px solid color-mix(in srgb, var(--ink, #111827) 16%, transparent);
+  border: 1px solid var(--hairline);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.75rem;
-  color: color-mix(in srgb, var(--ink, #111827) 88%, white);
+  color: var(--ink);
 }
 
 .date {
@@ -191,8 +190,8 @@
 
 .emptyTitle {
   margin: 0;
-  font-family: var(--serif);
   font-size: 1.1rem;
+  line-height: 1.15;
 }
 
 .emptyBody {
@@ -203,7 +202,7 @@
 .errorState {
   margin-top: 20px;
   border: 1px solid color-mix(in srgb, #9B2C2C 24%, transparent);
-  border-radius: 16px;
+  border-radius: var(--r-3);
   padding: 20px;
   background: color-mix(in srgb, #9B2C2C 6%, white);
 }
@@ -211,6 +210,7 @@
 .errorTitle {
   margin: 0 0 8px;
   font-size: 1.05rem;
+  line-height: 1.15;
 }
 
 @media (prefers-reduced-motion: reduce) {

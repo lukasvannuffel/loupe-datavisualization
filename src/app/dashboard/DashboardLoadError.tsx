@@ -13,7 +13,7 @@ export const DashboardLoadError = ({ message }: DashboardLoadErrorProps): JSX.El
 
     return (
         <div className={styles.errorState} role="alert">
-            <h2 className={styles.errorTitle}>We couldn&apos;t load your charts.</h2>
+            <h2 className={`serif ${styles.errorTitle}`}>We couldn&apos;t load your charts.</h2>
             <p className="muted">
                 {message ?? "Refresh the page to try again. Your saved charts are still in your account."}
             </p>
