@@ -14,7 +14,7 @@ const DashboardPage = async (): Promise<JSX.Element> => {
     return (
         <main className={`container ${styles.page}`}>
             <Eyebrow>Dashboard</Eyebrow>
-            <h1 className={styles.heading}>Your charts</h1>
+            <h1 className={`serif ${styles.heading}`}>Your charts</h1>
             {!result.ok ? (
                 <DashboardLoadError />
             ) : result.charts.length === 0 ? (

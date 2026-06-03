@@ -122,7 +122,7 @@ export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
                         height={THUMBNAIL_HEIGHT}
                     />
                 </div>
-                <h3 className={styles.cardTitle}>{chart.name}</h3>
+                <h3 className={`serif ${styles.cardTitle}`}>{chart.name}</h3>
                 <div className={styles.metaRow}>
                     <ChartKindBadge kind={chart.chart_kind} />
                     <time dateTime={chart.updated_at} className={styles.date}>
