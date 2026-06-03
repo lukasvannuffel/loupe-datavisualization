@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { MouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ChartListItem } from "@/lib/charts/listCharts";
 import { chartKindIcon } from "@/lib/thumbnail/chartKindIcons";
+import { THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from "@/lib/thumbnail/generateThumbnail";
 
 import { ChartKindBadge } from "./ChartKindBadge";
 import { DeleteChartButton } from "./DeleteChartButton";
@@ -30,54 +31,95 @@ const formatRelativeDate = (iso: string): string => {
     return rtf.format(Math.round(diffMs / dayMs), "day");
 };
 
-const closeKebabMenu = (event: MouseEvent<HTMLButtonElement>): void => {
-    const details = event.currentTarget.closest("details");
-    if (details !== null) {
-        details.open = false;
-    }
-};
-
 export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
+    const [kebabOpen, setKebabOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const detailsRef = useRef<HTMLDetailsElement>(null);
+    const summaryRef = useRef<HTMLElement>(null);
     const thumbnail = chart.thumbnail ?? chartKindIcon(chart.chart_kind);
+
+    useEffect(() => {
+        if (!kebabOpen || deleteDialogOpen) {
+            return;
+        }
+
+        const onPointerDown = (event: PointerEvent): void => {
+            const target = event.target;
+            if (!(target instanceof Node)) {
+                return;
+            }
+            if (detailsRef.current !== null && !detailsRef.current.contains(target)) {
+                setKebabOpen(false);
+            }
+        };
+
+        const onKey = (event: KeyboardEvent): void => {
+            if (event.key === "Escape") {
+                setKebabOpen(false);
+                summaryRef.current?.focus();
+            }
+        };
+
+        document.addEventListener("pointerdown", onPointerDown);
+        document.addEventListener("keydown", onKey);
+
+        return () => {
+            document.removeEventListener("pointerdown", onPointerDown);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [deleteDialogOpen, kebabOpen]);
+
+    const openDeleteDialog = (): void => {
+        setKebabOpen(false);
+        setDeleteDialogOpen(true);
+    };
 
     return (
         <article className={styles.card}>
-            <details className={styles.kebabWrap}>
+            <details
+                ref={detailsRef}
+                className={styles.kebabWrap}
+                open={kebabOpen}
+                onToggle={(event) => setKebabOpen(event.currentTarget.open)}
+            >
                 <summary
+                    ref={summaryRef}
                     className={styles.kebabTrigger}
-                    role="button"
                     aria-label="More actions"
+                    aria-expanded={kebabOpen}
                 >
                     ⋯
                 </summary>
+                {/* role="menu" with single item today. If more actions are added,
+                    implement full menu keyboard pattern (arrow keys, roving tabindex). */}
                 <div className={styles.kebabMenu} role="menu">
-                    <DeleteChartButton
-                        chartId={chart.id}
-                        chartName={chart.name}
-                        renderTrigger={({ open }) => (
-                            <button
-                                type="button"
-                                role="menuitem"
-                                className={styles.kebabMenuItem}
-                                onClick={(event) => {
-                                    closeKebabMenu(event);
-                                    open();
-                                }}
-                            >
-                                Delete
-                            </button>
-                        )}
-                    />
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={styles.kebabMenuItem}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            openDeleteDialog();
+                        }}
+                    >
+                        Delete
+                    </button>
                 </div>
             </details>
+            <DeleteChartButton
+                chartId={chart.id}
+                chartName={chart.name}
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+            />
             <Link href={`/export?id=${chart.id}`} className={styles.cardLink}>
                 <div className={styles.thumb}>
                     <img
                         src={thumbnail}
                         alt=""
                         className={styles.thumbImage}
-                        width={480}
-                        height={320}
+                        width={THUMBNAIL_WIDTH}
+                        height={THUMBNAIL_HEIGHT}
                     />
                 </div>
                 <h3 className={styles.cardTitle}>{chart.name}</h3>

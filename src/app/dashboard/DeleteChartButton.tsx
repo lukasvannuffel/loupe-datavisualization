@@ -16,18 +16,33 @@ type DeleteChartTriggerHandlers = {
 type DeleteChartButtonProps = {
     readonly chartId: string;
     readonly chartName: string;
+    readonly open?: boolean;
+    readonly onOpenChange?: (open: boolean) => void;
     readonly renderTrigger?: (handlers: DeleteChartTriggerHandlers) => ReactNode;
 };
 
 export const DeleteChartButton = ({
     chartId,
     chartName,
+    open: openProp,
+    onOpenChange,
     renderTrigger,
 }: DeleteChartButtonProps): JSX.Element => {
     const router = useRouter();
     const { toast } = useToast();
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    const isControlled = onOpenChange !== undefined;
+    const open = isControlled ? (openProp ?? false) : internalOpen;
+
+    const setOpen = (nextOpen: boolean): void => {
+        if (isControlled) {
+            onOpenChange(nextOpen);
+        } else {
+            setInternalOpen(nextOpen);
+        }
+    };
 
     const onConfirm = async (): Promise<void> => {
         setDeleting(true);
@@ -62,7 +77,7 @@ export const DeleteChartButton = ({
         <>
             {renderTrigger !== undefined ? (
                 renderTrigger({ open: openDialog })
-            ) : (
+            ) : !isControlled ? (
                 <button
                     type="button"
                     className={styles.deleteButton}
@@ -71,7 +86,7 @@ export const DeleteChartButton = ({
                 >
                     Delete
                 </button>
-            )}
+            ) : null}
             <Dialog open={open} onClose={() => setOpen(false)} title={`Delete ${chartName}`}>
                 <header className="rerun-head">
                     <div>

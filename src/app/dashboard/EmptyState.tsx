@@ -9,7 +9,7 @@ export const EmptyState = (): JSX.Element => {
             <p className={styles.emptyBody}>
                 Upload a dataset and export your first publication-ready figure.
             </p>
-            <Link href="/upload" className="btn btn--primary btn--sm">
+            <Link href="/upload" className="btn btn--primary">
                 Create your first chart →
             </Link>
         </section>

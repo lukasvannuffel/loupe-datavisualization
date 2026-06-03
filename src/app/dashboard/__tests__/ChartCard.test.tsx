@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChartCard } from "@/app/dashboard/ChartCard";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import type { ChartListItem } from "@/lib/charts/listCharts";
+import { THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from "@/lib/thumbnail/generateThumbnail";
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ refresh: vi.fn() }),
@@ -57,8 +58,8 @@ describe("ChartCard", () => {
         const image = container.querySelector("img");
         expect(image).not.toBeNull();
         expect(image?.getAttribute("src")).toContain("data:image/png");
-        expect(image?.getAttribute("width")).toBe("480");
-        expect(image?.getAttribute("height")).toBe("320");
+        expect(image?.getAttribute("width")).toBe(String(THUMBNAIL_WIDTH));
+        expect(image?.getAttribute("height")).toBe(String(THUMBNAIL_HEIGHT));
     });
 
     it("renders a fallback icon when thumbnail is null", () => {
@@ -75,16 +76,27 @@ describe("ChartCard", () => {
         expect(screen.getByRole("link").getAttribute("href")).toBe("/export?id=abc-123");
     });
 
-    it("shows kebab button on focus", () => {
+    it("exposes kebab summary with More actions label", () => {
         renderCard(baseChart);
 
-        const kebab = screen.getByRole("button", { name: /more actions/i });
-        expect(kebab).not.toBeNull();
+        const kebab = screen.getByLabelText(/more actions/i);
+        expect(kebab.tagName).toBe("SUMMARY");
+        expect(kebab.getAttribute("aria-expanded")).toBe("false");
     });
 
-    it("does not render a visible Delete button by default", () => {
-        renderCard(baseChart);
+    it("keeps delete as a menuitem inside kebab, not a root-level button", () => {
+        const { container } = renderCard(baseChart);
 
+        const details = container.querySelector("details") as HTMLDetailsElement | null;
+        expect(details?.open).toBe(false);
         expect(screen.queryByRole("button", { name: /^delete$/i })).toBeNull();
+
+        fireEvent.click(screen.getByLabelText(/more actions/i));
+        expect(details?.open).toBe(true);
+        expect(screen.getByRole("menuitem", { name: /^delete$/i })).not.toBeNull();
+
+        fireEvent.click(screen.getByRole("menuitem", { name: /^delete$/i }));
+        expect(screen.getByRole("dialog")).not.toBeNull();
+        expect(details?.open).toBe(false);
     });
 });
