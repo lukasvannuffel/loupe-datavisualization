@@ -584,14 +584,31 @@ export const Export = ({
     const [mobileRailOpen, setMobileRailOpen] = useState<boolean>(false);
     const chartCanvasRef = useRef<HTMLDivElement | null>(null);
 
-    const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
-    const [loadedChartId, setLoadedChartId] = useState<string | null>(null);
-    const [loadedChartName, setLoadedChartName] = useState<string | null>(null);
-    const [loadedChartTags, setLoadedChartTags] = useState<readonly string[]>([]);
+    const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(
+        () => initialChart?.chart_spec ?? chartSpec,
+    );
+    const [loadedChartId, setLoadedChartId] = useState<string | null>(
+        () => initialChart?.id ?? initialChartId ?? null,
+    );
+    const [loadedChartName, setLoadedChartName] = useState<string | null>(
+        () => initialChart?.name ?? null,
+    );
+    const [loadedChartTags, setLoadedChartTags] = useState<readonly string[]>(
+        () => initialChart?.tags ?? [],
+    );
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-    const [loadedPlotData, setLoadedPlotData] = useState<PlotData | null>(null);
-    const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(null);
-    const [viewOnlySnapshot, setViewOnlySnapshot] = useState<{ name: string; thumbnail: string | null } | null>(null);
+    const [loadedPlotData, setLoadedPlotData] = useState<PlotData | null>(
+        () => initialChart?.plot_data ?? null,
+    );
+    const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(
+        () => initialChart?.receipt ?? null,
+    );
+    const [viewOnlySnapshot, setViewOnlySnapshot] = useState<{ name: string; thumbnail: string | null } | null>(
+        () =>
+            initialChart !== null && initialChart.plot_data === null
+                ? { name: initialChart.name, thumbnail: initialChart.thumbnail }
+                : null,
+    );
     const [loadError, setLoadError] = useState<string | null>(null);
     const exportGuardFiredRef = useRef(false);
 
@@ -727,13 +744,22 @@ export const Export = ({
             ? (receipt?.recommendation.because ?? slugDefaults.rationale)
             : (loadedReceipt?.ai_rationale ?? slugDefaults.rationale);
 
+    const useLoadedFigure = loadedChartId !== null && loadedPlotData !== null;
+
     const exportPlotData = useMemo((): PlotData | null => {
         if (!useSpecFigure || liveSpec === null) {
             return null;
         }
 
-        return dataset !== null ? computePlotData(liveSpec, mapping, dataset) : loadedPlotData;
-    }, [dataset, liveSpec, loadedPlotData, mapping, useSpecFigure]);
+        if (useLoadedFigure) {
+            return loadedPlotData;
+        }
+        if (dataset !== null) {
+            return computePlotData(liveSpec, mapping, dataset);
+        }
+
+        return loadedPlotData;
+    }, [dataset, liveSpec, loadedPlotData, mapping, useLoadedFigure, useSpecFigure]);
 
     useEffect(() => {
         if (liveSpec === null || exportPlotData === null) {
@@ -770,7 +796,11 @@ export const Export = ({
         setReceiptBuildFailed(false);
 
         const nextPalette: PaletteName = resolvePalette(liveSpec);
-        const nRowsInput = dataset !== null ? dataset.rows.length : (loadedReceipt?.n_rows_input ?? 0);
+        const nRowsInput = useLoadedFigure
+            ? (loadedReceipt?.n_rows_input ?? 0)
+            : dataset !== null
+              ? dataset.rows.length
+              : (loadedReceipt?.n_rows_input ?? 0);
 
         void buildReceipt({
             aiRationale,
@@ -816,6 +846,7 @@ export const Export = ({
         mapping,
         receiptBuildAttempt,
         toast,
+        useLoadedFigure,
         useSpecFigure,
     ]);
 
@@ -1287,23 +1318,7 @@ export const Export = ({
                                 chartName={viewOnlySnapshot.name}
                                 thumbnail={viewOnlySnapshot.thumbnail}
                             />
-                        ) : useSpecFigure && liveSpec !== null && dataset !== null ? (
-                            <>
-                                <ChartFrameLoader>
-                                    <SpecChartPanel
-                                        chartKind={liveSpec.kind}
-                                        dataset={dataset}
-                                        mapping={mapping}
-                                        spec={liveSpec}
-                                        onSpecChange={onSpecChange}
-                                    />
-                                </ChartFrameLoader>
-                                <p className="export-chart-hint muted small">
-                                    <span className="ring ring--xs" />
-                                    Click any axis label or title on the chart to edit inline.
-                                </p>
-                            </>
-                        ) : useSpecFigure && liveSpec !== null && loadedPlotData !== null ? (
+                        ) : useSpecFigure && liveSpec !== null && useLoadedFigure ? (
                             <ChartFrameLoader>
                                 {liveSpec.kind === "km" && loadedPlotData.kind === "km" ? (
                                     <KaplanMeierChart
@@ -1331,6 +1346,22 @@ export const Export = ({
                                     />
                                 ) : null}
                             </ChartFrameLoader>
+                        ) : useSpecFigure && liveSpec !== null && dataset !== null ? (
+                            <>
+                                <ChartFrameLoader>
+                                    <SpecChartPanel
+                                        chartKind={liveSpec.kind}
+                                        dataset={dataset}
+                                        mapping={mapping}
+                                        spec={liveSpec}
+                                        onSpecChange={onSpecChange}
+                                    />
+                                </ChartFrameLoader>
+                                <p className="export-chart-hint muted small">
+                                    <span className="ring ring--xs" />
+                                    Click any axis label or title on the chart to edit inline.
+                                </p>
+                            </>
                         ) : (
                             <ChartComponent {...chartProps} />
                         )}
