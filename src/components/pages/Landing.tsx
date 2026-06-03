@@ -36,12 +36,11 @@ export const Landing = (): JSX.Element => {
                 <div className="hero-inner">
                     <div className="container">
                         <div className="hero-copy">
-                            <Eyebrow>No code. No Excel. No statistician required.</Eyebrow>
-                            {/* LOUPE-34: chosen Alt 2 — action-first headline states the outcome and task; eyebrow answers differentiation; existing hero-sub retains privacy. */}
+                            <Eyebrow>For medical research</Eyebrow>
                             <h1 className="serif hero-title">
-                                <span className="hero-title-line">Turn your data into</span>
+                                <span className="hero-title-line">Start with the finding,</span>
                                 <br />
-                                <em className="hero-italic">publication-ready figures.</em>
+                                <em className="hero-italic">not the format.</em>
                             </h1>
                             <p className="hero-sub">
                                 Publication-ready medical charts. No code. No data ever leaves your browser.
