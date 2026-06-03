@@ -587,6 +587,7 @@ export const Export = ({
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
     const [loadedChartId, setLoadedChartId] = useState<string | null>(null);
     const [loadedChartName, setLoadedChartName] = useState<string | null>(null);
+    const [loadedChartTags, setLoadedChartTags] = useState<readonly string[]>([]);
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
     const [loadedPlotData, setLoadedPlotData] = useState<PlotData | null>(null);
     const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(null);
@@ -624,6 +625,7 @@ export const Export = ({
         if (initialLoadReason !== null) {
             setLoadedChartId(initialChartId);
             setLoadedChartName(null);
+            setLoadedChartTags([]);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -642,6 +644,7 @@ export const Export = ({
         if (initialChartId === null) {
             setLoadedChartId(null);
             setLoadedChartName(null);
+            setLoadedChartTags([]);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -651,6 +654,7 @@ export const Export = ({
         if (initialChart === null) {
             setLoadedChartId(initialChartId);
             setLoadedChartName(null);
+            setLoadedChartTags([]);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -659,6 +663,7 @@ export const Export = ({
         }
         setLoadedChartId(initialChart.id);
         setLoadedChartName(initialChart.name);
+        setLoadedChartTags(initialChart.tags);
         setChartSpec(initialChart.chart_spec);
         setLiveSpec(initialChart.chart_spec);
         setChartKind(initialChart.chart_spec.kind);
@@ -978,6 +983,8 @@ export const Export = ({
             ? loadedChartName
             : (liveSpec?.title ?? "Untitled chart");
 
+    const saveDialogDefaultTags = loadedChartId !== null ? loadedChartTags : [];
+
     const handleSaveToProject = (): void => {
         if (receiptBuilding) {
             toast({
@@ -1010,7 +1017,7 @@ export const Export = ({
         setSaveDialogOpen(true);
     };
 
-    const handleSaveConfirm = async (name: string): Promise<void> => {
+    const handleSaveConfirm = async (name: string, tags: readonly string[]): Promise<void> => {
         if (liveSpec === null || exportPlotData === null || computedReceipt === null) {
             return;
         }
@@ -1026,6 +1033,7 @@ export const Export = ({
                 column_mapping: mapping,
                 id: loadedChartId ?? undefined,
                 name,
+                tags,
                 plot_data: exportPlotData,
                 receipt: computedReceipt,
                 thumbnail,
@@ -1925,8 +1933,9 @@ export const Export = ({
             <SaveChartDialog
                 isOpen={saveDialogOpen}
                 defaultName={saveDialogDefaultName}
-                onConfirm={(name) => {
-                    void handleSaveConfirm(name);
+                defaultTags={saveDialogDefaultTags}
+                onConfirm={(name, tags) => {
+                    void handleSaveConfirm(name, tags);
                 }}
                 onCancel={() => setSaveDialogOpen(false)}
             />

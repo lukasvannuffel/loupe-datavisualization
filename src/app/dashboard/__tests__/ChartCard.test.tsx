@@ -15,6 +15,7 @@ const baseChart: ChartListItem = {
     name: "My KM",
     chart_kind: "km",
     thumbnail: null,
+    tags: [],
     updated_at: "2026-05-26T10:00:00Z",
     created_at: "2026-05-26T10:00:00Z",
 };

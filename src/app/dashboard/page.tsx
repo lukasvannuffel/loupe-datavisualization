@@ -2,7 +2,7 @@ import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { listCharts } from "@/lib/charts/listCharts";
 import { requireUser } from "@/utils/supabase/server";
 
-import { ChartCard } from "./ChartCard";
+import { DashboardChartGrid } from "./DashboardChartGrid";
 import { DashboardLoadError } from "./DashboardLoadError";
 import { EmptyState } from "./EmptyState";
 import styles from "./dashboard.module.css";
@@ -20,11 +20,7 @@ const DashboardPage = async (): Promise<JSX.Element> => {
             ) : result.charts.length === 0 ? (
                 <EmptyState />
             ) : (
-                <section className={styles.grid}>
-                    {result.charts.map((chart) => (
-                        <ChartCard key={chart.id} chart={chart} />
-                    ))}
-                </section>
+                <DashboardChartGrid charts={result.charts} />
             )}
         </main>
     );

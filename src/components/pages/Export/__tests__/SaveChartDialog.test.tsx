@@ -39,7 +39,7 @@ describe("SaveChartDialog", () => {
         renderDialog("KM Survival Analysis");
         fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-        expect(onConfirm).toHaveBeenCalledWith("KM Survival Analysis");
+        expect(onConfirm).toHaveBeenCalledWith("KM Survival Analysis", []);
     });
 
     it("calls onConfirm with trimmed new name when changed", () => {
@@ -48,7 +48,54 @@ describe("SaveChartDialog", () => {
         fireEvent.change(input, { target: { value: "  Sensitivity run 1  " } });
         fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-        expect(onConfirm).toHaveBeenCalledWith("Sensitivity run 1");
+        expect(onConfirm).toHaveBeenCalledWith("Sensitivity run 1", []);
+    });
+
+    it("passes tags to onConfirm", () => {
+        renderDialog("Chart");
+        const tagInput = screen.getByLabelText(/^tags$/i);
+        fireEvent.change(tagInput, { target: { value: "pilot" } });
+        fireEvent.keyDown(tagInput, { key: "Enter" });
+        fireEvent.change(tagInput, { target: { value: "cohort a" } });
+        fireEvent.keyDown(tagInput, { key: "Enter" });
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+        expect(onConfirm).toHaveBeenCalledWith("Chart", ["pilot", "cohort a"]);
+    });
+
+    it("resets tags to defaultTags on reopen", () => {
+        const { rerender } = render(
+            <SaveChartDialog
+                isOpen
+                defaultName="Chart"
+                defaultTags={["pilot"]}
+                onConfirm={onConfirm}
+                onCancel={onCancel}
+            />,
+        );
+        fireEvent.click(screen.getByRole("button", { name: "pilot" }));
+        fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+        rerender(
+            <SaveChartDialog
+                isOpen={false}
+                defaultName="Chart"
+                defaultTags={["pilot"]}
+                onConfirm={onConfirm}
+                onCancel={onCancel}
+            />,
+        );
+        rerender(
+            <SaveChartDialog
+                isOpen
+                defaultName="Chart"
+                defaultTags={["pilot"]}
+                onConfirm={onConfirm}
+                onCancel={onCancel}
+            />,
+        );
+
+        expect(screen.getByRole("button", { name: "pilot" })).toBeTruthy();
     });
 
     it("does not reset input to defaultName when dialog stays open and defaultName changes", () => {

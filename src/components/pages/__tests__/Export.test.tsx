@@ -179,6 +179,7 @@ describe("Export customization rail", () => {
                         plot_data: null,
                         thumbnail: "data:image/svg+xml;utf8,test",
                         chart_kind: "box",
+                        tags: [],
                         created_at: "2026-05-28T08:00:00.000Z",
                         updated_at: "2026-05-28T08:00:00.000Z",
                     }}
@@ -236,6 +237,7 @@ describe("Export customization rail", () => {
                         },
                         thumbnail: "data:image/png;base64,thumb",
                         chart_kind: "km",
+                        tags: [],
                         created_at: "2026-05-28T08:00:00.000Z",
                         updated_at: "2026-05-28T08:00:00.000Z",
                     }}
@@ -421,6 +423,7 @@ describe("computation snapshot", () => {
                             plot_data: null,
                             thumbnail: "data:image/svg+xml;utf8,test",
                             chart_kind: "box",
+                            tags: [],
                             created_at: "2026-05-28T08:00:00.000Z",
                             updated_at: "2026-05-28T08:00:00.000Z",
                         }}
@@ -517,6 +520,7 @@ describe("Save chart dialog", () => {
                                 },
                                 thumbnail: "data:image/png;base64,thumb",
                                 chart_kind: "km",
+                                tags: ["pilot"],
                                 created_at: "2026-05-28T08:00:00.000Z",
                                 updated_at: "2026-05-28T08:00:00.000Z",
                             }}
@@ -553,6 +557,7 @@ describe("Save chart dialog", () => {
 
         const payload = saveChartMock.mock.calls.at(-1)?.[0];
         expect(payload?.name).toBe(defaultSpec.title);
+        expect(payload?.tags).toEqual([]);
         expect(payload?.chart_spec.title).toBe(defaultSpec.title);
     });
 
@@ -574,6 +579,7 @@ describe("Save chart dialog", () => {
 
         const payload = saveChartMock.mock.calls.at(-1)?.[0];
         expect(payload?.name).toBe("Sensitivity run 1");
+        expect(payload?.tags).toEqual([]);
         expect(payload?.chart_spec.title).toBe(defaultSpec.title);
     });
 });

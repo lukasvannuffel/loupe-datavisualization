@@ -197,6 +197,7 @@ const createSupabaseMock = (
                         n_rows_input: 100,
                     },
                     plot_data: plotData,
+                    tags: [],
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                     ...options?.getDataOverride,
@@ -295,6 +296,7 @@ const createValidPayload = async (
         receipt,
         plot_data: nextPlotData,
         thumbnail: "data:image/png;base64,thumb",
+        tags: [],
     };
 };
 
@@ -316,6 +318,23 @@ describe("saveChart", () => {
         if (result.success) {
             expect(result.id).toBe("new-chart-id");
         }
+    });
+
+    it("persists tags in the insert payload", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+        const payload = await createValidPayload();
+
+        await saveChart({
+            ...payload,
+            tags: ["pilot", "cohort a"],
+        });
+
+        expect(mocks.insertMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: ["pilot", "cohort a"],
+            }),
+        );
     });
 
     it("rejects payload with malformed chart_spec", async () => {

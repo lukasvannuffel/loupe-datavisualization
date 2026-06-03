@@ -51,6 +51,15 @@ export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
                         {formatRelativeDate(chart.updated_at)}
                     </time>
                 </div>
+                {(chart.tags ?? []).length > 0 ? (
+                    <div className={`type-badges ${styles.cardTags}`}>
+                        {chart.tags.map((tag) => (
+                            <span key={tag} className="type-badge">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
             </Link>
             <DeleteChartButton chartId={chart.id} chartName={chart.name} />
         </article>
