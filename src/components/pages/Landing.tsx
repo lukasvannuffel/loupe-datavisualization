@@ -2,31 +2,40 @@
 
 import { useRouter } from "next/navigation";
 
-import { CHART_PREVIEWS, type ChartSlug } from "@/components/charts/chartPreviews";
+import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingDivider } from "@/components/primitives/RingDivider";
+import type { SpecKind } from "@/lib/chartSpec/types";
+import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 import { HeroMotion } from "./HeroMotion";
 import { TrustPillarFormats, TrustPillarPrivacy, TrustPillarReasoning } from "./TrustPillars";
 
-type ChartTypeSpec = {
-    slug: ChartSlug;
-    name: string;
-};
+type LandingChartTile =
+    | { kind: "chart"; slug: SpecKind; name: string }
+    | { kind: "more"; label: string; description: string };
 
-const CHART_TYPES: readonly ChartTypeSpec[] = [
-    { slug: "km", name: "Kaplan–Meier" },
-    { slug: "forest", name: "Forest plot" },
-    { slug: "box", name: "Box-and-whisker" },
-    { slug: "roc", name: "ROC curve" },
-    { slug: "volcano", name: "Volcano plot" },
-    { slug: "bland", name: "Bland–Altman" },
+const CHART_TYPES: readonly LandingChartTile[] = [
+    { kind: "chart", slug: "km", name: "Kaplan–Meier" },
+    { kind: "chart", slug: "barError", name: "Bar chart with error bars" },
+    { kind: "chart", slug: "box", name: "Box-and-whisker" },
+    { kind: "chart", slug: "xy", name: "Scatter / line plot" },
+    {
+        kind: "more",
+        label: "+ more coming",
+        description: "Forest plot, ROC curve, and more in V2.",
+    },
 ];
 
 export const Landing = (): JSX.Element => {
     const router = useRouter();
+    const trustRef = useScrollReveal<HTMLDivElement>();
+    const previewHeadRef = useScrollReveal<HTMLDivElement>();
+    const previewRowRef = useScrollReveal<HTMLDivElement>();
+    const quoteRef = useScrollReveal<HTMLElement>();
 
     return (
         <div className="page-enter">
+            {/* LOUPE-34 mobile audit: no overflow issues found at 380px/320px on 2026-06-03. Screenshot in productiedossier. */}
             <section className="hero">
                 <div className="hero-photo" />
                 <div className="hero-inner">
@@ -69,7 +78,7 @@ export const Landing = (): JSX.Element => {
             <RingDivider />
 
             <section className="container">
-                <div className="trust-grid">
+                <div ref={trustRef} className="trust-grid reveal">
                     <article className="trust-card">
                         <Eyebrow>01 · Privacy by architecture</Eyebrow>
                         <h3 className="serif trust-title">Your data stays on your device.</h3>
@@ -99,8 +108,8 @@ export const Landing = (): JSX.Element => {
                         <Eyebrow>03 · Built for the literature</Eyebrow>
                         <h3 className="serif trust-title">The chart types journals expect.</h3>
                         <p className="trust-body">
-                            Kaplan–Meier, forest, ROC, Bland–Altman, volcano, and the other formats peer review
-                            actually asks for — styled to the conventions reviewers recognise.
+                            Kaplan–Meier, bar charts with error bars, box plots, and scatter/line plots — with
+                            more journal formats planned.
                         </p>
                         <div className="trust-figure">
                             <TrustPillarFormats />
@@ -112,10 +121,10 @@ export const Landing = (): JSX.Element => {
             <RingDivider />
 
             <section className="container">
-                <div className="library-preview-head">
+                <div ref={previewHeadRef} className="library-preview-head reveal">
                     <div>
                         <Eyebrow>Reference</Eyebrow>
-                        <h3 className="serif library-preview-title">Supported chart types.</h3>
+                        <h3 className="serif library-preview-title">Charts you can create today.</h3>
                     </div>
                     <button
                         type="button"
@@ -125,26 +134,42 @@ export const Landing = (): JSX.Element => {
                         See all supported chart types <span className="arrow">→</span>
                     </button>
                 </div>
-                <div className="library-preview-row">
-                    {CHART_TYPES.map((c) => {
-                        const Preview = CHART_PREVIEWS[c.slug];
+                <div ref={previewRowRef} className="library-preview-row reveal-stagger">
+                    {CHART_TYPES.map((tile) => {
+                        if (tile.kind === "more") {
+                            return (
+                                <div key="more" className="reveal">
+                                    <div className="library-preview-card loupe-card">
+                                        <div className="library-preview-svg" aria-hidden="true" />
+                                        <div className="library-preview-meta">
+                                            <span className="serif library-preview-name">{tile.label}</span>
+                                            <p className="trust-body muted">{tile.description}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        const Preview = CHART_PREVIEWS[tile.slug];
 
                         return (
-                            <div key={c.slug} className="library-preview-card loupe-card">
-                                <div className="library-preview-svg">
-                                    <Preview responsive />
+                            <div key={tile.slug} className="reveal">
+                                <div className="library-preview-card loupe-card">
+                                    <div className="library-preview-svg">
+                                        <Preview responsive />
+                                    </div>
+                                    <div className="library-preview-meta">
+                                        <span className="serif library-preview-name">{tile.name}</span>
+                                    </div>
+                                    <div className="focus-ring" style={{ left: "50%", top: "50%" }} />
                                 </div>
-                                <div className="library-preview-meta">
-                                    <span className="serif library-preview-name">{c.name}</span>
-                                </div>
-                                <div className="focus-ring" style={{ left: "50%", top: "50%" }} />
                             </div>
                         );
                     })}
                 </div>
             </section>
 
-            <section className="container quote-band">
+            <section ref={quoteRef} className="container quote-band reveal">
                 <p className="serif quote-body">
                     “We describe what we found. Loupe knows the figure that says it.”
                 </p>

@@ -469,6 +469,74 @@ img, svg, video {
 @keyframes fadeIn { to { opacity: 1; } }
 @keyframes draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 
+/* Ink-sweep reveal — entrance animation */
+.reveal {
+    position: relative;
+    overflow: hidden;
+}
+
+.reveal::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: var(--paper);
+    border-right: 1px solid var(--hairline);
+    transform: translateX(0%);
+    transition: transform 650ms cubic-bezier(0.76, 0, 0.24, 1);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.reveal > * {
+    opacity: 0;
+    transition: opacity 350ms ease 200ms;
+}
+
+.reveal[data-revealed="true"]::after {
+    transform: translateX(101%);
+}
+
+.reveal[data-revealed="true"] > * {
+    opacity: 1;
+}
+
+.reveal-stagger > .reveal:nth-child(1)::after { transition-delay: 0ms; }
+.reveal-stagger > .reveal:nth-child(2)::after { transition-delay: 80ms; }
+.reveal-stagger > .reveal:nth-child(3)::after { transition-delay: 160ms; }
+.reveal-stagger > .reveal:nth-child(4)::after { transition-delay: 240ms; }
+.reveal-stagger > .reveal:nth-child(5)::after { transition-delay: 320ms; }
+
+.reveal-stagger > .reveal:nth-child(1) > * { transition-delay: 200ms; }
+.reveal-stagger > .reveal:nth-child(2) > * { transition-delay: 280ms; }
+.reveal-stagger > .reveal:nth-child(3) > * { transition-delay: 360ms; }
+.reveal-stagger > .reveal:nth-child(4) > * { transition-delay: 440ms; }
+.reveal-stagger > .reveal:nth-child(5) > * { transition-delay: 520ms; }
+
+.reveal-stagger[data-revealed="true"] > .reveal::after {
+    transform: translateX(101%);
+}
+
+.reveal-stagger[data-revealed="true"] > .reveal > * {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal > *,
+    .reveal-stagger .reveal,
+    .reveal-stagger .reveal > * {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        overflow: visible !important;
+    }
+
+    .reveal::after,
+    .reveal-stagger .reveal::after {
+        display: none !important;
+    }
+}
+
 /* Form fields */
 .field {
     display: grid;
@@ -881,7 +949,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     cursor: pointer;
     font-family: inherit;
     align-self: start;
-    width: max-content;
+    max-width: 100%;
 }
 .link-arrow:hover { border-bottom-color: var(--blue); }
 .link-arrow .arrow { transition: transform 200ms var(--ease); }
@@ -931,7 +999,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 
 @media (min-width: 1024px) {
     .library-preview-head { margin-bottom: 28px; }
-    .library-preview-row { grid-template-columns: repeat(6, 1fr); }
+    .library-preview-row { grid-template-columns: repeat(5, 1fr); }
     .library-preview-card { padding: 18px 16px; }
     .library-preview-svg { min-height: 120px; }
     .library-preview-name { font-size: 15px; }
