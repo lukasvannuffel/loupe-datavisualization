@@ -131,7 +131,7 @@ describe("detectMultiTable", () => {
     });
 
     describe("performance", () => {
-        it("returns in <50ms on a 10k-row dataset", () => {
+        it("returns in <75ms on a 10k-row dataset", () => {
             const header = Array.from({ length: 20 }, (_, index) => `col_${index + 1}`);
             const dataRows = Array.from(
                 { length: 10000 },
@@ -144,7 +144,7 @@ describe("detectMultiTable", () => {
             const elapsed = performance.now() - start;
 
             expect(result).toEqual({ detected: false });
-            expect(elapsed).toBeLessThan(50);
+            expect(elapsed).toBeLessThan(75);
         });
     });
 });

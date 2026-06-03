@@ -33,10 +33,15 @@ export const SaveChartDialog = ({
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            return;
+        }
         setName(defaultName);
         setTags([...defaultTags]);
         setError(null);
+    // Intentional: reset only on dialog open, not on every defaultName
+    // change (avoids overwriting user's in-progress edits).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     const onSubmit = (event: FormEvent<HTMLFormElement>): void => {

@@ -71,7 +71,17 @@ const payloadSchema = z
         receipt: receiptSchema,
         plot_data: z.unknown(),
         thumbnail: z.string().min(1).max(200_000).regex(/^data:image\/(png|svg\+xml);/),
-        tags: z.array(z.string()).default([]),
+        tags: z
+            .array(
+                z
+                    .string()
+                    .trim()
+                    .min(1)
+                    .max(50)
+                    .transform((value) => value.toLowerCase()),
+            )
+            .max(10)
+            .default([]),
     })
     .strict();
 

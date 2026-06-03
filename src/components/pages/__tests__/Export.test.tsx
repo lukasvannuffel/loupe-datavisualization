@@ -622,6 +622,94 @@ describe("Save chart dialog", () => {
         expect((input as HTMLInputElement).value).toBe("Original name");
     });
 
+    it("persists updated tags on re-save of existing chart", async () => {
+        const figureSpec = createDefaultChartSpec(
+            "km",
+            { id: "saved-km", createdAt: "2026-05-28T08:00:00.000Z" },
+            { inferences: kmDataset.inferences, mapping: kmMapping, rows: kmDataset.rows },
+        );
+
+        render(
+            <ToastProvider>
+                <AppStateProvider>
+                    <SeedExportState spec={figureSpec} seedDataset={kmDataset} seedMapping={kmMapping}>
+                        <Export
+                            initialChartId="km-1"
+                            initialChart={{
+                                id: "km-1",
+                                name: "Original name",
+                                chart_spec: figureSpec,
+                                column_mapping: kmMapping,
+                                receipt: {
+                                    generated_at: "2026-05-28T08:00:00.000Z",
+                                    config_hash:
+                                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                                    method: "Kaplan-Meier estimator, Greenwood log-log CI",
+                                    sample: "n = 100 · censored = 0",
+                                    palette: "editorial",
+                                    software: "Loupe v0.1.0 · client-side",
+                                    ai_rationale: "why",
+                                    csv_columns: ["months", "status", "arm"],
+                                    n_rows_input: 2,
+                                },
+                                plot_data: {
+                                    kind: "km",
+                                    tMax: 12,
+                                    groups: [
+                                        {
+                                            label: "Arm A",
+                                            nTotal: 10,
+                                            nEvents: 1,
+                                            points: [
+                                                {
+                                                    t: 1,
+                                                    survival: 0.9,
+                                                    nAtRisk: 10,
+                                                    censored: false,
+                                                    ciLower: 0.7,
+                                                    ciUpper: 1,
+                                                },
+                                            ],
+                                            atRiskTicks: [{ t: 0, nAtRisk: 10 }],
+                                        },
+                                    ],
+                                },
+                                thumbnail: "data:image/png;base64,thumb",
+                                chart_kind: "km",
+                                tags: ["pilot"],
+                                created_at: "2026-05-28T08:00:00.000Z",
+                                updated_at: "2026-05-28T08:00:00.000Z",
+                            }}
+                        />
+                    </SeedExportState>
+                </AppStateProvider>
+            </ToastProvider>,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /save to project/i })).not.toBeDisabled();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /save to project/i }));
+        fireEvent.click(screen.getByRole("button", { name: "pilot" }));
+        const tagInput = screen.getByLabelText(/^tags$/i);
+        fireEvent.change(tagInput, { target: { value: "cohort-a" } });
+        fireEvent.keyDown(tagInput, { key: "Enter" });
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(saveChartMock).toHaveBeenCalled();
+        });
+
+        const payload = saveChartMock.mock.calls.at(-1)?.[0];
+        expect(payload?.id).toBe("km-1");
+        expect(payload?.tags).toEqual(["cohort-a"]);
+    });
+
+    // MUTATION-VERIFY: In Export.tsx handleSaveConfirm L1067, replace `tags,` with `tags: [],`.
+    // Test "persists updated tags on re-save of existing chart" goes RED.
+    // Verified manually: 2026-06-03. REVERTED.
+
     it("calls saveChart with defaultSpec.title when submitted unchanged", async () => {
         renderExport();
 
