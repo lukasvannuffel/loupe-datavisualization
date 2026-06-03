@@ -70,7 +70,7 @@ const payloadSchema = z
         column_mapping: columnMappingSchema,
         receipt: receiptSchema,
         plot_data: z.unknown(),
-        thumbnail: z.string().min(1).max(200_000).regex(/^data:image\/(png|svg\+xml);/),
+        thumbnail: z.string().min(1).max(500_000).regex(/^data:image\/(png|svg\+xml);/),
         tags: z
             .array(
                 z

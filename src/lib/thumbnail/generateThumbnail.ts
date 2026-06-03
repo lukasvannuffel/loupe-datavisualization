@@ -3,8 +3,11 @@ import type { PlotData, SpecKind } from "@/lib/chartSpec/types";
 import { chartKindIcon, type DashboardChartKind } from "./chartKindIcons";
 
 const AGGREGATE_KINDS = new Set<DashboardChartKind>(["bar", "km"]);
-const THUMBNAIL_WIDTH = 240;
-const THUMBNAIL_HEIGHT = 160;
+// Capture resolution: 480×320 (2× the original 240×160).
+// Thumbnails saved before this change remain at 240×160 in the DB
+// until the chart is re-saved. New saves will be full resolution.
+export const THUMBNAIL_WIDTH = 480;
+export const THUMBNAIL_HEIGHT = 320;
 
 const toDashboardChartKind = (chartKind: SpecKind): DashboardChartKind =>
     chartKind === "barError" ? "bar" : chartKind;
