@@ -45,7 +45,7 @@ const buildHeroCensorTicks = (points: readonly HeroKmPoint[]): [number, number][
         .filter((point) => point.censored === true)
         .map((point) => [heroKmRound(heroKmX(point.t)), heroKmRound(heroKmY(point.survival))]);
 
-/** Treatment (n=312): median ~36 mo; gradual decline. */
+/** Treatment (n=312): median ~36 mo (crosses S=0.5 between t=32 and t=36). */
 const TREATMENT_KM: readonly HeroKmPoint[] = [
     { t: 0, survival: 1 },
     { t: 2, survival: 0.968 },
@@ -57,18 +57,18 @@ const TREATMENT_KM: readonly HeroKmPoint[] = [
     { t: 18, survival: 0.784, censored: true },
     { t: 21, survival: 0.756 },
     { t: 24, survival: 0.724, censored: true },
-    { t: 28, survival: 0.695 },
-    { t: 32, survival: 0.663, censored: true },
-    { t: 36, survival: 0.631 },
-    { t: 40, survival: 0.598, censored: true },
-    { t: 44, survival: 0.571, censored: true },
-    { t: 48, survival: 0.543 },
-    { t: 52, survival: 0.521, censored: true },
-    { t: 56, survival: 0.508 },
-    { t: 60, survival: 0.489, censored: true },
+    { t: 28, survival: 0.688 },
+    { t: 32, survival: 0.562, censored: true },
+    { t: 36, survival: 0.494, censored: true },
+    { t: 40, survival: 0.458 },
+    { t: 44, survival: 0.428, censored: true },
+    { t: 48, survival: 0.398 },
+    { t: 52, survival: 0.368, censored: true },
+    { t: 56, survival: 0.342 },
+    { t: 60, survival: 0.268, censored: true },
 ];
 
-/** Control (n=298): median ~18 mo; faster decline, separated from Treatment. */
+/** Control (n=298): median ~18 mo (crosses S=0.5 between t=15 and t=18). */
 const CONTROL_KM: readonly HeroKmPoint[] = [
     { t: 0, survival: 1 },
     { t: 2, survival: 0.943 },
@@ -76,19 +76,19 @@ const CONTROL_KM: readonly HeroKmPoint[] = [
     { t: 6, survival: 0.842, censored: true },
     { t: 9, survival: 0.783 },
     { t: 12, survival: 0.724, censored: true },
-    { t: 15, survival: 0.668, censored: true },
-    { t: 18, survival: 0.612 },
-    { t: 21, survival: 0.561, censored: true },
-    { t: 24, survival: 0.514, censored: true },
-    { t: 28, survival: 0.468, censored: true },
-    { t: 32, survival: 0.421, censored: true },
-    { t: 36, survival: 0.378 },
-    { t: 40, survival: 0.341, censored: true },
-    { t: 44, survival: 0.311 },
-    { t: 48, survival: 0.289, censored: true },
-    { t: 52, survival: 0.271, censored: true },
-    { t: 56, survival: 0.259 },
-    { t: 60, survival: 0.251, censored: true },
+    { t: 15, survival: 0.538 },
+    { t: 18, survival: 0.482, censored: true },
+    { t: 21, survival: 0.441, censored: true },
+    { t: 24, survival: 0.402 },
+    { t: 28, survival: 0.358 },
+    { t: 32, survival: 0.318, censored: true },
+    { t: 36, survival: 0.284 },
+    { t: 40, survival: 0.268, censored: true },
+    { t: 44, survival: 0.258 },
+    { t: 48, survival: 0.248, censored: true },
+    { t: 52, survival: 0.240 },
+    { t: 56, survival: 0.234 },
+    { t: 60, survival: 0.228, censored: true },
 ];
 
 const CURVE_A = buildHeroKmPath(TREATMENT_KM);
