@@ -2,24 +2,27 @@
 
 import { useRouter } from "next/navigation";
 
-import { CHART_PREVIEWS, type ChartSlug } from "@/components/charts/chartPreviews";
+import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingDivider } from "@/components/primitives/RingDivider";
+import type { SpecKind } from "@/lib/chartSpec/types";
 import { HeroMotion } from "./HeroMotion";
 import { TrustPillarFormats, TrustPillarPrivacy, TrustPillarReasoning } from "./TrustPillars";
 
-type ChartTypeSpec = {
-    slug: ChartSlug;
-    name: string;
-};
+type LandingChartTile =
+    | { kind: "chart"; slug: SpecKind; name: string }
+    | { kind: "more"; label: string; description: string };
 
-const CHART_TYPES: readonly ChartTypeSpec[] = [
-    { slug: "km", name: "Kaplan–Meier" },
-    { slug: "forest", name: "Forest plot" },
-    { slug: "box", name: "Box-and-whisker" },
-    { slug: "roc", name: "ROC curve" },
-    { slug: "volcano", name: "Volcano plot" },
-    { slug: "bland", name: "Bland–Altman" },
+const CHART_TYPES: readonly LandingChartTile[] = [
+    { kind: "chart", slug: "km", name: "Kaplan–Meier" },
+    { kind: "chart", slug: "barError", name: "Bar chart with error bars" },
+    { kind: "chart", slug: "box", name: "Box-and-whisker" },
+    { kind: "chart", slug: "xy", name: "Scatter / line plot" },
+    {
+        kind: "more",
+        label: "+ more coming",
+        description: "Forest plot, ROC curve, and more in V2.",
+    },
 ];
 
 export const Landing = (): JSX.Element => {
@@ -27,16 +30,18 @@ export const Landing = (): JSX.Element => {
 
     return (
         <div className="page-enter">
+            {/* LOUPE-34 mobile audit: no overflow issues found at 380px/320px on 2026-06-03. Screenshot in productiedossier. */}
             <section className="hero">
                 <div className="hero-photo" />
                 <div className="hero-inner">
                     <div className="container">
                         <div className="hero-copy">
-                            <Eyebrow>For medical research</Eyebrow>
+                            <Eyebrow>No code. No Excel. No statistician required.</Eyebrow>
+                            {/* LOUPE-34: chosen Alt 2 — action-first headline states the outcome and task; eyebrow answers differentiation; existing hero-sub retains privacy. */}
                             <h1 className="serif hero-title">
-                                <span className="hero-title-line">Start with the finding,</span>
+                                <span className="hero-title-line">Turn your data into</span>
                                 <br />
-                                <em className="hero-italic">not the format.</em>
+                                <em className="hero-italic">publication-ready figures.</em>
                             </h1>
                             <p className="hero-sub">
                                 Publication-ready medical charts. No code. No data ever leaves your browser.
@@ -115,7 +120,7 @@ export const Landing = (): JSX.Element => {
                 <div className="library-preview-head">
                     <div>
                         <Eyebrow>Reference</Eyebrow>
-                        <h3 className="serif library-preview-title">Supported chart types.</h3>
+                        <h3 className="serif library-preview-title">Charts you can create today.</h3>
                     </div>
                     <button
                         type="button"
@@ -126,16 +131,28 @@ export const Landing = (): JSX.Element => {
                     </button>
                 </div>
                 <div className="library-preview-row">
-                    {CHART_TYPES.map((c) => {
-                        const Preview = CHART_PREVIEWS[c.slug];
+                    {CHART_TYPES.map((tile) => {
+                        if (tile.kind === "more") {
+                            return (
+                                <div key="more" className="library-preview-card loupe-card">
+                                    <div className="library-preview-svg" aria-hidden="true" />
+                                    <div className="library-preview-meta">
+                                        <span className="serif library-preview-name">{tile.label}</span>
+                                        <p className="trust-body muted">{tile.description}</p>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        const Preview = CHART_PREVIEWS[tile.slug];
 
                         return (
-                            <div key={c.slug} className="library-preview-card loupe-card">
+                            <div key={tile.slug} className="library-preview-card loupe-card">
                                 <div className="library-preview-svg">
                                     <Preview responsive />
                                 </div>
                                 <div className="library-preview-meta">
-                                    <span className="serif library-preview-name">{c.name}</span>
+                                    <span className="serif library-preview-name">{tile.name}</span>
                                 </div>
                                 <div className="focus-ring" style={{ left: "50%", top: "50%" }} />
                             </div>

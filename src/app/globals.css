@@ -881,7 +881,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     cursor: pointer;
     font-family: inherit;
     align-self: start;
-    width: max-content;
+    max-width: 100%;
 }
 .link-arrow:hover { border-bottom-color: var(--blue); }
 .link-arrow .arrow { transition: transform 200ms var(--ease); }
@@ -931,7 +931,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 
 @media (min-width: 1024px) {
     .library-preview-head { margin-bottom: 28px; }
-    .library-preview-row { grid-template-columns: repeat(6, 1fr); }
+    .library-preview-row { grid-template-columns: repeat(5, 1fr); }
     .library-preview-card { padding: 18px 16px; }
     .library-preview-svg { min-height: 120px; }
     .library-preview-name { font-size: 15px; }
