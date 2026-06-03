@@ -39,6 +39,7 @@ export type SaveChartPayload = {
     readonly receipt: z.infer<typeof receiptSchema>;
     readonly plot_data: PlotData;
     readonly thumbnail: string;
+    readonly tags: readonly string[];
 };
 
 export type SaveChartResult =
@@ -56,6 +57,7 @@ export type ChartRow = {
     readonly plot_data: PlotData | null;
     readonly thumbnail: string | null;
     readonly chart_kind: "bar" | "box" | "km" | "xy" | null;
+    readonly tags: readonly string[];
     readonly created_at: string;
     readonly updated_at: string;
 };
@@ -69,6 +71,17 @@ const payloadSchema = z
         receipt: receiptSchema,
         plot_data: z.unknown(),
         thumbnail: z.string().min(1).max(200_000).regex(/^data:image\/(png|svg\+xml);/),
+        tags: z
+            .array(
+                z
+                    .string()
+                    .trim()
+                    .min(1)
+                    .max(50)
+                    .transform((value) => value.toLowerCase()),
+            )
+            .max(10)
+            .default([]),
     })
     .strict();
 
@@ -177,6 +190,7 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                     plot_data: storablePlotData,
                     thumbnail: parsed.thumbnail,
                     chart_kind: chartKind,
+                    tags: parsed.tags,
                 })
                 .match({ id: parsed.id, user_id: user.id })
                 .select("id")
@@ -202,6 +216,7 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
                 plot_data: storablePlotData,
                 thumbnail: parsed.thumbnail,
                 chart_kind: chartKind,
+                tags: parsed.tags,
             })
             .select("id")
             .single();
@@ -242,7 +257,7 @@ export const getChart = async (id: string): Promise<GetChartResult> => {
 
         const { data, error } = await supabase
             .from("charts")
-            .select("id, name, chart_spec, column_mapping, receipt, plot_data, thumbnail, chart_kind, created_at, updated_at")
+            .select("id, name, chart_spec, column_mapping, receipt, plot_data, thumbnail, chart_kind, tags, created_at, updated_at")
             .eq("id", id)
             .eq("user_id", user.id)
             .single();
@@ -285,6 +300,8 @@ export const getChart = async (id: string): Promise<GetChartResult> => {
                 return { ok: false, reason: "load_failed" };
             }
         }
+        const parsedTags = z.array(z.string()).safeParse(data.tags);
+        const tags = parsedTags.success ? parsedTags.data : [];
 
         return {
             chart: {
@@ -296,6 +313,7 @@ export const getChart = async (id: string): Promise<GetChartResult> => {
                 plot_data: (data.plot_data ?? null) as PlotData | null,
                 thumbnail: (data.thumbnail ?? null) as string | null,
                 chart_kind: (data.chart_kind ?? null) as ChartRow["chart_kind"],
+                tags,
                 created_at: data.created_at as string,
                 updated_at: data.updated_at as string,
             },

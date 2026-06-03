@@ -790,6 +790,7 @@ Pre-jury bug bash. Test scenarios die je niet wil dat de jury ontdekt.
 Dit is een grote taak — onderschat het niet. Een jury kijkt vaak eerst naar je documentatie voor je code. Privacy is je structurele product-positionering — dat moet technisch verifieerbaar zijn in de documentatie, niet alleen geclaimd.
 
 **Actie-items**
+- [ ] **`docs/async-audit.md`:** update of verwijderen vóór jury — verouderd na LOUPE-28 (toast-systeem onjuist beschreven) en LOUPE-33 (verwijst nog naar `dash-toast` + verwijderde mock `Dashboard.tsx`; productie-dashboard is `src/app/dashboard/page.tsx`)
 - [ ] Architecture overview — diagram van dataflow client-side vs. server-side
 - [ ] **Privacy boundary technisch geverifieerd:** dataflow-diagram (browser → server action → Vercel AI Gateway → Anthropic), per pijl de payload-inhoud + retentiebeleid van elk station
 - [ ] **Eerlijke disclosure:** kolomnaam-PHI risico erkend, met PHI-warning (LOUPE-06) als mitigatie en V2 anonymize-toggle als toekomstige hardening

@@ -8,6 +8,13 @@
   font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.1rem);
 }
 
+.tagFilter {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .grid {
   margin-top: 18px;
   display: grid;
@@ -52,6 +59,10 @@
   justify-content: space-between;
   gap: 8px;
   align-items: center;
+}
+
+.cardTags {
+  margin: 0 12px 12px;
 }
 
 .badge {
