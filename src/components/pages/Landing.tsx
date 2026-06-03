@@ -108,8 +108,8 @@ export const Landing = (): JSX.Element => {
                         <Eyebrow>03 · Built for the literature</Eyebrow>
                         <h3 className="serif trust-title">The chart types journals expect.</h3>
                         <p className="trust-body">
-                            Kaplan–Meier, forest, ROC, Bland–Altman, volcano, and the other formats peer review
-                            actually asks for — styled to the conventions reviewers recognise.
+                            Kaplan–Meier, bar charts with error bars, box plots, and scatter/line plots — with
+                            more journal formats planned.
                         </p>
                         <div className="trust-figure">
                             <TrustPillarFormats />

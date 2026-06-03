@@ -13,6 +13,8 @@ export function useScrollReveal<T extends HTMLElement>(): RefObject<T | null> {
             return;
         }
 
+        // matchMedia read once at mount — live OS toggle not handled.
+        // Acceptable for Landing; revisit if hook is reused on dynamic routes.
         if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
             element.setAttribute("data-revealed", "true");
             return;
