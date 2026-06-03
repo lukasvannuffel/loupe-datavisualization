@@ -790,6 +790,7 @@ Pre-jury bug bash. Test scenarios die je niet wil dat de jury ontdekt.
 Dit is een grote taak — onderschat het niet. Een jury kijkt vaak eerst naar je documentatie voor je code. Privacy is je structurele product-positionering — dat moet technisch verifieerbaar zijn in de documentatie, niet alleen geclaimd.
 
 **Actie-items**
+- [ ] **`docs/async-audit.md`:** update of verwijderen vóór jury — verouderd na LOUPE-28 (toast-systeem onjuist beschreven) en LOUPE-33 (verwijst nog naar `dash-toast` + verwijderde mock `Dashboard.tsx`; productie-dashboard is `src/app/dashboard/page.tsx`)
 - [ ] Architecture overview — diagram van dataflow client-side vs. server-side
 - [ ] **Privacy boundary technisch geverifieerd:** dataflow-diagram (browser → server action → Vercel AI Gateway → Anthropic), per pijl de payload-inhoud + retentiebeleid van elk station
 - [ ] **Eerlijke disclosure:** kolomnaam-PHI risico erkend, met PHI-warning (LOUPE-06) als mitigatie en V2 anonymize-toggle als toekomstige hardening
@@ -861,6 +862,408 @@ Live demo op de jury-dagen. Een script + 2 rehearsals + backup plan voor wifi/AI
 - [ ] Demo onder 8 minuten, alle features langs
 - [ ] Backup screencast bestaat en werkt offline
 - [ ] 5+ jury-questions beantwoord in voorbereiding
+
+---
+
+# POLISH + BUGFIX (post LOUPE-23) · 1 → 9 juni
+## Demo-hardening, scope-beslissingen en docent-feedback
+
+Deze tickets ontstonden na voltooiing van LOUPE-23 op basis van eigen bevindingen en docent-feedback. Ze lopen **parallel** met Sprint 5/6 documentatie-werk en zijn geprioriteerd zodat ze niet ten koste gaan van LOUPE-24/25.
+
+---
+
+### LOUPE-27 · Missing-mapping guard + error boundary op /export
+
+**Prioriteit:** P0
+**Einddatum:** 2 juni 2026
+**Geschatte tijd:** 3u
+**Hangt af van:** —
+
+**Over project**
+Bug-familie rond onvolledige mappings. Vandaag kan een gebruiker op `/export` belanden zonder gerenderde chart (mapping incomplete of incompatibel met chartkind), wat in jury-context fataal is. Tegelijk ontbreekt er een `error.tsx` op het `/export` route segment — `docs/async-audit.md` flagt dat de hele app nul error boundaries heeft, dus elke render-throw valt door naar de generieke Next.js overlay.
+
+Twee fixes, één ticket:
+1. Op `/recommend`: als er geen chart gerenderd is (mapping incomplete / `liveSpec` of `exportPlotData` null), dan **Customize** disabled + duidelijke inline error in plaats van een button die naar een gebroken `/export` leidt.
+2. Op `/export`: route-level `error.tsx` met retry + terug-naar-`/recommend` action, zodat een onverwachte throw niet de demo opblaast.
+
+**Actie-items**
+- [ ] `Recommendation.tsx` — afleiden `canCustomize = liveSpec !== null && exportPlotData !== null`; Customize-button `disabled` + `aria-disabled` + tooltip "Complete the column mapping first"
+- [ ] Inline `role="alert"` boven de chart-area als render mislukt door missing mapping, met copy "Mapping incomplete — return to column mapping" + link terug naar `/upload/map`
+- [ ] `src/app/export/error.tsx` — Next.js error segment met Eyebrow + retry-action + secondary "Back to recommendation"
+- [ ] `src/app/export/page.tsx` — defensieve guard: als geen geldige `liveSpec`/`exportPlotData` resolved, redirect naar `/recommend` met toast (geen lege `/export` state)
+- [ ] Unit test: render `Recommendation` met `liveSpec=null` → Customize button heeft `disabled` attribute en alert is zichtbaar
+- [ ] E2E-pad in `smoke:recommend` of nieuwe test: forceer mapping zonder verplichte rol → verwacht geen navigatie naar `/export`
+
+**Acceptance criteria**
+- [ ] Customize-knop is visueel + functioneel disabled wanneer chart niet rendert
+- [ ] Klik op disabled Customize triggert geen navigatie
+- [ ] Throw in `/export`-tree wordt opgevangen door `error.tsx` en niet door Next.js default overlay (verifieerbaar door tijdelijke `throw` in `Export.tsx`)
+- [ ] `error.tsx` reset-action herstelt de pagina zonder full reload
+
+---
+
+### LOUPE-28 · Analyzing loading screen tussen /upload/map en /recommend
+
+**Prioriteit:** P0
+**Einddatum:** 3 juni 2026
+**Geschatte tijd:** 4u
+**Hangt af van:** LOUPE-29
+
+**Over project**
+De huidige loading state is enkel een `RingLoader` in de Continue-button van `/upload/map`. Tijdens de server action (5–15s) ziet de gebruiker geen visuele voortgang en blijft `/upload/map` zichtbaar, wat de AI-call onzichtbaar maakt voor de jury. Vervang door een full-screen "Analyzing" view die de loupe-metafoor expliciet maakt: een veld ruw datapunten waaruit een KM-curve emerges naarmate de lens beweegt.
+
+Ontwerp ligt al klaar (canvas-based prototype). Na LOUPE-29 wordt `/recommend` het natuurlijke punt waar de AI-call afvuurt, dus dit komt als `app/recommend/loading.tsx` — Next.js handelt mount/unmount automatisch af bij de route-transitie.
+
+**⚠️ Kritisch beslispunt over de prototype-code**
+De prototype-code drijft op een **vaste timer** (`BASE = 5400ms`) en roept zelf `navigate("recommend")` aan bij progress=1. Dat werkt niet zoals gewenst:
+- AI sneller dan 5.4s → loader zit nog op 60% terwijl `/recommend` al klaar is
+- AI trager dan 5.4s → loader staat op 100% en blijft hangen, of (erger) de auto-navigate vuurt vóór de data klaar is
+- In een `loading.tsx` mag je sowieso niet zelf navigeren — Next.js doet dat als de page-tree resolved is
+
+Keuze:
+- **A (aanbevolen):** strip de fake-timer en de `navigate` call. Maak de progress indeterminate (visueel: lens drift + reveal-trail blijven, maar de % verdwijnt of wordt vervangen door een ademende pulse). Next.js bepaalt wanneer de loader unmount.
+- **B:** behoud progress als sier maar koppel hem aan een streaming token-counter via een client-store. Meer werk, kwetsbaar bij netwerkglitches.
+
+Default = A tenzij expliciet anders beslist.
+
+**Actie-items**
+- [ ] `src/app/recommend/loading.tsx` — Next.js loading segment; rendert `<Analyzing />`
+- [ ] `src/components/loading/Analyzing.tsx` — port van prototype (TS, strict, readonly types, geen `any`)
+- [ ] **Verwijder** `BASE` timer + `navigate` prop + `setProgress` met `pct` text; vervang door indeterminate-state (CSS-only pulse op de progress-bar of weglaten)
+- [ ] Hou lens-interactie + idle-drift + reveal-trail + finished-flourish — dit is de visuele payload
+- [ ] CSS-tokens in `app/globals.css`: `.analyzing-page`, `.analyzing-top`, `.analyzing-field`, `.analyzing-canvas`, `.analyzing-hint`, `.analyzing-bar`, `.analyzing-bar-fill`
+- [ ] Kleuren van `C` mappen naar bestaande CSS-variabelen uit design-system v0.4 (`--ink`, `--amber`, `--paper-card`, `--hairline`) — geen losse hex-literals in JS
+- [ ] Reduced-motion fallback: `prefers-reduced-motion` → statische lens-pose, geen animatie, hint blijft zichtbaar
+- [ ] `wrapRef.current` null-checks (TS strict) + cleanup van `mulberry32` seed-state niet nodig (closure scope)
+- [ ] DPR cap blijft op 2 (al in prototype) — bewaak performance op laptops
+- [ ] Touch-input getest: minstens werken, niet noodzakelijk performant
+- [ ] Unit test: component mount zonder crash bij JSDOM (canvas 2d context mock); `prefers-reduced-motion` pad rendert geen `requestAnimationFrame` loop
+- [ ] Visual smoke: Vercel preview, screenshot bij 1440px en 380px breedte in dossier
+
+**Acceptance criteria**
+- [ ] Navigatie van `/recommend/choose` (AI-keuze) naar `/recommend` toont `Analyzing` view tot streaming response klaar is
+- [ ] Loader unmount automatisch wanneer `/recommend` data resolved — **niet** op een vaste tijd
+- [ ] Geen flash van witte/lege `/recommend` page voor de loader verschijnt
+- [ ] Geen layout shift wanneer loader → recommendation
+- [ ] `prefers-reduced-motion: reduce` schakelt de canvas-animatie uit zonder de pagina te breken
+- [ ] Lighthouse-performance op `/recommend` (eerste render incl. loader) blijft ≥ 85
+- [ ] Geen `setInterval`/`setTimeout` leakage zichtbaar in React DevTools na route-change
+
+---
+
+### LOUPE-29 · Routing fix: /upload/map → /recommend/choose → /recommend of /recommend/manual
+
+**Prioriteit:** P0
+**Einddatum:** 2 juni 2026
+**Geschatte tijd:** 2u
+**Hangt af van:** —
+
+**Over project**
+`CLAUDE.md` documenteert de wizard-flow als `/upload → /upload/map → /recommend/choose → /recommend (AI) of /recommend/manual → /export`. In productie springt `/upload/map` rechtstreeks naar `/recommend`, waardoor `/recommend/choose` overgeslagen wordt en de manual-pad alleen via diepe URL bereikbaar is. Dat is een mismatch tussen architectuur-doc en realiteit — als de jury de docs naast de demo legt, springt dat eruit.
+
+Fix: na `/upload/map` Continue → `router.push('/recommend/choose')`. Op `/recommend/choose` houdt de gebruiker controle (AI-recommendation of manual picker). Vanaf daar pas wordt de AI-call afgevuurd (en dus pas vanaf daar zien we LOUPE-28 loader).
+
+**Actie-items**
+- [ ] `UploadMap.tsx` — Continue-handler verandert eindbestemming van `/recommend` naar `/recommend/choose`; verwijder de directe `recommendChart` server-action call hier
+- [ ] Server action `recommendChart` verhuist naar trigger op `/recommend` page-entry (na keuze "AI" op `/recommend/choose`) — gebruik Next.js `loading.tsx` (zie LOUPE-28) zodat het ophalen visueel afdekt is
+- [ ] `/recommend/choose/page.tsx` — twee CTA's: "Get AI recommendation" → `router.push('/recommend')`, "Choose chart manually" → `router.push('/recommend/manual')`
+- [ ] `/recommend/page.tsx` — als `intent`/`dataset`/`mapping` ontbreken in session storage (deep-link zonder context), redirect naar `/upload`
+- [ ] `/recommend/manual/page.tsx` — zelfde guard
+- [ ] Update tests in `UploadMap.test.tsx`: na Continue verwachten we navigatie naar `/recommend/choose`, **niet** een `recommendChart` mock-call meer
+- [ ] Nieuwe test op `/recommend/choose` of bestaande uitbreiden: klik "Get AI recommendation" → navigatie naar `/recommend` + AI-call fired daar
+- [ ] sessionStorage caching key voor recommendation blijft hetzelfde (geen cache-invalidation door verhuis)
+
+**Acceptance criteria**
+- [ ] Vanaf `/upload/map` → Continue → user landt op `/recommend/choose`, niet op `/recommend`
+- [ ] AI-pad: `/recommend/choose` → "Get AI recommendation" → `/recommend` triggert exact één `recommendChart` server action
+- [ ] Manual-pad: `/recommend/choose` → "Choose manually" → `/recommend/manual` triggert **geen** AI-call (privacy + budget)
+- [ ] Deep-link naar `/recommend` zonder voorafgaande mapping → redirect naar `/upload`
+- [ ] Tweede AI-call op identieke input is nog steeds een cache-hit (sessionStorage), niet gebroken door de verhuis
+- [ ] Flow-diagram in `CLAUDE.md` matcht productiegedrag
+
+---
+
+### LOUPE-30 · Multi-table-in-één-sheet detectie + blocker
+
+**Prioriteit:** P1
+**Einddatum:** 4 juni 2026
+**Geschatte tijd:** 4u
+**Hangt af van:** LOUPE-02 (multi-sheet selectie bestaat al)
+
+**Over project**
+LOUPE-02 dekt al meerdere **sheets** in een workbook. Dit ticket dekt het andere geval: één sheet bevat **meerdere tabellen** naast of onder elkaar — typisch in trial-spreadsheets ("Cohort A" links, "Cohort B" rechts gescheiden door lege kolom; of stacked tables met header rows in het midden). Vandaag pakt de parser silently de eerste rij als header en mangled de rest tot junk-rijen, wat downstream resulteert in PHI-warnings op valide kolommen of in onzin-mappings.
+
+Niet automatisch proberen op te lossen — opschoning hoort bij de gebruiker. Detecteer en blokkeer met duidelijke instructie. Onderzoeksrapport bevestigt dit: respondenten verwachten dat de tool eerlijk zegt wanneer data niet bruikbaar is, niet stilzwijgend mangling.
+
+**Heuristieken voor detectie** (alle ná `parseWorkbookToResult`, dus op de geparste AoA):
+- **Horizontale split**: één of meer volledig lege kolommen in het midden van de header-rij (niet enkel trailing empty columns)
+- **Verticale split**: een rij ná de header die er weer uitziet als een header (≥50% van de cellen niet-numeriek én verschillend van data-rij-patroon erboven)
+- **Verdacht aantal lege cellen**: header-rij heeft >30% lege cells gevolgd door tweede non-empty header-cluster
+
+**Actie-items**
+- [ ] `src/lib/parser/detectMultiTable.ts` — pure functie `detectMultiTable(aoa: readonly (readonly unknown[])[]): MultiTableDetection`
+- [ ] Return type: `{ detected: true; reason: "horizontal_split" | "vertical_split" | "embedded_header"; hint: string } | { detected: false }`
+- [ ] Aanroep vanuit `parseWorkbookToResult` ná header-detectie, vóór `dedupeHeaders` — als `detected`, throw `makeParseError("MULTI_TABLE_DETECTED", { reason, hint })`
+- [ ] Nieuwe `ParseErrorCode` toevoegen: `"MULTI_TABLE_DETECTED"` met optionele payload
+- [ ] `Upload.tsx` foutweergave: blokpaneel "Multiple tables detected in this sheet" + concrete hint per reason ("There appear to be two tables side-by-side. Save each table in its own sheet, or delete the empty divider column.") + "Replace file" CTA
+- [ ] Geen "Try anyway" override — bewuste keuze, vertel dat zo in copy
+- [ ] Unit tests met fixtures:
+  - `horizontal-split.csv` — twee 3-kolom tabellen gescheiden door empty column
+  - `vertical-stacked.csv` — twee tabellen onder elkaar met tweede header-rij
+  - `trailing-empty-cols.csv` — alleen trailing empties → NIET detecteren (false positive guard)
+  - `single-table.csv` — normaal → NIET detecteren
+- [ ] Privacy-assert in test: detectie-output bevat **geen** cell-waarden, alleen structurele info (rij/kolom-indexen + reason code)
+
+**Acceptance criteria**
+- [ ] CSV met side-by-side tabellen → upload blocked, gebruiker krijgt actionable hint
+- [ ] XLSX-sheet met stacked tables → blocked
+- [ ] Normale tabel met enkel trailing empty kolommen → géén false positive
+- [ ] Detectie kost <50ms op een 10k-rij dataset (alleen header + eerste ~10 data-rijen inspecteren)
+- [ ] Foutbericht bevat geen rauwe data — alleen structurele beschrijving
+- [ ] Network tab toont geen POST request (privacy intact, alles client-side)
+
+**Risico's**
+- False positives op valide datasets met sparse headers. Mitigatie: minimum 2 niet-aaneensluitende clusters van ≥2 non-empty headers vereisen
+- Trial-spreadsheets met merged cells: SheetJS unmerge'd standaard, maar test dit expliciet
+
+---
+
+### LOUPE-31 · Chart scale audit + edge-case witness tests
+
+**Prioriteit:** P2
+**Einddatum:** 5 juni 2026
+**Geschatte tijd:** 3u
+**Hangt af van:** —
+
+**Over project**
+Statistische correctheid van as-domeinen. Audit van de huidige code (`KaplanMeierChart.tsx`, `BarErrorChart.tsx`, `XYChart.tsx`, `BoxChart.tsx`) wijst uit dat de scale-logica al goed zit:
+- KM: hardcoded `[0, 1]`
+- BarError: `[min(0, mean-err), max(0, mean+err)]` + 5%/10% padding + `.nice()`
+- XY/Box: extents ± 5% padding + `.nice()`, geen geforceerde zero
+
+Geen blinde fix dus. **Doel van dit ticket** is dubbel:
+1. Edge cases verifiëren waar de huidige logica onverwacht degradeert
+2. Witness-tests toevoegen die de gewenste eigenschappen vastpinnen, zodat een toekomstige refactor (of LLM-assist) niet stilletjes de schaal-logica breekt
+
+Dit is ook materiaal voor de technische documentatie — "hoe we statistische correctheid afdwingen via tests" is een sterk verhaal voor de jury.
+
+**Edge cases om te onderzoeken**
+
+| Chart | Scenario | Verwacht gedrag |
+|---|---|---|
+| KM | Alle survival = 1 (geen events) | y-as blijft [0, 1], curve is rechte lijn bovenaan |
+| KM | Survival daalt tot 0 voor t_max | y-as blijft [0, 1], curve raakt x-as |
+| BarError | Alle waarden negatief (bv. delta-scores) | y-as toont 0 als bovengrens, bars hangen omlaag |
+| BarError | Alle waarden constant | `.nice()` geeft zinvol bereik, error bars zichtbaar |
+| BarError | Eén groep met n=1 (geen error bar) | Bar rendert zonder error-segmenten, geen NaN in scale |
+| XY | Alle x-waarden identiek (verticale lijn) | `ySpan ≥ 1e-6` guard voorkomt division-by-zero |
+| XY | Twee punten | `.nice()` geeft leesbaar bereik, geen 1-pixel scale |
+| Box | Outliers ver buiten IQR | Padding toont outliers volledig |
+| Box | Eén groep, lage variantie | Box niet gedegenereerd tot lijn |
+
+**Actie-items**
+- [ ] Manueel doorlopen van alle 9 edge cases in dev environment, screenshot maken voor productiedossier
+- [ ] Per chart-component een `*.scale.test.ts` toevoegen die het verwachte domein assert via de bestaande `scaleLinearDomainCalls` spy (al gebruikt in `BarErrorChart.test.tsx`)
+- [ ] KM-test: `expect(domain).toEqual([0, 1])` ongeacht input — pin het hardcoded gedrag
+- [ ] BarError-test: bij all-negatieve groepen → `domain[1] === 0` (baseline behouden) → bestaat al deels, uitbreiden
+- [ ] BarError-test: bij n=1 group → geen error lines, scale niet NaN
+- [ ] XY-test: domain bevat alle datapunten ± padding, geen geforceerde zero
+- [ ] Box-test: outliers binnen y-domain
+- [ ] Documenteer in `docs/chart-scales.md` (nieuw bestand): per chart kind, welke domain-regel geldt + waarom. Eén pagina max. Materiaal voor productiedossier hoofdstuk over correctheid.
+- [ ] Mutation-verify discipline volgen (zie `CLAUDE.md`): elke nieuwe test mutation-verified met exact diff + REVERTED log
+
+**Wanneer wél echt iets aanpassen**
+Alleen als de audit een concreet probleem vindt. Mogelijke vondsten + bijhorende mini-fix:
+- `1e-6` epsilon op span te klein → bump naar `Number.EPSILON * 1000` of expliciet "constant value" pad
+- BarError padding-ratio's (5%/10%) asymmetrisch → motiveren in docs of egaliseren
+- XY auto-zero-clip toevoegen voor "publication convention" wanneer alle waarden > 0? **Niet doen** — onderzoeksrapport bevestigt dat zero-baseline opdringen een ggplot-criticism is, niet een verwachting van medische lezers
+
+**Acceptance criteria**
+- [ ] Alle 4 charts hebben witness-tests die het domein-gedrag vastleggen
+- [ ] `docs/chart-scales.md` bestaat en is gelinkt vanuit `CLAUDE.md`
+- [ ] Edge cases gedocumenteerd met screenshot in productiedossier
+- [ ] Geen visuele regressie t.o.v. huidige `/recommend` en `/export` rendering
+- [ ] Als audit een echte bug vindt: aparte mini-PR met titel "LOUPE-31a · <korte beschrijving>"
+
+---
+
+### LOUPE-32 · Save-dialog met naam (geen study/project)
+
+**Prioriteit:** P1
+**Einddatum:** 4 juni 2026
+**Geschatte tijd:** 2u
+**Hangt af van:** —
+
+**Over project**
+Vandaag slaat "Save chart" op `/export` stilzwijgend op met `name = liveSpec.title`. Voor een gebruiker die een sensitivity-analyse maakt of een variant op een bestaande chart is dit ondoorzichtig — ze willen vaak een andere naam dan de chart-title (die in de figuur zelf staat). Voeg een modal toe die om een naam vraagt vóór de save-call wordt afgevuurd. Default-value is `liveSpec.title`, zodat één-klik-save mogelijk blijft via Enter.
+
+Geen study/project-toewijzing in deze ticket — zie LOUPE-33 voor die beslissing. Naam-only houdt dit ticket bounded en demo-veilig.
+
+**Actie-items**
+- [ ] `src/components/pages/Export/SaveChartDialog.tsx` — controlled modal-component met één field, default = `liveSpec.title`, max 100 chars
+- [ ] Bestaande `handleSaveToProject` in `Export.tsx` aanpassen: in plaats van direct `saveChart` aanroepen, open dialog eerst
+- [ ] Dialog `onConfirm(name)` → roept `saveChart` aan met de opgegeven naam (overrides `liveSpec.title` als naam-parameter, niet als spec-mutation — de chart zelf blijft de oorspronkelijke title behouden)
+- [ ] Validatie: naam niet leeg na trim, geen path-onveilige characters (`/`, `\`, `:`)
+- [ ] Bij re-save van een bestaande chart (`loadedChartId !== null`): default is huidige opgeslagen naam, niet `liveSpec.title`
+- [ ] Toast bij succes blijft "Chart saved. Opening your dashboard." — geen wijziging downstream
+- [ ] Keyboard: Enter = confirm, Escape = cancel; focus op input bij open
+- [ ] Tests:
+  - Submit met lege naam (na trim) → blokkeert + inline error
+  - Submit met `default` naam → `saveChart` ontvangt `liveSpec.title` als name
+  - Submit met gewijzigde naam → `saveChart` ontvangt nieuwe name
+  - Edit-modus: default = huidige saved name
+
+**Acceptance criteria**
+- [ ] "Save chart" button opent dialog, niet direct save
+- [ ] Default naam = `liveSpec.title` voor nieuwe charts, opgeslagen naam voor bestaande
+- [ ] `ChartSpec.title` blijft ongewijzigd door dit dialog — de figuur-titel en de dashboard-naam mogen divergeren
+- [ ] Lege of trim-lege naam blokkeert save met inline error
+- [ ] Geen regressies in bestaande save-flow (privacy-assert blijft draaien)
+
+---
+
+### LOUPE-33 · Studies/Projects-feature — scope-beslissing
+
+**Prioriteit:** P2 (beslissing) / P3 (uitvoering)
+**Einddatum:** 4 juni 2026 (beslissing genomen, niet uitvoering)
+**Geschatte tijd:** 0,5u (beslissing) — alternatief: 10–14u (volledige feature)
+**Hangt af van:** LOUPE-32
+
+**Over project**
+Het idee: bij save niet alleen een naam, maar ook toewijzing aan een "study" (project met meerdere charts). Vandaag toont productie-`/dashboard` een platte lijst van charts zonder groepering.
+
+**Dit ticket is bewust een *beslissing*, geen *bouw*-ticket.** Studies functioneel maken vraagt:
+- Nieuw `projects` schema in Supabase + RLS policies per user (~1u)
+- Foreign key `charts.project_id` (nullable) + migratie van bestaande rows (~1u)
+- Server actions: `createProject`, `updateProject`, `deleteProject`, `listProjects`, `assignChartToProject` (~3u)
+- UI in dashboard: project-shelf met collapse, "New project" flow, drag-or-select om chart toe te wijzen (~4u)
+- Save-dialog uitbreiding: project-picker dropdown + "Create new project" inline (~2u)
+- Tests + privacy-assert op project payload (~1u)
+- Edge cases: chart zonder project (orphan-groep), project verwijderen met charts erin (cascade vs detach), naam-collisions (~2u)
+
+Realistische schatting: **10–14u**. Dat is 2 volle werkdagen aan 20u/week capaciteit, met 13 dagen tot de jury en LOUPE-24/25 (documentatie) nog open. Decision log: *"single charts table architecture"* is een bewuste V1-keuze.
+
+**Drie opties**
+
+| Optie | Wat | Risico | Tijd |
+|---|---|---|---|
+| **A — Skip + verwoord** | Geen feature. Voeg in productiedossier expliciet toe: "Studies-groepering: V2-scope, single-table schema bewust gekozen voor V1 om data-modelling overhead te vermijden bij de niet-validated assumption dat researchers >5 charts per project produceren." | Docent vraagt waarom niet gebouwd → je hebt het antwoord | 30 min schrijven |
+| **B — Tag-veld** | Voeg optioneel `tags: string[]` toe aan `charts` (geen aparte tabel). Save-dialog krijgt een tag-input. Dashboard groepeert visueel by tag. Geen relaties, geen cascade-logica. | Researchers vragen om "echte" projects in toekomst → migratiepad bestaat (tags → project FK) | 4–5u |
+| **C — Volle feature** | Bouw alles hierboven. | LOUPE-24/25 documentatie komt onder druk. Late-week bug = demo-risico. | 10–14u |
+
+**Actie-items**
+- [ ] Beslissing maken: A, B of C — zelfde dag als LOUPE-32 mergen
+- [ ] Bij A: voeg sectie toe aan productiedossier "V1 scope-beslissingen → Studies"
+- [ ] Bij B: maak nieuw ticket LOUPE-33b "Chart tags" met concrete acceptance criteria
+- [ ] Bij C: maak LOUPE-33c–g (zie checklist hierboven), schuif LOUPE-24 één dag, accepteer late-week risico
+
+**Acceptance criteria**
+- [ ] Beslissing is gedocumenteerd in scrumboard én productiedossier
+- [ ] Bij A: jury-vraag "waarom geen projects?" heeft een one-liner antwoord klaar
+- [ ] Geen halfslachtige tussenoplossing (mock UI zonder backing) — die staat al in `Dashboard.tsx` en moet weg, niet uitgebreid
+
+**Aanbeveling**: **A**. Op 16 juni is "ik heb V1 bewust ingedikt" een sterker verhaal dan "ik heb een studies-feature gebouwd maar de documentatie is half af."
+
+---
+
+### LOUPE-34 · UI/UX-audit Home (`/`) — afgebakend
+
+**Prioriteit:** P2
+**Einddatum:** 6 juni 2026
+**Geschatte tijd:** 3u
+**Hangt af van:** —
+
+**Over project**
+"Home herbekijken" zonder scope is gevaarlijk. Dit ticket bakt het in: **alleen Landing-pagina**, **alleen drie concrete aspecten**, **geen herontwerp van componenten** (design system v0.4 blijft canon).
+
+**Drie aspecten**
+1. **Above-the-fold helderheid**: triggert de hero het juiste mentale model? Iemand die in 5 seconden de pagina bekijkt moet weten (a) wat dit is, (b) voor wie, (c) wat ze moeten doen. Vandaag staat "Start with the finding, not the format" — poëtisch maar abstract. Test of het werkt.
+2. **Chart-library preview rij**: huidige `CHART_TYPES` array bevat `forest`, `roc`, `volcano`, `bland` — types die **niet in je MVP zitten** (`SpecKind` = `km | barError | box | xy`). Dit is een leugen tegen de gebruiker.
+3. **Mobile responsiveness**: design system v0.4 belooft `min-width: 640px` breakpoints. Verifieer dat hero, trust-grid en library-preview niet breken onder 380px.
+
+**Actie-items**
+- [ ] Eyebrow + h1-copy review: schrijf 2 alternatieven uit, kies één met motivatie in commit message (geen oneindig tweaken)
+- [ ] `CHART_TYPES` in `Landing.tsx` reduceren tot je 4 MVP-types + één badge "+ more coming" op de 5e tile, of de niet-MVP-types tonen met label "Reference catalogue" en duidelijke disclaimer dat ze in `/library` zitten maar niet generatable zijn
+- [ ] Mobile audit: open `/` op 380px en 320px, screenshot, fix overflow/wrap issues — geen nieuwe componenten, alleen CSS-tweaks
+- [ ] Niet doen: hele HeroMotion vervangen, trust-pillars herschrijven, nieuwe sectie toevoegen. Als je dat wilt → nieuw ticket
+- [ ] Tijdslot: **max 3 uur**. Als je halverwege merkt dat de audit groter wordt → stop, schrijf observaties op, maak follow-up ticket
+
+**Acceptance criteria**
+- [ ] Landing pagina shows alleen chart types die de tool echt kan genereren, of duidelijke disclaimer
+- [ ] Hero copy is bewust gekozen (één van twee opties, gedocumenteerd)
+- [ ] Geen visuele bugs onder 380px breedte
+- [ ] Lighthouse-score op `/` blijft ≥ huidige baseline
+
+---
+
+### LOUPE-35 · UI/UX-audit Dashboard (`/dashboard`) — afgebakend
+
+**Prioriteit:** P2
+**Einddatum:** 7 juni 2026
+**Geschatte tijd:** 2u
+**Hangt af van:** LOUPE-33 (beslissing genomen, niet uitvoering)
+
+**Over project**
+Dashboard-audit moet wachten op LOUPE-33: de inhoud van het dashboard verandert fundamenteel afhankelijk van de studies-beslissing. Niet zinvol om eerst de UI te polijsten en dan opnieuw te beginnen.
+
+**Vooraf op te helderen** (vóór dit ticket start)
+- Welke `/dashboard` rendert in productie? `src/app/dashboard/page.tsx` of `src/components/pages/Dashboard.tsx`? Volgens `async-audit.md` is de tweede een mock en niet geïmporteerd. Controleer met `grep -r "from.*Dashboard" src/app/` en bevestig.
+- Zo ja: verwijder of archiveer `src/components/pages/Dashboard.tsx` ineens om verwarring uit te bannen (één extra commit).
+
+**Drie aspecten**
+1. **Empty state**: wat ziet een nieuwe gebruiker bij eerste login? Vandaag onbekend zonder dual-account test.
+2. **Chart-card hiërarchie**: titel, datum, chart-type badge, thumbnail. Welke leest eerst? Aligneren met design-system v0.4 editorial-table grid (1px hairline separated cells).
+3. **Empty-vs-loaded transitie**: wat gebeurt tussen "zero charts" en "first chart appears"? Refresh-flicker, layout shift, ja/nee?
+
+**Actie-items**
+- [ ] Verifieer welke Dashboard-component productie rendert; verwijder de mock als die ongebruikt is
+- [ ] Test empty state in een vers account; screenshot voor productiedossier
+- [ ] Card-hiërarchie afstemmen op design-system editorial-grid (geen gutters, hairline-separated)
+- [ ] Mobile audit: 380px, geen overflow
+- [ ] Indien LOUPE-33 → optie B of C: extra audit-items voor project/tag-groepering toevoegen aan dit ticket vóór start
+- [ ] Tijdslot: **max 2 uur**
+
+**Acceptance criteria**
+- [ ] Productie-Dashboard is duidelijk welke component, mock-versie is opgeruimd of expliciet `@deprecated`-tagged
+- [ ] Empty state heeft duidelijke CTA naar `/upload`
+- [ ] Cards renderen consistent met design-system editorial-grid
+- [ ] Geen visuele bugs onder 380px
+
+---
+
+### LOUPE-36 · 60-30-10 kleurregel-audit — docent-feedback
+
+**Prioriteit:** P3 (lowest)
+**Einddatum:** 9 juni 2026 (alleen als LOUPE-30 t/m LOUPE-35 op tijd af zijn)
+**Geschatte tijd:** 3u
+**Hangt af van:** —
+
+**Over project**
+Docent-feedback: pas de 60-30-10 regel toe (dominant kleur 60% van canvas, secundair 30%, accent 10%). Loupe's huidige palette uit design-system v0.4:
+- **Paper** (`#FAFAF7`) en **paper-card** (`#FFFFFE`) — dominant, vermoedelijk al 60%+
+- **Ink** (`#0E0E0E`) en **gray** family — secundair
+- **Amber** (`#B5651D`) — accent op loupe-motif
+- **Blue** (`#0B2A4A`) — accent op CTAs en links
+
+Het is niet evident dat dit fout zit — het palette is al editorial-restrained. Maar de docent zag iets. Audit-eerst, dan beslis.
+
+**Actie-items**
+- [ ] Screenshot 5 representatieve schermen (`/`, `/upload`, `/upload/map`, `/recommend`, `/export`)
+- [ ] Per screenshot: meet ruwweg het percentage canvas-oppervlak per kleurfamilie (color-counter tool of visuele schatting volstaat — dit is geen lab-experiment)
+- [ ] Vergelijk met 60-30-10:
+  - Als paper/ink/amber+blue ongeveer 60-30-10 zijn → **niets doen**, schrijf in dossier dat het al klopt
+  - Als blauw én amber samen >15% → ofwel amber reserveren voor loupe-motif (zoals design-system al voorschrijft), ofwel een van beide reduceren
+  - Als grijstinten >40% → mogelijk te veel hairlines/labels, niet noodzakelijk fout
+- [ ] Mogelijke fixes: alleen CSS-token tweaks in `app/globals.css`, geen component-restructuring
+- [ ] Documenteer in dossier: "60-30-10 audit → bevinding → actie/geen actie"
+
+**Acceptance criteria**
+- [ ] Audit is gedaan, observaties geschreven, screenshot-bewijs in dossier
+- [ ] Bij actie: maximaal 3 CSS-variabelen aangepast, geen component refactor
+- [ ] Bij geen actie: motivatie in dossier ("editorial design heeft bewust dominante paper-base, ink-text-secundair, amber/blue-accent-rol")
+
+**Honesty-check**
+Dit ticket bestaat omdat de docent het vroeg. Inhoudelijk is het waarschijnlijk niet de meest impactvolle 3 uur die nog over is. Als andere tickets dreigen door te lopen → **skip dit ticket** en wees daar in de jury-presentatie open over: "Ik heb de 60-30-10 feedback geaudit; het palette bleek al binnen tolerantie te liggen / ik heb prioritair X gefixed dat ik belangrijker vond voor de gebruiker."
 
 ---
 
