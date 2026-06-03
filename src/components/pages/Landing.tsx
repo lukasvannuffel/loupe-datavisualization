@@ -6,6 +6,7 @@ import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
 import { RingDivider } from "@/components/primitives/RingDivider";
 import type { SpecKind } from "@/lib/chartSpec/types";
+import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 import { HeroMotion } from "./HeroMotion";
 import { TrustPillarFormats, TrustPillarPrivacy, TrustPillarReasoning } from "./TrustPillars";
 
@@ -27,6 +28,10 @@ const CHART_TYPES: readonly LandingChartTile[] = [
 
 export const Landing = (): JSX.Element => {
     const router = useRouter();
+    const trustRef = useScrollReveal<HTMLDivElement>();
+    const previewHeadRef = useScrollReveal<HTMLDivElement>();
+    const previewRowRef = useScrollReveal<HTMLDivElement>();
+    const quoteRef = useScrollReveal<HTMLElement>();
 
     return (
         <div className="page-enter">
@@ -73,7 +78,7 @@ export const Landing = (): JSX.Element => {
             <RingDivider />
 
             <section className="container">
-                <div className="trust-grid">
+                <div ref={trustRef} className="trust-grid reveal">
                     <article className="trust-card">
                         <Eyebrow>01 · Privacy by architecture</Eyebrow>
                         <h3 className="serif trust-title">Your data stays on your device.</h3>
@@ -116,7 +121,7 @@ export const Landing = (): JSX.Element => {
             <RingDivider />
 
             <section className="container">
-                <div className="library-preview-head">
+                <div ref={previewHeadRef} className="library-preview-head reveal">
                     <div>
                         <Eyebrow>Reference</Eyebrow>
                         <h3 className="serif library-preview-title">Charts you can create today.</h3>
@@ -129,15 +134,17 @@ export const Landing = (): JSX.Element => {
                         See all supported chart types <span className="arrow">→</span>
                     </button>
                 </div>
-                <div className="library-preview-row">
+                <div ref={previewRowRef} className="library-preview-row reveal-stagger">
                     {CHART_TYPES.map((tile) => {
                         if (tile.kind === "more") {
                             return (
-                                <div key="more" className="library-preview-card loupe-card">
-                                    <div className="library-preview-svg" aria-hidden="true" />
-                                    <div className="library-preview-meta">
-                                        <span className="serif library-preview-name">{tile.label}</span>
-                                        <p className="trust-body muted">{tile.description}</p>
+                                <div key="more" className="reveal">
+                                    <div className="library-preview-card loupe-card">
+                                        <div className="library-preview-svg" aria-hidden="true" />
+                                        <div className="library-preview-meta">
+                                            <span className="serif library-preview-name">{tile.label}</span>
+                                            <p className="trust-body muted">{tile.description}</p>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -146,21 +153,23 @@ export const Landing = (): JSX.Element => {
                         const Preview = CHART_PREVIEWS[tile.slug];
 
                         return (
-                            <div key={tile.slug} className="library-preview-card loupe-card">
-                                <div className="library-preview-svg">
-                                    <Preview responsive />
+                            <div key={tile.slug} className="reveal">
+                                <div className="library-preview-card loupe-card">
+                                    <div className="library-preview-svg">
+                                        <Preview responsive />
+                                    </div>
+                                    <div className="library-preview-meta">
+                                        <span className="serif library-preview-name">{tile.name}</span>
+                                    </div>
+                                    <div className="focus-ring" style={{ left: "50%", top: "50%" }} />
                                 </div>
-                                <div className="library-preview-meta">
-                                    <span className="serif library-preview-name">{tile.name}</span>
-                                </div>
-                                <div className="focus-ring" style={{ left: "50%", top: "50%" }} />
                             </div>
                         );
                     })}
                 </div>
             </section>
 
-            <section className="container quote-band">
+            <section ref={quoteRef} className="container quote-band reveal">
                 <p className="serif quote-body">
                     “We describe what we found. Loupe knows the figure that says it.”
                 </p>
