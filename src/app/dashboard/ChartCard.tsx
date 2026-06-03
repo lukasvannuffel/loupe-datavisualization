@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { MouseEvent } from "react";
 
 import type { ChartListItem } from "@/lib/charts/listCharts";
 import { chartKindIcon } from "@/lib/thumbnail/chartKindIcons";
@@ -29,19 +30,54 @@ const formatRelativeDate = (iso: string): string => {
     return rtf.format(Math.round(diffMs / dayMs), "day");
 };
 
+const closeKebabMenu = (event: MouseEvent<HTMLButtonElement>): void => {
+    const details = event.currentTarget.closest("details");
+    if (details !== null) {
+        details.open = false;
+    }
+};
+
 export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
     const thumbnail = chart.thumbnail ?? chartKindIcon(chart.chart_kind);
 
     return (
         <article className={styles.card}>
+            <details className={styles.kebabWrap}>
+                <summary
+                    className={styles.kebabTrigger}
+                    role="button"
+                    aria-label="More actions"
+                >
+                    ⋯
+                </summary>
+                <div className={styles.kebabMenu} role="menu">
+                    <DeleteChartButton
+                        chartId={chart.id}
+                        chartName={chart.name}
+                        renderTrigger={({ open }) => (
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className={styles.kebabMenuItem}
+                                onClick={(event) => {
+                                    closeKebabMenu(event);
+                                    open();
+                                }}
+                            >
+                                Delete
+                            </button>
+                        )}
+                    />
+                </div>
+            </details>
             <Link href={`/export?id=${chart.id}`} className={styles.cardLink}>
                 <div className={styles.thumb}>
                     <img
                         src={thumbnail}
                         alt=""
                         className={styles.thumbImage}
-                        width={240}
-                        height={160}
+                        width={480}
+                        height={320}
                     />
                 </div>
                 <h3 className={styles.cardTitle}>{chart.name}</h3>
@@ -61,7 +97,6 @@ export const ChartCard = ({ chart }: ChartCardProps): JSX.Element => {
                     </div>
                 ) : null}
             </Link>
-            <DeleteChartButton chartId={chart.id} chartName={chart.name} />
         </article>
     );
 };

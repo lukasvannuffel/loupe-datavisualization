@@ -3,8 +3,8 @@ import type { PlotData, SpecKind } from "@/lib/chartSpec/types";
 import { chartKindIcon, type DashboardChartKind } from "./chartKindIcons";
 
 const AGGREGATE_KINDS = new Set<DashboardChartKind>(["bar", "km"]);
-const THUMBNAIL_WIDTH = 240;
-const THUMBNAIL_HEIGHT = 160;
+const THUMBNAIL_WIDTH = 480;
+const THUMBNAIL_HEIGHT = 320;
 
 const toDashboardChartKind = (chartKind: SpecKind): DashboardChartKind =>
     chartKind === "barError" ? "bar" : chartKind;

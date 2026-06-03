@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { deleteChart } from "@/app/charts/actions";
 import { Dialog } from "@/components/ui/Dialog";
@@ -9,12 +9,21 @@ import { useToast } from "@/lib/toast/useToast";
 
 import styles from "./dashboard.module.css";
 
+type DeleteChartTriggerHandlers = {
+    readonly open: () => void;
+};
+
 type DeleteChartButtonProps = {
     readonly chartId: string;
     readonly chartName: string;
+    readonly renderTrigger?: (handlers: DeleteChartTriggerHandlers) => ReactNode;
 };
 
-export const DeleteChartButton = ({ chartId, chartName }: DeleteChartButtonProps): JSX.Element => {
+export const DeleteChartButton = ({
+    chartId,
+    chartName,
+    renderTrigger,
+}: DeleteChartButtonProps): JSX.Element => {
     const router = useRouter();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
@@ -45,16 +54,24 @@ export const DeleteChartButton = ({ chartId, chartName }: DeleteChartButtonProps
         router.refresh();
     };
 
+    const openDialog = (): void => {
+        setOpen(true);
+    };
+
     return (
         <>
-            <button
-                type="button"
-                className={styles.deleteButton}
-                aria-label={`Delete ${chartName}`}
-                onClick={() => setOpen(true)}
-            >
-                Delete
-            </button>
+            {renderTrigger !== undefined ? (
+                renderTrigger({ open: openDialog })
+            ) : (
+                <button
+                    type="button"
+                    className={styles.deleteButton}
+                    aria-label={`Delete ${chartName}`}
+                    onClick={openDialog}
+                >
+                    Delete
+                </button>
+            )}
             <Dialog open={open} onClose={() => setOpen(false)} title={`Delete ${chartName}`}>
                 <header className="rerun-head">
                     <div>
