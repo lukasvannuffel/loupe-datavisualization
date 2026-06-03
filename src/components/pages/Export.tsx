@@ -54,6 +54,7 @@ import { CustomSection } from "./CustomSection";
 import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
 import type { ChartConfig, ChatRevision, RailSection } from "./ExportChat/types";
+import { SaveChartDialog } from "./Export/SaveChartDialog";
 
 type LegacyPaletteId =
     | "editorial"
@@ -585,6 +586,8 @@ export const Export = ({
 
     const [liveSpec, setLiveSpec] = useState<ChartSpec | null>(chartSpec);
     const [loadedChartId, setLoadedChartId] = useState<string | null>(null);
+    const [loadedChartName, setLoadedChartName] = useState<string | null>(null);
+    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
     const [loadedPlotData, setLoadedPlotData] = useState<PlotData | null>(null);
     const [loadedReceipt, setLoadedReceipt] = useState<SaveReceipt | null>(null);
     const [viewOnlySnapshot, setViewOnlySnapshot] = useState<{ name: string; thumbnail: string | null } | null>(null);
@@ -620,6 +623,7 @@ export const Export = ({
     useEffect(() => {
         if (initialLoadReason !== null) {
             setLoadedChartId(initialChartId);
+            setLoadedChartName(null);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -637,6 +641,7 @@ export const Export = ({
 
         if (initialChartId === null) {
             setLoadedChartId(null);
+            setLoadedChartName(null);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -645,6 +650,7 @@ export const Export = ({
         }
         if (initialChart === null) {
             setLoadedChartId(initialChartId);
+            setLoadedChartName(null);
             setLoadedPlotData(null);
             setLoadedReceipt(null);
             setViewOnlySnapshot(null);
@@ -652,6 +658,7 @@ export const Export = ({
             return;
         }
         setLoadedChartId(initialChart.id);
+        setLoadedChartName(initialChart.name);
         setChartSpec(initialChart.chart_spec);
         setLiveSpec(initialChart.chart_spec);
         setChartKind(initialChart.chart_spec.kind);
@@ -966,7 +973,12 @@ export const Export = ({
         }
     };
 
-    const handleSaveToProject = async (): Promise<void> => {
+    const saveDialogDefaultName =
+        loadedChartId !== null && loadedChartName !== null
+            ? loadedChartName
+            : (liveSpec?.title ?? "Untitled chart");
+
+    const handleSaveToProject = (): void => {
         if (receiptBuilding) {
             toast({
                 description: "Wait a moment, then try saving again.",
@@ -995,6 +1007,15 @@ export const Export = ({
             return;
         }
 
+        setSaveDialogOpen(true);
+    };
+
+    const handleSaveConfirm = async (name: string): Promise<void> => {
+        if (liveSpec === null || exportPlotData === null || computedReceipt === null) {
+            return;
+        }
+
+        setSaveDialogOpen(false);
         setSaving(true);
 
         try {
@@ -1004,7 +1025,7 @@ export const Export = ({
                 chart_spec: liveSpec,
                 column_mapping: mapping,
                 id: loadedChartId ?? undefined,
-                name: liveSpec.title,
+                name,
                 plot_data: exportPlotData,
                 receipt: computedReceipt,
                 thumbnail,
@@ -1384,9 +1405,7 @@ export const Export = ({
                         <button
                             type="button"
                             className="btn btn--ghost btn--lg"
-                            onClick={() => {
-                                void handleSaveToProject();
-                            }}
+                            onClick={handleSaveToProject}
                             disabled={saving || receiptBuilding}
                         >
                             {saving ? "Saving…" : "Save to project"}
@@ -1902,6 +1921,15 @@ export const Export = ({
                     aria-hidden="true"
                 />
             )}
+
+            <SaveChartDialog
+                isOpen={saveDialogOpen}
+                defaultName={saveDialogDefaultName}
+                onConfirm={(name) => {
+                    void handleSaveConfirm(name);
+                }}
+                onCancel={() => setSaveDialogOpen(false)}
+            />
 
             <ExportChatLauncher open={chatOpen} onOpen={openChat} />
             <ExportChatPanel

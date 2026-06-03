@@ -39,6 +39,10 @@ vi.mock("../ExportChat/ExportChatPanel", () => ({
     ExportChatPanel: (): null => null,
 }));
 
+vi.mock("@/lib/thumbnail/generateThumbnail", () => ({
+    generateThumbnail: vi.fn(async () => "data:image/png;base64,dGVzdA=="),
+}));
+
 const mapping: Mapping = {
     group: "arm",
     outcome: "value",
@@ -64,19 +68,23 @@ const defaultSpec = createDefaultChartSpec(
 
 const SeedExportState = ({
     spec,
+    seedDataset = dataset,
+    seedMapping = mapping,
     children,
 }: {
     readonly spec: ChartSpec;
+    readonly seedDataset?: LoupeDataset;
+    readonly seedMapping?: Mapping;
     readonly children: ReactNode;
 }): JSX.Element => {
     const { setChartSlug, setChartSpec, setDataset, setMapping } = useAppState();
 
     useEffect(() => {
-        setDataset(dataset.inferences, dataset.rows);
-        setMapping(mapping);
+        setDataset(seedDataset.inferences, seedDataset.rows);
+        setMapping(seedMapping);
         setChartSlug(spec.kind);
         setChartSpec(spec);
-    }, [setChartSlug, setChartSpec, setDataset, setMapping, spec]);
+    }, [seedDataset, seedMapping, setChartSlug, setChartSpec, setDataset, setMapping, spec]);
 
     return <>{children}</>;
 };
@@ -435,4 +443,137 @@ describe("computation snapshot", () => {
 
     // MUTATION-VERIFY: mock summarizeComputations to return two distinct objects on successive calls;
     // test "panel hash and saved config_hash share one computation snapshot" must RED. Verified manually: 2026-05-30. REVERTED.
+});
+
+describe("Save chart dialog", () => {
+    const kmMapping: Mapping = {
+        time: "months",
+        event: "status",
+        group: "arm",
+    };
+
+    const kmDataset: LoupeDataset = {
+        inferences: [],
+        rows: brandRows([
+            { arm: "A", months: "6", status: "1" },
+            { arm: "B", months: "8", status: "0" },
+        ]),
+    };
+
+    it("uses current saved name as default in edit mode", async () => {
+        const figureSpec = updateCustomizationTitle(
+            createDefaultChartSpec(
+                "km",
+                { id: "saved-km", createdAt: "2026-05-28T08:00:00.000Z" },
+                { inferences: kmDataset.inferences, mapping: kmMapping, rows: kmDataset.rows },
+            ),
+            "Different title",
+        );
+
+        render(
+            <ToastProvider>
+                <AppStateProvider>
+                    <SeedExportState spec={figureSpec} seedDataset={kmDataset} seedMapping={kmMapping}>
+                        <Export
+                            initialChartId="km-1"
+                            initialChart={{
+                                id: "km-1",
+                                name: "Original name",
+                                chart_spec: figureSpec,
+                                column_mapping: kmMapping,
+                                receipt: {
+                                    generated_at: "2026-05-28T08:00:00.000Z",
+                                    config_hash:
+                                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                                    method: "Kaplan-Meier estimator, Greenwood log-log CI",
+                                    sample: "n = 100 · censored = 0",
+                                    palette: "editorial",
+                                    software: "Loupe v0.1.0 · client-side",
+                                    ai_rationale: "why",
+                                    csv_columns: ["months", "status", "arm"],
+                                    n_rows_input: 2,
+                                },
+                                plot_data: {
+                                    kind: "km",
+                                    tMax: 12,
+                                    groups: [
+                                        {
+                                            label: "Arm A",
+                                            nTotal: 10,
+                                            nEvents: 1,
+                                            points: [
+                                                {
+                                                    t: 1,
+                                                    survival: 0.9,
+                                                    nAtRisk: 10,
+                                                    censored: false,
+                                                    ciLower: 0.7,
+                                                    ciUpper: 1,
+                                                },
+                                            ],
+                                            atRiskTicks: [{ t: 0, nAtRisk: 10 }],
+                                        },
+                                    ],
+                                },
+                                thumbnail: "data:image/png;base64,thumb",
+                                chart_kind: "km",
+                                created_at: "2026-05-28T08:00:00.000Z",
+                                updated_at: "2026-05-28T08:00:00.000Z",
+                            }}
+                        />
+                    </SeedExportState>
+                </AppStateProvider>
+            </ToastProvider>,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /save to project/i })).not.toBeDisabled();
+            expect(screen.queryByText(/preparing save receipt/i)).toBeNull();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /save to project/i }));
+
+        const input = await screen.findByLabelText(/chart name/i);
+        expect((input as HTMLInputElement).value).toBe("Original name");
+    });
+
+    it("calls saveChart with defaultSpec.title when submitted unchanged", async () => {
+        renderExport();
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /save to project/i })).not.toBeDisabled();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /save to project/i }));
+        fireEvent.click(await screen.findByRole("button", { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(saveChartMock).toHaveBeenCalled();
+        });
+
+        const payload = saveChartMock.mock.calls.at(-1)?.[0];
+        expect(payload?.name).toBe(defaultSpec.title);
+        expect(payload?.chart_spec.title).toBe(defaultSpec.title);
+    });
+
+    it("calls saveChart with a custom name without mutating chart_spec.title", async () => {
+        renderExport();
+
+        await waitFor(() => {
+            expect(screen.getByRole("button", { name: /save to project/i })).not.toBeDisabled();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /save to project/i }));
+        const input = await screen.findByLabelText(/chart name/i);
+        fireEvent.change(input, { target: { value: "Sensitivity run 1" } });
+        fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+        await waitFor(() => {
+            expect(saveChartMock).toHaveBeenCalled();
+        });
+
+        const payload = saveChartMock.mock.calls.at(-1)?.[0];
+        expect(payload?.name).toBe("Sensitivity run 1");
+        expect(payload?.chart_spec.title).toBe(defaultSpec.title);
+    });
 });
