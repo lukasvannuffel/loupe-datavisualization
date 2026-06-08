@@ -22,6 +22,12 @@
     --amber: #B5651D;
     --amber-soft: #E9B679;
     --amber-tint: rgba(181, 101, 29, 0.10);
+    --amber-tint-strong: rgba(181, 101, 29, 0.12);
+    --amber-tint-subtle: rgba(181, 101, 29, 0.05);
+    --amber-border-50: rgba(181, 101, 29, 0.5);
+    --amber-glow: rgba(181, 101, 29, 0.55);
+    --amber-glow-transparent: rgba(181, 101, 29, 0);
+    --amber-radial: rgba(181, 101, 29, 0.010);
 
     /* Pass B additions */
     --blue-soft: #1B3A5E;
@@ -85,7 +91,7 @@ body::before {
     pointer-events: none;
     background:
         radial-gradient(ellipse at 20% 10%, rgba(11,42,74,0.012), transparent 50%),
-        radial-gradient(ellipse at 80% 90%, rgba(181,101,29,0.010), transparent 55%);
+        radial-gradient(ellipse at 80% 90%, var(--amber-radial), transparent 55%);
     z-index: 0;
 }
 
@@ -2210,9 +2216,8 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 .rec-why .rec-alt button { color: var(--amber); }
 .rec-why .rec-alt button:hover { color: var(--amber-button); }
 
-/* Recommendation actions panel — grouped hierarchy below chart grid */
-.rec-panel {
-    margin: 24px 0 0;
+/* Shared actions panel — recommend + export grouped CTAs */
+.actions-panel {
     border: 1px solid var(--hairline);
     border-radius: var(--r-3);
     background: var(--paper-card);
@@ -2220,7 +2225,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     text-align: left;
     box-shadow: 0 1px 0 rgba(11, 42, 74, 0.02);
 }
-.rec-panel-status {
+.actions-panel__status {
     font-size: 12px;
     color: var(--gray);
     display: flex;
@@ -2231,17 +2236,17 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     padding-bottom: 16px;
     border-bottom: 1px solid var(--hairline);
 }
-.rec-panel-status .mono {
+.actions-panel__status .mono {
     font-family: var(--mono);
     font-size: 11px;
 }
-.rec-panel-zone {
+.actions-panel__zone {
     display: flex;
     flex-direction: column;
     gap: 10px;
     align-items: stretch;
 }
-.rec-panel-label {
+.actions-panel__label {
     font-family: var(--mono);
     font-size: 10.5px;
     text-transform: uppercase;
@@ -2250,21 +2255,26 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     margin: 0;
     font-weight: 500;
 }
-.rec-panel-divider {
+.actions-panel__divider {
     height: 1px;
     background: var(--hairline);
     margin: 16px 0;
     border: 0;
 }
-.rec-panel-primary {
+.actions-panel__primary {
     width: 100%;
     justify-content: center;
     flex-wrap: wrap;
     min-height: 44px;
 }
-.rec-panel-zone .btn {
+.actions-panel__zone .btn {
     width: 100%;
     justify-content: center;
+}
+
+/* Recommendation actions panel — layout wrapper */
+.rec-panel {
+    margin: 24px 0 0;
 }
 .rec-axis-edit {
     cursor: text;
@@ -2280,12 +2290,12 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
         margin-top: 28px;
         padding: 24px 24px;
     }
-    .rec-panel-primary {
+    .actions-panel__primary {
         width: auto;
         min-width: 220px;
         justify-content: flex-start;
     }
-    .rec-panel-zone .btn {
+    .actions-panel__zone .btn {
         width: auto;
         justify-content: flex-start;
     }
@@ -2383,42 +2393,10 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     border-top: 1px solid var(--hairline);
     padding-top: 10px;
 }
-/* Export panel — grouped action hierarchy below figure */
+/* Export panel — layout wrapper below figure */
 .export-panel {
     margin: 20px auto 0;
     max-width: 920px;
-    border: 1px solid var(--hairline);
-    border-radius: var(--r-3);
-    background: var(--paper-card);
-    padding: 20px 18px;
-    text-align: left;
-    box-shadow: 0 1px 0 rgba(11, 42, 74, 0.02);
-}
-.export-panel-zone {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.export-panel-label {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--gray);
-    margin: 0;
-    font-weight: 500;
-}
-.export-panel-divider {
-    height: 1px;
-    background: var(--hairline);
-    margin: 20px 0;
-    border: 0;
-}
-.export-panel-primary {
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
-    min-height: 44px;
 }
 .export-badge {
     display: inline-flex;
@@ -2430,7 +2408,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--amber);
-    background: rgba(181, 137, 74, 0.12);
+    background: var(--amber-tint-strong);
     border-radius: 999px;
 }
 .export-format-row {
@@ -2572,10 +2550,8 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
         margin-top: 24px;
         padding: 24px 24px;
     }
-    .export-panel-primary {
-        width: auto;
+    .export-panel .actions-panel__primary {
         min-width: 240px;
-        justify-content: flex-start;
     }
     .export-format-row {
         flex-direction: row;
@@ -3172,7 +3148,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     height: 9px;
     border-radius: 50%;
     background: var(--amber);
-    box-shadow: 0 0 0 0 rgba(181,101,29,0.55);
+    box-shadow: 0 0 0 0 var(--amber-glow);
     animation: chat-launcher-pulse 1800ms var(--ease) infinite;
 }
 .chat-launcher.is-nudging .chat-launcher-dot {
@@ -3180,9 +3156,9 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 }
 
 @keyframes chat-launcher-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(181,101,29,0.55); }
-    70% { box-shadow: 0 0 0 12px rgba(181,101,29,0); }
-    100% { box-shadow: 0 0 0 0 rgba(181,101,29,0); }
+    0% { box-shadow: 0 0 0 0 var(--amber-glow); }
+    70% { box-shadow: 0 0 0 12px var(--amber-glow-transparent); }
+    100% { box-shadow: 0 0 0 0 var(--amber-glow-transparent); }
 }
 
 .chat-nudge {
@@ -4020,8 +3996,8 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     background: var(--paper);
 }
 .rerun-diff-row.is-missing {
-    border-color: rgba(181, 101, 29, 0.5);
-    background: rgba(181, 101, 29, 0.05);
+    border-color: var(--amber-border-50);
+    background: var(--amber-tint-subtle);
 }
 .rerun-diff-arrow {
     display: none;
@@ -4056,7 +4032,7 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 }
 .rerun-diff-tag.is-warn {
     color: var(--amber);
-    background: rgba(181, 101, 29, 0.10);
+    background: var(--amber-tint);
 }
 .rerun-diff-tag.is-fuzzy {
     color: var(--ink);

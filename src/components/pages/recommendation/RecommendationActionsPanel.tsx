@@ -1,30 +1,39 @@
 type RecommendationActionsPanelProps = {
     readonly canCustomize: boolean;
+    readonly changeCount: number;
+    readonly configHash: string | null;
     readonly onCustomize: () => void;
     readonly onSwitchToManual: () => void;
 };
 
+const formatChangeCount = (count: number): string =>
+    `${count} ${count === 1 ? "change" : "changes"}`;
+
 export const RecommendationActionsPanel = ({
     canCustomize,
+    changeCount,
+    configHash,
     onCustomize,
     onSwitchToManual,
 }: RecommendationActionsPanelProps): JSX.Element => (
-    <aside className="rec-panel" aria-label="Recommendation actions">
-        <div className="rec-panel-status">
+    <section className="actions-panel rec-panel" aria-label="Recommendation actions">
+        <div className="actions-panel__status">
             <span>
                 <span className="ring ring--xs" />
                 Auto-saved locally
             </span>
-            <span className="mono">cfg · 4f7a · 2 changes</span>
+            <span className="mono">
+                {configHash ?? "…"} · {formatChangeCount(changeCount)}
+            </span>
         </div>
 
-        <section className="rec-panel-zone" aria-labelledby="rec-next-heading">
-            <h3 id="rec-next-heading" className="rec-panel-label">
+        <section className="actions-panel__zone" aria-labelledby="rec-next-heading">
+            <h3 id="rec-next-heading" className="actions-panel__label">
                 Next step
             </h3>
             <button
                 type="button"
-                className="btn btn--primary btn--lg rec-panel-primary"
+                className="btn btn--primary btn--lg actions-panel__primary"
                 disabled={!canCustomize}
                 title={!canCustomize ? "Complete the column mapping first" : undefined}
                 onClick={onCustomize}
@@ -33,10 +42,10 @@ export const RecommendationActionsPanel = ({
             </button>
         </section>
 
-        <hr className="rec-panel-divider" />
+        <hr className="actions-panel__divider" />
 
-        <section className="rec-panel-zone" aria-labelledby="rec-approach-heading">
-            <h3 id="rec-approach-heading" className="rec-panel-label">
+        <section className="actions-panel__zone" aria-labelledby="rec-approach-heading">
+            <h3 id="rec-approach-heading" className="actions-panel__label">
                 Change approach
             </h3>
             <button
@@ -48,5 +57,5 @@ export const RecommendationActionsPanel = ({
                 Pick a chart myself
             </button>
         </section>
-    </aside>
+    </section>
 );

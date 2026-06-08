@@ -1,8 +1,8 @@
 # LOUPE-37 Button audit inventory
 
-Audited: 2026-06-07 (expanded pass). Wizard CTA inventory: **65** elements with `btn btn--*` classes across **31** files.
+Audited: 2026-06-08 (expanded pass). Wizard CTA inventory: **64** elements with `btn btn--*` classes across **31** files.
 
-Count verification: `git grep -nE 'className=["\`][^"\`]*btn--' src/ | wc -l` → **63** (single-line `className` only). **+2** `DashboardChartGrid.tsx` tag-filter buttons use multiline `className` ternaries (lines 30–33, 43–46) — listed below as separate rows. Total audited rows: **65**.
+Count verification: `git grep -nE 'className=["\`][^"\`]*btn--' src/ | wc -l` → **62** (single-line `className` only). **+2** `DashboardChartGrid.tsx` tag-filter buttons use multiline `className` ternaries (lines 30–33, 43–46) — listed below as separate rows. Total audited rows: **64**. Desktop guest **Sign in** uses `nav-link` (not `btn--*`).
 
 ## Summary (post-LOUPE-37)
 
@@ -20,10 +20,10 @@ Count verification: `git grep -nE 'className=["\`][^"\`]*btn--' src/ | wc -l` �
 |------|-----:|---------------|-------|----------------|
 | Landing.tsx | 56 | Start a chart | primary | Hero CTA |
 | Landing.tsx | 63 | See how it works | quiet | Hero secondary |
-| TopNav.tsx | 157 | Sign in | quiet | Desktop authed nav |
-| TopNav.tsx | 164 | Get started | primary | Desktop guest nav |
+| TopNav.tsx | 157 | Sign in | nav-link | Desktop guest nav (paper color, not `btn--*`) |
+| TopNav.tsx | 164 | Start creating | primary | Desktop guest nav |
 | TopNav.tsx | 238 | Sign in | secondary | Mobile drawer |
-| TopNav.tsx | 245 | Get started | primary | Mobile drawer |
+| TopNav.tsx | 245 | Start creating | primary | Mobile drawer |
 | TopNav.tsx | 255 | Sign in | secondary | Mobile drawer (authed) |
 | TopNav.tsx | 261 | Sign out | primary | Mobile drawer submit |
 | Upload.tsx | 322 | Continue | primary | Sheet picker continue |
@@ -103,7 +103,6 @@ These UI controls use `<button>` but are not wizard primary/secondary/quiet CTAs
 | DPI format chips | `Export.tsx` `.export-dpi button` | Export format toggle |
 | Type badges / role pills | `UploadMap.tsx` column roles | Mapping UI, not wizard flow |
 | `btn-google` | `Auth.tsx` | Dedicated OAuth affordance |
-| Override modal cards | `RecommendationOverride.tsx` | In-panel chart pickers (modal, not `btn--*`) |
 | `Use instead →` | `RecommendationWhy.tsx` | `link-arrow` text control, not `btn` |
 
 ## Notes

@@ -135,9 +135,9 @@ export const ReproducibilityReceiptPanel = ({
     const disabled = loading || receipt === null;
     const embedded = variant === "embedded";
     const sectionClass = embedded
-        ? "export-receipt export-receipt--embedded export-panel-zone"
+        ? "export-receipt export-receipt--embedded actions-panel__zone"
         : "export-receipt";
-    const headingClass = embedded ? "export-panel-label" : undefined;
+    const headingClass = embedded ? "actions-panel__label" : undefined;
     const HeadingTag = embedded ? "h3" : "h4";
 
     return (

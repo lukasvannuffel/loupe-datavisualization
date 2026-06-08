@@ -156,7 +156,7 @@ describe("Export panel actions", () => {
         const downloadSvg = screen.getByRole("button", { name: /download svg/i });
         expect(downloadSvg.className).toContain("btn--primary");
         expect(downloadSvg.className).toContain("btn--lg");
-        expect(downloadSvg.className).toContain("export-panel-primary");
+        expect(downloadSvg.className).toContain("actions-panel__primary");
 
         const saveButton = screen.getByRole("button", { name: /save to project/i });
         expect(saveButton.className).toContain("btn--sm");

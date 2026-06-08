@@ -31,6 +31,8 @@ const NAV_LINKS: readonly NavLinkSpec[] = [
     { href: "/dashboard", label: "Dashboard" },
 ];
 
+export const SCROLL_THRESHOLD_PX = 80;
+
 const isActive = (pathname: string, href: string): boolean => {
     if (href === "/") {
         return pathname === "/";
@@ -103,7 +105,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
                 return;
             }
             rafId = window.requestAnimationFrame(() => {
-                setIsScrolled(lastScrollY > 80);
+                setIsScrolled(lastScrollY > SCROLL_THRESHOLD_PX);
                 rafId = null;
             });
         };
@@ -131,7 +133,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
 
     return (
         <>
-            <nav className={"nav" + (isScrolled ? " is-scrolled" : "")}>
+            <nav className={`nav${isScrolled ? " is-scrolled" : ""}`}>
                 <div className="container nav-inner">
                     <div className="nav-left">
                         <Link href="/" aria-label="Loupe home">
@@ -154,7 +156,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
                             <>
                                 <button
                                     type="button"
-                                    className="btn btn--quiet btn--sm"
+                                    className="nav-link"
                                     onClick={() => router.push("/auth")}
                                 >
                                     Sign in

@@ -15,7 +15,6 @@ type ExportChatPanelProps = {
     open: boolean;
     onClose: () => void;
     applyPatch: (patch: Partial<ChartConfig>) => void;
-    appendRevision: (entry: string) => void;
     openRailSection: (section: RailSection) => void;
 };
 
@@ -29,7 +28,6 @@ export const ExportChatPanel = ({
     open,
     onClose,
     applyPatch,
-    appendRevision,
     openRailSection,
 }: ExportChatPanelProps): JSX.Element | null => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -85,10 +83,6 @@ export const ExportChatPanel = ({
 
             if (exchange.patch) {
                 applyPatch(exchange.patch);
-            }
-
-            if (exchange.receiptEntry) {
-                appendRevision(exchange.receiptEntry);
             }
         }, RESPONSE_DELAY_MS);
     };

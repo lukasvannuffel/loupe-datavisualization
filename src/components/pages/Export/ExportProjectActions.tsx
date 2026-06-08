@@ -17,8 +17,8 @@ export const ExportProjectActions = ({
     receiptBuilding,
     saving,
 }: ExportProjectActionsProps): JSX.Element => (
-    <section className="export-panel-zone" aria-labelledby="export-project-heading">
-        <h3 id="export-project-heading" className="export-panel-label">
+    <section className="actions-panel__zone" aria-labelledby="export-project-heading">
+        <h3 id="export-project-heading" className="actions-panel__label">
             Project
         </h3>
         {receiptBuildFailed ? (

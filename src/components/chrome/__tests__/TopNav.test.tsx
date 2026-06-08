@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TopNav } from "../TopNav";
+import { SCROLL_THRESHOLD_PX, TopNav } from "../TopNav";
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -75,7 +75,7 @@ describe("TopNav scroll transparency", () => {
         vi.unstubAllGlobals();
     });
 
-    it("applies is-scrolled class when scrollY > 80", () => {
+    it("applies is-scrolled class when scrollY exceeds threshold", () => {
         const { container } = render(<TopNav user={null} />);
         const nav = container.querySelector(".nav");
 
@@ -86,7 +86,10 @@ describe("TopNav scroll transparency", () => {
         expect(nav?.classList.contains("is-scrolled")).toBe(false);
 
         act(() => {
-            Object.defineProperty(window, "scrollY", { configurable: true, value: 100 });
+            Object.defineProperty(window, "scrollY", {
+                configurable: true,
+                value: SCROLL_THRESHOLD_PX + 1,
+            });
             fireEvent.scroll(window);
             flushFrames();
         });
@@ -95,7 +98,10 @@ describe("TopNav scroll transparency", () => {
     });
 
     it("removes is-scrolled class when scrolled back to top", () => {
-        Object.defineProperty(window, "scrollY", { configurable: true, value: 100 });
+        Object.defineProperty(window, "scrollY", {
+            configurable: true,
+            value: SCROLL_THRESHOLD_PX + 1,
+        });
         const { container } = render(<TopNav user={null} />);
         const nav = container.querySelector(".nav");
 

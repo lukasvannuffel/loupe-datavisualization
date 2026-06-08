@@ -22,13 +22,13 @@ export const ExportFigureActions = ({
     const exportsBusy = exporting || pngLoading !== false;
 
     return (
-        <section className="export-panel-zone" aria-labelledby="export-figure-heading">
-            <h3 id="export-figure-heading" className="export-panel-label">
+        <section className="actions-panel__zone" aria-labelledby="export-figure-heading">
+            <h3 id="export-figure-heading" className="actions-panel__label">
                 Export figure
             </h3>
             <button
                 type="button"
-                className="btn btn--primary btn--lg export-panel-primary"
+                className="btn btn--primary btn--lg actions-panel__primary"
                 disabled={exportsBusy}
                 onClick={onDownloadSvg}
             >
