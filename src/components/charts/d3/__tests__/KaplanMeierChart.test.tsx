@@ -369,6 +369,65 @@ describe("KaplanMeierChart", () => {
         });
     });
 
+    it("renders horizontal gridlines when showGrid is true", async () => {
+        const { container } = render(
+            <KaplanMeierChart data={plotData(1)} spec={{ ...kmSpec, showGrid: true }} />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll(".chart-grid line").length).toBeGreaterThan(0);
+        });
+    });
+
+    it("hides horizontal gridlines when showGrid is false", async () => {
+        const { container } = render(
+            <KaplanMeierChart data={plotData(1)} spec={{ ...kmSpec, showGrid: false }} />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll("path.km-curve").length).toBe(1);
+        });
+        expect(container.querySelectorAll(".chart-grid line").length).toBe(0);
+    });
+
+    it("applies strokeWeight to survival curves", async () => {
+        const { container } = render(
+            <KaplanMeierChart data={plotData(1)} spec={{ ...kmSpec, strokeWeight: 2.5 }} />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector("path.km-curve")?.getAttribute("stroke-width")).toBe("2.5");
+        });
+    });
+
+    it("renders HR and log-rank annotation inside the SVG when showStats is true", async () => {
+        const { container } = render(
+            <KaplanMeierChart
+                data={plotData(1)}
+                spec={{ ...kmSpec, showStats: true }}
+                statLabels={["Cox HR 0.74 (95% CI 0.61-0.89)", "log-rank p < 0.001"]}
+            />,
+        );
+
+        await waitFor(() => {
+            const lines = container.querySelectorAll('[data-role="km-stat-line"]');
+            expect(lines.length).toBe(2);
+            expect(lines[0]?.textContent).toContain("Cox HR");
+            expect(lines[1]?.textContent).toContain("log-rank");
+        });
+    });
+
+    it("hides HR and log-rank annotation when showStats is false", async () => {
+        const { container } = render(
+            <KaplanMeierChart data={plotData(1)} spec={{ ...kmSpec, showStats: false }} />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll("path.km-curve").length).toBe(1);
+        });
+        expect(container.querySelectorAll('[data-role="km-stat-line"]').length).toBe(0);
+    });
+
     it.each([
         { width: 400, tickHint: 4 },
         { width: 800, tickHint: 6 },

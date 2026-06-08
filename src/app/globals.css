@@ -1974,6 +1974,28 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 .customization-toggle input {
     margin-top: 2px;
 }
+.customization-frame {
+    margin-bottom: 4px;
+}
+.customization-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.customization-slider__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray);
+}
+.customization-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--blue);
+}
+.customization-rail .custom-section:first-child {
+    border-top: 0;
+}
 .customization-xy .customization-options {
     margin-bottom: 12px;
 }

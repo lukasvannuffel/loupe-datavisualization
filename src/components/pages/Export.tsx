@@ -1496,6 +1496,11 @@ export const Export = ({
                         dataset={dataset}
                         mapping={mapping}
                         spec={liveSpec}
+                        statLabels={
+                            liveSpec.kind === "km"
+                                ? receipt?.tests.map((test) => test.label)
+                                : undefined
+                        }
                         onSpecChange={onSpecChange}
                       />
                     </ChartFrameLoader>

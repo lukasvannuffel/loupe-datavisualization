@@ -33,6 +33,7 @@ export const drawBoxGlyph = (
     tokens: DesignTokens,
     groupFillColor: string,
     useEditorialFill: boolean,
+    strokeWeight: number,
 ): void => {
     const left = xCenter - boxWidth / 2;
     const right = xCenter + boxWidth / 2;
@@ -49,25 +50,25 @@ export const drawBoxGlyph = (
         .attr("fill", useEditorialFill ? tokens.paper : groupFillColor)
         .attr("fill-opacity", useEditorialFill ? 1 : 0.2)
         .attr("stroke", tokens.ink)
-        .attr("stroke-width", 0.75);
+        .attr("stroke-width", strokeWeight);
     if (options.notched) {
         const inset = boxWidth * 0.15;
         g.append("path").attr("data-role", "box-notch").attr("d",
             `M ${left} ${yQ3} L ${left} ${yScale(stats.notchUpper)} L ${left + inset} ${yMed} L ${left} ${yScale(stats.notchLower)} L ${left} ${yQ1} M ${right} ${yQ3} L ${right} ${yScale(stats.notchUpper)} L ${right - inset} ${yMed} L ${right} ${yScale(stats.notchLower)} L ${right} ${yQ1}`,
-        ).attr("fill", "none").attr("stroke", tokens.ink).attr("stroke-width", 0.75);
+        ).attr("fill", "none").attr("stroke", tokens.ink).attr("stroke-width", strokeWeight);
     }
-    line(g, "box-median", left, right, yMed, yMed, tokens.ink, 1.25);
+    line(g, "box-median", left, right, yMed, yMed, tokens.ink, strokeWeight);
     for (const [extent, edge] of [[stats.max, stats.q3], [stats.min, stats.q1]] as const) {
         const yExt = yScale(extent);
-        line(g, "box-whisker", xCenter, xCenter, yExt, yScale(edge), tokens.ink);
-        line(g, "box-whisker-cap", xCenter - cap, xCenter + cap, yExt, yExt, tokens.ink);
+        line(g, "box-whisker", xCenter, xCenter, yExt, yScale(edge), tokens.ink, strokeWeight);
+        line(g, "box-whisker-cap", xCenter - cap, xCenter + cap, yExt, yExt, tokens.ink, strokeWeight);
     }
     if (options.showOutliers) {
         stats.outliers.forEach((outlier, index) => {
             const prior = stats.outliers.slice(0, index).filter((value) => value === outlier).length;
             const jitter = prior === 0 ? 0 : (prior % 2 === 0 ? -1 : 1) * boxWidth * 0.1 * Math.ceil(prior / 2);
             g.append("circle").attr("data-role", "box-outlier").attr("cx", xCenter + jitter).attr("cy", yScale(outlier))
-                .attr("r", 2).attr("fill", tokens.paper).attr("stroke", tokens.ink).attr("stroke-width", 0.75);
+                .attr("r", 2).attr("fill", tokens.paper).attr("stroke", tokens.ink).attr("stroke-width", strokeWeight);
         });
     }
     if (options.showMeanMarker) {
@@ -83,10 +84,11 @@ export const drawStripGlyph = (
     yScale: ScaleLinear<number, number>,
     labelY: number,
     tokens: DesignTokens,
+    strokeWeight: number,
 ): void => {
     stats.values.forEach((value) => {
         g.append("circle").attr("data-role", "strip-point").attr("cx", xCenter).attr("cy", yScale(value))
-            .attr("r", 2).attr("fill", tokens.paper).attr("stroke", tokens.ink).attr("stroke-width", 0.75);
+            .attr("r", 2).attr("fill", tokens.paper).attr("stroke", tokens.ink).attr("stroke-width", strokeWeight);
     });
     g.append("text").attr("data-role", "strip-n-label").attr("x", xCenter).attr("y", labelY)
         .attr("text-anchor", "middle").attr("fill", tokens.muted).attr("font-size", "9px").text(`n=${stats.n}`);

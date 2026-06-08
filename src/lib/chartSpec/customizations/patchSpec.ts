@@ -1,4 +1,4 @@
-import type { ChartSpec, PaletteName } from "../types";
+import type { BaseSpec, ChartSpec, PaletteName } from "../types";
 
 export type SpecUpdater = (prev: ChartSpec) => ChartSpec;
 
@@ -61,6 +61,14 @@ export const updateCustomizationPalette = (
 export const patchSpecKind = <K extends ChartSpec["kind"]>(
     spec: ChartSpec & { kind: K },
     patch: Partial<Extract<ChartSpec, { kind: K }>>,
+): ChartSpec => ({
+    ...spec,
+    ...patch,
+});
+
+export const patchBaseSpec = (
+    spec: ChartSpec,
+    patch: Partial<Pick<BaseSpec, "showGrid" | "strokeWeight">>,
 ): ChartSpec => ({
     ...spec,
     ...patch,

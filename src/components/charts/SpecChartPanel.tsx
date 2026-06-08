@@ -27,6 +27,7 @@ type SpecChartPanelProps = {
     readonly dataset: LoupeDataset;
     readonly mapping: Mapping;
     readonly spec: ChartSpec;
+    readonly statLabels?: readonly string[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
@@ -41,6 +42,7 @@ export const SpecChartPanel = ({
     dataset,
     mapping,
     spec,
+    statLabels,
     onSpecChange,
 }: SpecChartPanelProps): JSX.Element => {
     if (chartKind === "barError" && spec.kind === "barError") {
@@ -93,7 +95,14 @@ export const SpecChartPanel = ({
         }
 
         if (kmData !== undefined) {
-            return <KaplanMeierChart data={kmData} spec={spec} onSpecChange={onSpecChange} />;
+            return (
+                <KaplanMeierChart
+                    data={kmData}
+                    spec={spec}
+                    statLabels={statLabels}
+                    onSpecChange={onSpecChange}
+                />
+            );
         }
     }
 

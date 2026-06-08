@@ -28,6 +28,7 @@ export const drawXYLine = (
     xScale: ScaleLinear<number, number>,
     yScale: ScaleLinear<number, number>,
     color: string,
+    strokeWeight: number,
 ): void => {
     const dash = DASH_BY_INDEX[styleIndex];
     g.append("path")
@@ -41,7 +42,7 @@ export const drawXYLine = (
         )
         .attr("fill", "none")
         .attr("stroke", color)
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", strokeWeight)
         .attr("stroke-dasharray", dash.length > 0 ? dash : null);
 };
 
@@ -72,6 +73,7 @@ export const drawRegressionLine = (
     xScale: ScaleLinear<number, number>,
     yScale: ScaleLinear<number, number>,
     color: string,
+    strokeWeight: number,
 ): void => {
     const xs = group.points.map((p) => p.x);
     const x0 = Math.min(...xs);
@@ -89,7 +91,7 @@ export const drawRegressionLine = (
         .attr("x2", xScale(x1))
         .attr("y2", yScale(y1))
         .attr("stroke", color)
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", strokeWeight)
         .attr("stroke-dasharray", dash.length > 0 ? dash : null)
         .attr("opacity", 0.6);
 
@@ -132,6 +134,7 @@ type XYChartRenderOptions = {
     readonly showRegression: boolean;
     readonly showErrorBands: boolean;
     readonly palette: PaletteName | undefined;
+    readonly strokeWeight: number;
     readonly xScale: ScaleLinear<number, number>;
     readonly yScale: ScaleLinear<number, number>;
 };
@@ -141,7 +144,7 @@ export const renderXYChartGroups = (
     plotG: Selection<SVGGElement, unknown, null, undefined>,
     options: XYChartRenderOptions,
 ): void => {
-    const { mode, showRegression, showErrorBands, palette, xScale, yScale } = options;
+    const { mode, showRegression, showErrorBands, palette, strokeWeight, xScale, yScale } = options;
     const groupCount = data.groups.length;
 
     if (data.kind === "longitudinal") {
@@ -158,7 +161,7 @@ export const renderXYChartGroups = (
                 drawXYErrorBand(groupG, group, xScale, yScale, color);
             }
             if (mode === "line" || mode === "both") {
-                drawXYLine(groupG, xyGroup, styleIndex, xScale, yScale, color);
+                drawXYLine(groupG, xyGroup, styleIndex, xScale, yScale, color, strokeWeight);
             }
             if (mode === "scatter" || mode === "both") {
                 drawXYMarkers(groupG, xyGroup, styleIndex, xScale, yScale, color);
@@ -177,7 +180,7 @@ export const renderXYChartGroups = (
             .attr("data-group-index", String(index));
 
         if (mode === "line" || mode === "both") {
-            drawXYLine(groupG, group, styleIndex, xScale, yScale, color);
+            drawXYLine(groupG, group, styleIndex, xScale, yScale, color, strokeWeight);
         }
         if (mode === "scatter" || mode === "both") {
             drawXYMarkers(groupG, group, styleIndex, xScale, yScale, color);
@@ -185,7 +188,7 @@ export const renderXYChartGroups = (
         if (showRegression) {
             const fit = data.regressions.find((r) => r.label === group.label);
             if (fit !== undefined) {
-                drawRegressionLine(groupG, fit, group, styleIndex, xScale, yScale, color);
+                drawRegressionLine(groupG, fit, group, styleIndex, xScale, yScale, color, strokeWeight);
             }
         }
     }
