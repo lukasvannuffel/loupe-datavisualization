@@ -156,6 +156,14 @@ export const ReproducibilityReceiptPanel = ({
                 aggregated computations, and a configuration hash — no raw patient data.
             </p>
             <div className={`export-receipt-actions${embedded ? " export-toolbar" : ""}`}>
+                <span className="export-dpi" role="group" aria-label="Download receipt">
+                    <button type="button" disabled={disabled} onClick={onDownloadTxt}>
+                        {loading ? "Preparing…" : "Download .txt"}
+                    </button>
+                    <button type="button" disabled={disabled} onClick={onDownloadMd}>
+                        {loading ? "Preparing…" : "Download .md"}
+                    </button>
+                </span>
                 <button
                     type="button"
                     className="btn btn--quiet btn--sm"
@@ -173,22 +181,6 @@ export const ReproducibilityReceiptPanel = ({
                     ) : (
                         "Copy receipt"
                     )}
-                </button>
-                <button
-                    type="button"
-                    className="btn btn--quiet btn--sm"
-                    disabled={disabled}
-                    onClick={onDownloadTxt}
-                >
-                    {loading ? "Preparing…" : "Download .txt"}
-                </button>
-                <button
-                    type="button"
-                    className="btn btn--quiet btn--sm"
-                    disabled={disabled}
-                    onClick={onDownloadMd}
-                >
-                    {loading ? "Preparing…" : "Download .md"}
                 </button>
             </div>
             {receipt !== null ? (

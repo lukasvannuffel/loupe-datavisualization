@@ -50,7 +50,7 @@ Count verification: `git grep -nE 'className=["\`][^"\`]*btn--' src/ | wc -l` â†
 | ExportFigureActions.tsx | 31 | Download SVG | primary | Export figure CTA |
 | ExportFigureActions.tsx | 65 | Download PNG | secondary | Export figure alt |
 | ExportProjectActions.tsx | 27 | Retry receipt build | quiet | Receipt error |
-| ExportProjectActions.tsx | 40 | Save to library | secondary | Project save |
+| ExportProjectActions.tsx | 40 | Save to project | primary | Project save |
 | ExportProjectActions.tsx | 46 | Start new chart | quiet | Wizard restart |
 | Export.tsx | 1284 | Open customize panel | primary | Mobile rail toggle |
 | Export.tsx | 1294 | Reset customizations | quiet | Rail utility |

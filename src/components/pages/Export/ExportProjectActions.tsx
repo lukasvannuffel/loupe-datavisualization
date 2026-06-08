@@ -37,7 +37,7 @@ export const ExportProjectActions = ({
         <div className="export-project-row">
             <button
                 type="button"
-                className="btn btn--secondary btn--sm"
+                className="btn btn--primary btn--sm"
                 disabled={saving || receiptBuilding}
                 onClick={onSave}
             >

@@ -2404,11 +2404,11 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     padding: 2px 8px;
     margin-left: 8px;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--amber);
-    background: var(--amber-tint-strong);
+    color: var(--amber-button);
+    background: var(--paper);
     border-radius: 999px;
 }
 .export-format-row {
@@ -2426,6 +2426,9 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--amber);
+    border-radius: var(--r-2);
 }
 .export-png-label {
     font-size: 13px;
@@ -2506,14 +2509,25 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 .export-receipt p { margin: 0 0 12px; font-size: 12.5px; color: var(--gray); }
 .export-receipt-actions {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
     margin-bottom: 8px;
-    align-items: stretch;
+}
+.export-receipt-actions .export-dpi {
+    display: inline-flex;
+    width: auto;
+}
+.export-receipt-actions .export-dpi button {
+    flex: 0 0 auto;
+    min-height: 0;
+    color: var(--ink);
+    white-space: nowrap;
 }
 .export-receipt-actions .btn {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    justify-content: flex-start;
 }
 .export-receipt-error { margin: 0; font-size: 12.5px; }
 .export-receipt-hash { margin: 0; word-break: break-all; font-size: 11px; }
@@ -2585,14 +2599,6 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
         gap: 12px;
     }
     .export-project-row .btn {
-        width: auto;
-    }
-    .export-receipt-actions {
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-    .export-receipt-actions .btn {
         width: auto;
     }
     .export-receipt {
