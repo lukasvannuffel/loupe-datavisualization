@@ -2358,6 +2358,10 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     align-items: start;
     text-align: left;
 }
+.export-shell-header {
+    grid-column: 1 / -1;
+    text-align: center;
+}
 .export-main { min-width: 0; text-align: center; }
 .export-eyebrow { margin-bottom: 12px; }
 .export-title {
@@ -2640,8 +2644,20 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
 
 @media (min-width: 1024px) {
     .export-page { padding: 64px 0 80px; }
-    .export-shell { grid-template-columns: minmax(0, 1fr) 320px; gap: 36px; }
-    .export-title { margin: 0 auto 36px; }
+    .export-shell {
+        grid-template-columns: minmax(0, 1fr) 320px;
+        grid-template-rows: auto 1fr;
+        gap: 36px;
+    }
+    .export-main {
+        grid-column: 1;
+        grid-row: 2;
+    }
+    .export-shell > .customize-rail {
+        grid-column: 2;
+        grid-row: 2;
+    }
+    .export-title { margin: 0 auto; }
     .export-canvas { padding: 56px 80px 44px; }
     .export-panel { margin-top: 32px; padding: 28px 28px; }
     .export-receipt { margin: 60px auto 0; padding: 24px 28px; }

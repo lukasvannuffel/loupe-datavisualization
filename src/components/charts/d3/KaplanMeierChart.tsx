@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
-import type { KMSpec } from "@/lib/chartSpec/types";
+import type { KMSpec, StatTest } from "@/lib/chartSpec/types";
 
 import { applyAxes, axisTickCountForWidth } from "./applyAxes";
 import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
@@ -35,11 +35,11 @@ const LABEL_MARGIN = marginWithLabels(DEFAULT_MARGIN);
 type Props = {
     readonly spec: KMSpec;
     readonly data: KMPlotData;
-    readonly statLabels?: readonly string[];
+    readonly statTests?: readonly StatTest[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const KaplanMeierChart = ({ spec, data, statLabels, onSpecChange }: Props): JSX.Element => {
+export const KaplanMeierChart = ({ spec, data, statTests, onSpecChange }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
@@ -104,7 +104,7 @@ export const KaplanMeierChart = ({ spec, data, statLabels, onSpecChange }: Props
                 plotG,
                 innerWidth,
                 tokens,
-                resolveKmStatLines(statLabels),
+                resolveKmStatLines(statTests),
             );
         }
 
@@ -146,7 +146,7 @@ export const KaplanMeierChart = ({ spec, data, statLabels, onSpecChange }: Props
         spec.showGrid,
         spec.showStats,
         spec.strokeWeight,
-        statLabels,
+        statTests,
     ]);
 
     const marginLeft = LABEL_MARGIN.left;

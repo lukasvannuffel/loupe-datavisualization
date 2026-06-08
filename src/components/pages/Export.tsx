@@ -1435,10 +1435,12 @@ export const Export = ({
   return (
     <div className="export-page page-enter">
       <div className="container export-shell">
-        <div className="export-main">
+        <header className="export-shell-header">
           <Eyebrow>Final figure</Eyebrow>
           <h1 className="export-title">Ready for the manuscript.</h1>
+        </header>
 
+        <div className="export-main">
           <div className="export-canvas" ref={chartCanvasRef}>
             <div className="export-canvas-head">
               <div>
@@ -1496,11 +1498,7 @@ export const Export = ({
                         dataset={dataset}
                         mapping={mapping}
                         spec={liveSpec}
-                        statLabels={
-                            liveSpec.kind === "km"
-                                ? receipt?.tests.map((test) => test.label)
-                                : undefined
-                        }
+                        statTests={liveSpec.kind === "km" ? receipt?.tests : undefined}
                         onSpecChange={onSpecChange}
                       />
                     </ChartFrameLoader>
@@ -1565,6 +1563,7 @@ export const Export = ({
             ) : null}
           </div>
         </div>
+
 
         <div
           id="customize-sheet"

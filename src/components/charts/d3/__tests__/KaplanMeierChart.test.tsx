@@ -405,7 +405,10 @@ describe("KaplanMeierChart", () => {
             <KaplanMeierChart
                 data={plotData(1)}
                 spec={{ ...kmSpec, showStats: true }}
-                statLabels={["Cox HR 0.74 (95% CI 0.61-0.89)", "log-rank p < 0.001"]}
+                statTests={[
+                    { label: "Cox HR 0.74 (95% CI 0.61-0.89)" },
+                    { label: "log-rank p < 0.001" },
+                ]}
             />,
         );
 
