@@ -132,6 +132,7 @@ const renderExport = (spec: ChartSpec = defaultSpec): ReturnType<typeof render> 
 afterEach(() => {
     cleanup();
     window.sessionStorage.clear();
+    document.body.classList.remove("customize-panel-open");
 });
 
 beforeEach(() => {
@@ -141,12 +142,54 @@ beforeEach(() => {
     saveChartMock.mockResolvedValue({ success: true, id: "test-id" });
 });
 
+describe("Export panel actions", () => {
+    it("groups export actions in a labeled panel with clear hierarchy", async () => {
+        renderExport();
+
+        expect(await screen.findByRole("heading", { name: /export figure/i })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: /reproducibility receipt/i })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: /^project$/i })).toBeTruthy();
+        expect(document.querySelector(".export-panel")).toBeTruthy();
+        expect(document.querySelector(".export-png-row")).toBeTruthy();
+        expect(document.querySelector(".export-dpi")).toBeTruthy();
+
+        const downloadSvg = screen.getByRole("button", { name: /download svg/i });
+        expect(downloadSvg.className).toContain("btn--primary");
+        expect(downloadSvg.className).toContain("btn--lg");
+        expect(downloadSvg.className).toContain("export-panel-primary");
+
+        const saveButton = screen.getByRole("button", { name: /save to project/i });
+        expect(saveButton.className).toContain("btn--sm");
+        expect(saveButton.className).not.toContain("btn--lg");
+    });
+});
+
 describe("Export customization rail", () => {
     it("renders the customization rail on /export", async () => {
         renderExport();
         expect(
             await screen.findByRole("complementary", { name: /customize chart/i }),
         ).toBeTruthy();
+    });
+
+    it("sets customize-panel-open on body while the mobile sheet is open", async () => {
+        renderExport();
+        await screen.findByRole("complementary", { name: /customize chart/i });
+
+        expect(document.body.classList.contains("customize-panel-open")).toBe(false);
+
+        fireEvent.click(screen.getByRole("button", { name: /^customize$/i }));
+
+        expect(document.body.classList.contains("customize-panel-open")).toBe(true);
+        expect(
+            await screen.findByRole("dialog", { name: /customize the figure/i }),
+        ).toBeTruthy();
+
+        fireEvent.keyDown(window, { key: "Escape" });
+
+        await waitFor(() => {
+            expect(document.body.classList.contains("customize-panel-open")).toBe(false);
+        });
     });
 
     it("shows view-only notice and hides editing controls when loaded plot_data is null", async () => {

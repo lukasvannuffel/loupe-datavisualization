@@ -162,7 +162,7 @@ export const ExportChatPanel = ({
                                     <button
                                         key={chip.id}
                                         type="button"
-                                        className="btn btn--ghost btn--sm chat-chip"
+                                        className="btn btn--secondary btn--sm chat-chip"
                                         onClick={() => onChip(chip)}
                                     >
                                         {chip.userEcho}

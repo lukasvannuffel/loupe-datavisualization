@@ -12,7 +12,7 @@ import { getOverrideDisplayState } from "./overrideDisplay";
 import { canCustomizeRecommendation } from "./recommendation/canCustomize";
 import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
 import { isSpecKind } from "./recommendation/isSpecKind";
-import { RecommendationBottomBar } from "./recommendation/RecommendationBottomBar";
+import { RecommendationActionsPanel } from "./recommendation/RecommendationActionsPanel";
 import { RecommendationChartPreview } from "./recommendation/RecommendationChartPreview";
 import { RecommendationIntentBand } from "./recommendation/RecommendationIntentBand";
 import { useRecommendationLiveSpec } from "./recommendation/useRecommendationLiveSpec";
@@ -119,20 +119,28 @@ export const Recommendation = ({
                 />
 
                 <div className="rec-grid">
-                    <RecommendationChartPreview
-                        barErrorAggregation={barErrorAggregation}
-                        barErrorMapResult={barErrorMapResult}
-                        barErrorMapping={barErrorMapping}
-                        canCustomize={canCustomize}
-                        chartKind={chartKind}
-                        dataset={dataset}
-                        isDisplayOverridden={isDisplayOverridden}
-                        liveSpec={liveSpec}
-                        mapping={mapping}
-                        phase={phase}
-                        receipt={receipt}
-                        title={title}
-                    />
+                    <div className="rec-grid-col">
+                        <RecommendationChartPreview
+                            barErrorAggregation={barErrorAggregation}
+                            barErrorMapResult={barErrorMapResult}
+                            barErrorMapping={barErrorMapping}
+                            canCustomize={canCustomize}
+                            chartKind={chartKind}
+                            dataset={dataset}
+                            isDisplayOverridden={isDisplayOverridden}
+                            liveSpec={liveSpec}
+                            mapping={mapping}
+                            phase={phase}
+                            receipt={receipt}
+                            title={title}
+                        />
+
+                        <RecommendationActionsPanel
+                            canCustomize={canCustomize}
+                            onCustomize={handleCustomize}
+                            onSwitchToManual={onSwitchToManual}
+                        />
+                    </div>
 
                     <RecommendationWhy
                         AltPreview={AltPreview}
@@ -145,15 +153,6 @@ export const Recommendation = ({
                     />
                 </div>
             </div>
-
-            <RecommendationBottomBar
-                canCustomize={canCustomize}
-                onCustomize={handleCustomize}
-                onOpenOverride={() => {
-                    setOverrideOpen(true);
-                }}
-                onSwitchToManual={onSwitchToManual}
-            />
 
             <RecommendationOverride
                 current={chartKind}

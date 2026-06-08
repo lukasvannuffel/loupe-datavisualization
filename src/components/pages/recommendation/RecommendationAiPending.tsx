@@ -100,7 +100,7 @@ export const RecommendationAiPending = (): JSX.Element | null => {
                         <div className="map-ai-error-actions">
                             <button
                                 type="button"
-                                className="btn btn--ghost btn--sm"
+                                className="btn btn--secondary btn--sm"
                                 disabled={rateLimited}
                                 onClick={() => {
                                     if (payload !== null) {

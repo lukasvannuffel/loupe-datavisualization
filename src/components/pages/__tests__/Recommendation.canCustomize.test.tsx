@@ -213,5 +213,8 @@ describe("Recommendation — canCustomize gate", () => {
 
         const button = screen.getByRole("button", { name: /customize/i });
         expect(button).toHaveProperty("disabled", false);
+        expect(button.className).toContain("btn--primary");
+        expect(button.className).toContain("btn--lg");
+        expect(button.className).toContain("rec-panel-primary");
     });
 });

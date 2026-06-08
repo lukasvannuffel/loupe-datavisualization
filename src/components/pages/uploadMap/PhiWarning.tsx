@@ -60,7 +60,7 @@ export const PhiWarning = ({
                     >
                         Rename
                     </button>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={onCancel}>
                         Cancel
                     </button>
                     <button type="button" className="btn btn--quiet btn--sm" onClick={onSendClick}>

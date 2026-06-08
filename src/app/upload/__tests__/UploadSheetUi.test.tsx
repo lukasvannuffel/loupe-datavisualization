@@ -142,7 +142,7 @@ describe("Upload sheet UI", () => {
 
         expect(screen.queryByRole("radiogroup")).toBeNull();
         expect(screen.queryByRole("combobox")).toBeNull();
-        expect(screen.getByText("one.xlsx")).not.toBeNull();
+        expect(document.querySelector(".dropzone-uploaded-name")?.textContent).toBe("one.xlsx");
     });
 
     it("uses dropdown when more than four sheets", async () => {

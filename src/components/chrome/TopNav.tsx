@@ -44,6 +44,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
     const router = useRouter();
 
     const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+    const [isScrolled, setIsScrolled] = useState<boolean>(false);
     const toggleRef = useRef<HTMLButtonElement | null>(null);
 
     const isAuthedView = user !== null;
@@ -92,6 +93,32 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
         };
     }, [drawerOpen]);
 
+    useEffect(() => {
+        let rafId: number | null = null;
+        let lastScrollY = window.scrollY;
+
+        const onScroll = (): void => {
+            lastScrollY = window.scrollY;
+            if (rafId !== null) {
+                return;
+            }
+            rafId = window.requestAnimationFrame(() => {
+                setIsScrolled(lastScrollY > 80);
+                rafId = null;
+            });
+        };
+
+        window.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+
+        return () => {
+            window.removeEventListener("scroll", onScroll);
+            if (rafId !== null) {
+                window.cancelAnimationFrame(rafId);
+            }
+        };
+    }, []);
+
     const closeDrawer = (): void => {
         setDrawerOpen(false);
         toggleRef.current?.focus();
@@ -104,7 +131,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
 
     return (
         <>
-            <nav className="nav">
+            <nav className={"nav" + (isScrolled ? " is-scrolled" : "")}>
                 <div className="container nav-inner">
                     <div className="nav-left">
                         <Link href="/" aria-label="Loupe home">
@@ -208,7 +235,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
                         <>
                             <button
                                 type="button"
-                                className="btn btn--ghost btn--lg"
+                                className="btn btn--secondary btn--lg"
                                 onClick={() => navigate("/auth")}
                             >
                                 Sign in
@@ -225,7 +252,7 @@ export const TopNav = ({ user }: TopNavProps): JSX.Element => {
                         <>
                             <button
                                 type="button"
-                                className="btn btn--ghost btn--lg"
+                                className="btn btn--secondary btn--lg"
                                 onClick={() => navigate("/account")}
                             >
                                 Account

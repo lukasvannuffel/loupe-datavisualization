@@ -38,7 +38,6 @@ import type { BarErrorPlotData, ChartSpec, PlotData } from "@/lib/chartSpec/type
 import { ChartFrameLoader } from "@/components/charts/ChartFrameLoader";
 import { saveChart } from "@/app/charts/actions";
 import type { ChartRow, GetChartResult } from "@/app/charts/actions";
-import { RingLoader } from "@/components/primitives/RingLoader";
 import { exportPng } from "@/lib/export/exportPng";
 import { CHART_EXPORT_FONT, ExportError, exportSvg, exportSvgString } from "@/lib/export/exportSvg";
 import { buildReceipt } from "@/lib/receipt/buildReceipt";
@@ -55,6 +54,8 @@ import { ExportChatLauncher } from "./ExportChat/ExportChatLauncher";
 import { ExportChatPanel } from "./ExportChat/ExportChatPanel";
 import type { ChartConfig, ChatRevision, RailSection } from "./ExportChat/types";
 import { SaveChartDialog } from "./Export/SaveChartDialog";
+import { ExportFigureActions } from "./Export/ExportFigureActions";
+import { ExportProjectActions } from "./Export/ExportProjectActions";
 
 type LegacyPaletteId =
     | "editorial"
@@ -571,7 +572,7 @@ export const Export = ({
     const [openSection, setOpenSection] = useState<string | null>("colors");
 
     const [chatOpen, setChatOpen] = useState<boolean>(false);
-    const [chatRevisions, setChatRevisions] = useState<ChatRevision[]>([]);
+    const [, setChatRevisions] = useState<ChatRevision[]>([]);
     const [computationSnapshot, setComputationSnapshot] = useState<ComputationSummary | null>(null);
     const [computedReceipt, setComputedReceipt] = useState<SaveReceipt | null>(null);
     const [receiptBuilding, setReceiptBuilding] = useState<boolean>(false);
@@ -873,10 +874,12 @@ export const Export = ({
 
         window.addEventListener("keydown", onKey);
         document.body.classList.add("is-locked");
+        document.body.classList.add("customize-panel-open");
 
         return () => {
             window.removeEventListener("keydown", onKey);
             document.body.classList.remove("is-locked");
+            document.body.classList.remove("customize-panel-open");
         };
     }, [mobileRailOpen]);
 
@@ -1313,151 +1316,110 @@ export const Export = ({
                             </div>
                             <div className="muted mono export-canvas-meta">{slugDefaults.metaLine}</div>
                         </div>
-                        {viewOnlySnapshot !== null ? (
-                            <ViewOnlyNotice
-                                chartName={viewOnlySnapshot.name}
-                                thumbnail={viewOnlySnapshot.thumbnail}
-                            />
-                        ) : useSpecFigure && liveSpec !== null && useLoadedFigure ? (
-                            <ChartFrameLoader>
-                                {liveSpec.kind === "km" && loadedPlotData.kind === "km" ? (
-                                    <KaplanMeierChart
-                                        spec={liveSpec}
-                                        data={loadedPlotData as KMPlotData}
-                                        onSpecChange={onSpecChange}
+                        <div className="export-figure-host">
+                            <div className="export-figure">
+                                {viewOnlySnapshot !== null ? (
+                                    <ViewOnlyNotice
+                                        chartName={viewOnlySnapshot.name}
+                                        thumbnail={viewOnlySnapshot.thumbnail}
                                     />
+                                ) : useSpecFigure && liveSpec !== null && useLoadedFigure ? (
+                                    <ChartFrameLoader>
+                                        {liveSpec.kind === "km" && loadedPlotData.kind === "km" ? (
+                                            <KaplanMeierChart
+                                                spec={liveSpec}
+                                                data={loadedPlotData as KMPlotData}
+                                                onSpecChange={onSpecChange}
+                                            />
+                                        ) : null}
+                                        {liveSpec.kind === "barError" && loadedPlotData.kind === "barError" ? (
+                                            <BarErrorChart
+                                                spec={liveSpec}
+                                                groups={(loadedPlotData as BarErrorPlotData).groups}
+                                                onSpecChange={onSpecChange}
+                                            />
+                                        ) : null}
+                                        {liveSpec.kind === "xy" &&
+                                        (loadedPlotData.kind === "xy" || loadedPlotData.kind === "longitudinal") ? (
+                                            <XYChart
+                                                spec={liveSpec}
+                                                data={loadedPlotData as XYPlotData | LongitudinalData}
+                                                mode={liveSpec.mode}
+                                                showRegression={liveSpec.showRegression}
+                                                showErrorBands={liveSpec.showErrorBands}
+                                                onSpecChange={onSpecChange}
+                                            />
+                                        ) : null}
+                                    </ChartFrameLoader>
+                                ) : useSpecFigure && liveSpec !== null && dataset !== null ? (
+                                    <>
+                                        <ChartFrameLoader>
+                                            <SpecChartPanel
+                                                chartKind={liveSpec.kind}
+                                                dataset={dataset}
+                                                mapping={mapping}
+                                                spec={liveSpec}
+                                                onSpecChange={onSpecChange}
+                                            />
+                                        </ChartFrameLoader>
+                                        <p className="export-chart-hint muted small">
+                                            <span className="ring ring--xs" />
+                                            Click any axis label or title on the chart to edit inline.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <ChartComponent {...chartProps} />
+                                )}
+                                {caption ? (
+                                    <div className="export-caption">
+                                        <span className="export-caption-num mono">Figure {figureNumber}.</span>{" "}
+                                        {caption}
+                                    </div>
                                 ) : null}
-                                {liveSpec.kind === "barError" && loadedPlotData.kind === "barError" ? (
-                                    <BarErrorChart
-                                        spec={liveSpec}
-                                        groups={(loadedPlotData as BarErrorPlotData).groups}
-                                        onSpecChange={onSpecChange}
-                                    />
-                                ) : null}
-                                {liveSpec.kind === "xy" &&
-                                (loadedPlotData.kind === "xy" || loadedPlotData.kind === "longitudinal") ? (
-                                    <XYChart
-                                        spec={liveSpec}
-                                        data={loadedPlotData as XYPlotData | LongitudinalData}
-                                        mode={liveSpec.mode}
-                                        showRegression={liveSpec.showRegression}
-                                        showErrorBands={liveSpec.showErrorBands}
-                                        onSpecChange={onSpecChange}
-                                    />
-                                ) : null}
-                            </ChartFrameLoader>
-                        ) : useSpecFigure && liveSpec !== null && dataset !== null ? (
-                            <>
-                                <ChartFrameLoader>
-                                    <SpecChartPanel
-                                        chartKind={liveSpec.kind}
-                                        dataset={dataset}
-                                        mapping={mapping}
-                                        spec={liveSpec}
-                                        onSpecChange={onSpecChange}
-                                    />
-                                </ChartFrameLoader>
-                                <p className="export-chart-hint muted small">
-                                    <span className="ring ring--xs" />
-                                    Click any axis label or title on the chart to edit inline.
-                                </p>
-                            </>
-                        ) : (
-                            <ChartComponent {...chartProps} />
-                        )}
-                        {caption && (
-                            <div className="export-caption">
-                                <span className="export-caption-num mono">Figure {figureNumber}.</span>{" "}
-                                {caption}
                             </div>
-                        )}
+                        </div>
                     </div>
 
-                    <div className="export-actions">
-                        <button
-                            type="button"
-                            className="btn btn--primary btn--lg"
-                            disabled={exporting || pngLoading !== false}
-                            onClick={handleDownloadSvg}
-                        >
-                            {exporting ? "Exporting…" : "Download SVG"}{" "}
-                            {!exporting ? (
-                                <span className="export-recommended-tag">· recommended</span>
-                            ) : null}
-                        </button>
-                        <div className="btn btn--ghost btn--lg export-png">
-                            <span>Download PNG</span>
-                            <span className="export-dpi">
-                                {([300, 600] as const).map((v) => (
-                                    <button
-                                        key={v}
-                                        type="button"
-                                        className={pngLoading === v ? "active" : ""}
-                                        disabled={pngLoading !== false || exporting}
-                                        onClick={() => {
-                                            void handlePngExport(v);
-                                        }}
-                                    >
-                                        {pngLoading === v ? (
-                                            <>
-                                                <RingLoader /> Exporting…
-                                            </>
-                                        ) : (
-                                            `${v} dpi`
-                                        )}
-                                    </button>
-                                ))}
-                            </span>
-                        </div>
-                        <button
-                            type="button"
-                            className="btn btn--ghost btn--lg"
-                            disabled={copying}
-                            onClick={() => {
+                    <div className="export-panel">
+                        <ExportFigureActions
+                            copied={copied}
+                            copying={copying}
+                            exporting={exporting}
+                            pngLoading={pngLoading}
+                            onDownloadSvg={() => {
+                                void handleDownloadSvg();
+                            }}
+                            onPngExport={(dpi) => {
+                                void handlePngExport(dpi);
+                            }}
+                            onCopy={() => {
                                 void onCopy();
                             }}
-                        >
-                            {copying ? "Copying…" : copied ? "Copied to clipboard ✓" : "Copy to clipboard"}
-                        </button>
-                    </div>
+                        />
 
-                    <ReproducibilityReceiptPanel input={reproducibilityInput} />
+                        <hr className="export-panel-divider" />
 
-                    {viewOnlySnapshot === null ? (
-                    <div className="export-secondary">
-                        {receiptBuildFailed ? (
-                            <p className="muted small" role="alert">
-                                Save receipt is not ready.{" "}
-                                <button
-                                    type="button"
-                                    className="btn btn--ghost btn--sm"
-                                    onClick={retryReceiptBuild}
-                                >
-                                    Try again
-                                </button>
-                            </p>
-                        ) : receiptBuilding ? (
-                            <p className="muted small" role="status">
-                                <RingLoader /> Preparing save receipt…
-                            </p>
+                        <ReproducibilityReceiptPanel
+                            input={reproducibilityInput}
+                            variant="embedded"
+                        />
+
+                        {viewOnlySnapshot === null ? (
+                            <>
+                                <hr className="export-panel-divider" />
+                                <ExportProjectActions
+                                    onRetryReceiptBuild={retryReceiptBuild}
+                                    onSave={handleSaveToProject}
+                                    onStartNew={() => {
+                                        router.push("/upload");
+                                    }}
+                                    receiptBuildFailed={receiptBuildFailed}
+                                    receiptBuilding={receiptBuilding}
+                                    saving={saving}
+                                />
+                            </>
                         ) : null}
-                        <button
-                            type="button"
-                            className="btn btn--ghost btn--lg"
-                            onClick={handleSaveToProject}
-                            disabled={saving || receiptBuilding}
-                        >
-                            {saving ? "Saving…" : "Save to project"}
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn--quiet btn--lg"
-                            onClick={() => router.push("/upload")}
-                        >
-                            Start a new chart
-                        </button>
                     </div>
-                    ) : null}
 
                 </div>
 
@@ -1485,6 +1447,7 @@ export const Export = ({
                         </p>
                     </div>
 
+                    <div className="customize-rail-body">
                     {viewOnlySnapshot === null && useSpecFigure && liveSpec !== null ? (
                         <CustomizationRail
                             errorBandsAvailable={xyErrorBandsAvailable}
@@ -1919,7 +1882,7 @@ export const Export = ({
 
                                 <button
                                     type="button"
-                                    className="btn btn--ghost btn--sm annot-add"
+                                    className="btn btn--secondary btn--sm annot-add"
                                     onClick={onAddAnnotation}
                                 >
                                     Add annotation
@@ -1937,6 +1900,7 @@ export const Export = ({
                             Reset to defaults
                         </button>
                     ) : null}
+                    </div>
                 </div>
             </div>
 
