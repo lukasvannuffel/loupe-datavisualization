@@ -25,6 +25,7 @@ import type { Margin } from "./chart.types";
 import { DEFAULT_MARGIN } from "./chart.types";
 import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
+import { drawHorizontalGrid } from "./drawHorizontalGrid";
 import { resolvePalette } from "./palettes";
 import { renderXYChartGroups } from "./xyGlyphs";
 import { useResizeObserver } from "./useResizeObserver";
@@ -106,11 +107,16 @@ export const XYChart = ({
                 .range([innerHeight, 0])
                 .nice();
 
+            if (spec.showGrid) {
+                drawHorizontalGrid(plotG, yScale, innerWidth, tokens);
+            }
+
             renderXYChartGroups(data, plotG, {
                 mode,
                 palette: resolvePalette(spec),
                 showRegression,
                 showErrorBands,
+                strokeWeight: spec.strokeWeight,
                 xScale,
                 yScale,
             });
@@ -151,7 +157,20 @@ export const XYChart = ({
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, longitudinal, mode, palette, showErrorBands, showRegression, spec]);
+    }, [
+        data,
+        dims,
+        editable,
+        labels,
+        longitudinal,
+        mode,
+        palette,
+        showErrorBands,
+        showRegression,
+        spec.showGrid,
+        spec.strokeWeight,
+        spec,
+    ]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;

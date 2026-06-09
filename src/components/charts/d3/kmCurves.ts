@@ -33,6 +33,7 @@ export const drawKMCurve = (
     yScale: ScaleLinear<number, number>,
     styleIndex: 0 | 1 | 2 | 3,
     color: string,
+    strokeWeight: number,
 ): void => {
     const points = drawPoints(group);
     const dash = DASH_BY_INDEX[styleIndex];
@@ -57,7 +58,7 @@ export const drawKMCurve = (
             .curve(curveStepAfter)(points))
         .attr("fill", "none")
         .attr("stroke", color)
-        .attr("stroke-width", 1.5)
+        .attr("stroke-width", strokeWeight)
         .attr("stroke-dasharray", dash.length > 0 ? dash : null);
 
     /**
@@ -81,7 +82,7 @@ export const drawKMCurve = (
             .attr("y1", y - CENSOR_TICK_HALF)
             .attr("y2", y + CENSOR_TICK_HALF)
             .attr("stroke", color)
-            .attr("stroke-width", 1.5)
+            .attr("stroke-width", strokeWeight)
             .attr("stroke-dasharray", "none")
             .attr("stroke-linecap", "butt");
     }

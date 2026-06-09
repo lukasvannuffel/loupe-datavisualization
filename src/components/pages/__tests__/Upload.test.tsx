@@ -70,3 +70,32 @@ describe("Upload parse-success wiring", () => {
         expect(mappingInStorage()).toEqual({});
     });
 });
+
+describe("Privacy diagram — dynamic content", () => {
+    it("shows the uploaded file name in the privacy diagram aria-label after parse", async () => {
+        const input = renderPage();
+
+        await act(async () => {
+            fireEvent.change(input, {
+                target: { files: [csvFile(FILE, "patient-trial.csv")] },
+            });
+        });
+        await waitFor(() => {
+            expect(window.sessionStorage.getItem("loupe.dataset")).not.toBeNull();
+        });
+
+        const diagram = document.querySelector('[role="img"]');
+
+        expect(diagram).not.toBeNull();
+        expect(diagram?.getAttribute("aria-label")).toContain("patient-trial.csv");
+    });
+
+    it("shows the default placeholder in the privacy diagram before any file is chosen", () => {
+        renderPage();
+
+        const diagram = document.querySelector('[role="img"]');
+
+        expect(diagram).not.toBeNull();
+        expect(diagram?.getAttribute("aria-label")).toContain("your-data.csv");
+    });
+});

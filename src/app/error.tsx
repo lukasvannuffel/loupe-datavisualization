@@ -24,7 +24,7 @@ const ErrorPage = ({ error, reset }: ErrorPageProps): JSX.Element => {
                 <button type="button" className="btn btn--primary btn--sm" onClick={reset}>
                     Try again
                 </button>
-                <Link href="/dashboard" className="btn btn--ghost btn--sm">
+                <Link href="/dashboard" className="btn btn--secondary btn--sm">
                     Go to dashboard
                 </Link>
             </div>

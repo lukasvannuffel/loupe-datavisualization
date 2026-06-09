@@ -1,7 +1,7 @@
 import { Wordmark } from "@/components/primitives/Wordmark";
 
 export const Footer = (): JSX.Element => (
-    <footer className="footer">
+    <footer className="footer surface-navy">
         <div className="container">
             <div className="footer-inner">
                 <div>

@@ -30,7 +30,7 @@ export const DashboardChartGrid = ({ charts }: DashboardChartGridProps): JSX.Ele
                         className={
                             activeTag === null
                                 ? "btn btn--sm btn--primary"
-                                : "btn btn--sm btn--ghost"
+                                : "btn btn--sm btn--secondary"
                         }
                         onClick={() => setActiveTag(null)}
                     >
@@ -43,7 +43,7 @@ export const DashboardChartGrid = ({ charts }: DashboardChartGridProps): JSX.Ele
                             className={
                                 activeTag === tag
                                     ? "btn btn--sm btn--primary"
-                                    : "btn btn--sm btn--ghost"
+                                    : "btn btn--sm btn--secondary"
                             }
                             onClick={() => setActiveTag((current) => (current === tag ? null : tag))}
                         >

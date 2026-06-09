@@ -1261,6 +1261,13 @@ Het is niet evident dat dit fout zit — het palette is al editorial-restrained.
 - [ ] Audit is gedaan, observaties geschreven, screenshot-bewijs in dossier
 - [ ] Bij actie: maximaal 3 CSS-variabelen aangepast, geen component refactor
 - [ ] Bij geen actie: motivatie in dossier ("editorial design heeft bewust dominante paper-base, ink-text-secundair, amber/blue-accent-rol")
+- [ ] Pass B (editorial 60-30-10): amber primary CTAs, navy secondary surfaces (footer, customize rail, top nav), paper-deep info panels
+- [ ] Action panel on `/recommend` = paper-card with paper-deep accent for NEXT STEP section. Sticky navy action bar deprecated in favor of editorial layout (decision: 2026-06-07, design review). File: `RecommendationActionsPanel.tsx` (replaces `RecommendationBottomBar.tsx`).
+
+**Pass B file layout**
+- `src/app/globals.css` — tokens + surfaces
+- `src/components/chrome/TopNav.tsx` — scroll listener (`is-scrolled` at `scrollY > 80`)
+- `src/components/pages/recommendation/RecommendationActionsPanel.tsx` — recommend actions (not `RecommendationBottomBar.tsx`)
 
 **Honesty-check**
 Dit ticket bestaat omdat de docent het vroeg. Inhoudelijk is het waarschijnlijk niet de meest impactvolle 3 uur die nog over is. Als andere tickets dreigen door te lopen → **skip dit ticket** en wees daar in de jury-presentatie open over: "Ik heb de 60-30-10 feedback geaudit; het palette bleek al binnen tolerantie te liggen / ik heb prioritair X gefixed dat ik belangrijker vond voor de gebruiker."

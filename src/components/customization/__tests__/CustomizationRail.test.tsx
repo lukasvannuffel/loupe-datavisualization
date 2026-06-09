@@ -34,6 +34,8 @@ describe("CustomizationRail", () => {
         expect(screen.getByLabelText("Error bar type")).toBeTruthy();
         expect(screen.getByLabelText("95% CI")).toBeTruthy();
         expect(screen.queryByText("No options yet.")).toBeNull();
+
+        fireEvent.click(screen.getByRole("button", { name: /Title and labels/i }));
         expect(screen.getByLabelText("Figure title")).toBeTruthy();
         expect(screen.getByLabelText("X-axis label")).toBeTruthy();
         expect(screen.getByLabelText("Y-axis label")).toBeTruthy();
@@ -49,6 +51,7 @@ describe("CustomizationRail", () => {
             <CustomizationRail mapping={{ time: "t", event: "e" }} spec={spec} onSpecChange={vi.fn()} />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Colors/i }));
         const listbox = screen.getByRole("listbox", { name: /chart palette/i });
         expect(within(listbox).getAllByRole("option")).toHaveLength(7);
         expect(within(listbox).getByText("Okabe–Ito")).toBeTruthy();
@@ -70,6 +73,7 @@ describe("CustomizationRail", () => {
             />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Colors/i }));
         const listbox = screen.getByRole("listbox", { name: /chart palette/i });
         fireEvent.click(within(listbox).getByRole("option", { name: /Okabe–Ito/i }));
 
@@ -110,6 +114,51 @@ describe("CustomizationRail", () => {
     //   Test: "box rail shows notched and showMeanMarker checkboxes".
     //   Box toggles missing from document → test RED.
     //   Verified manually: 2026-05-25. REVERTED.
+
+    it("km rail shows gridlines, stroke weight, and HR annotation controls", () => {
+        const spec = createDefaultChartSpec("km", {
+            id: "km-rail-options",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        render(
+            <CustomizationRail mapping={{ time: "t", event: "e" }} spec={spec} onSpecChange={vi.fn()} />,
+        );
+
+        expect(screen.getByLabelText(/Show gridlines/i)).toBeTruthy();
+        expect(screen.getByLabelText(/Stroke weight/i)).toBeTruthy();
+        expect(screen.getByLabelText(/Show HR & log-rank annotation/i)).toBeTruthy();
+        expect(screen.queryByText("No options yet.")).toBeNull();
+    });
+
+    it("km rail toggles update spec through onSpecChange", () => {
+        const onSpecChange = vi.fn();
+        const spec = createDefaultChartSpec("km", {
+            id: "km-rail-toggle",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+
+        render(
+            <CustomizationRail
+                mapping={{ time: "t", event: "e" }}
+                spec={spec}
+                onSpecChange={onSpecChange}
+            />,
+        );
+
+        fireEvent.click(screen.getByLabelText(/Show gridlines/i));
+        expect(onSpecChange).toHaveBeenCalled();
+        const withoutGrid = onSpecChange.mock.calls[0]![0](spec);
+        expect(withoutGrid.showGrid).toBe(false);
+
+        fireEvent.change(screen.getByLabelText(/Stroke weight/i), { target: { value: "2.4" } });
+        const withStroke = onSpecChange.mock.calls[1]![0](spec);
+        expect(withStroke.strokeWeight).toBe(2.4);
+
+        fireEvent.click(screen.getByLabelText(/Show HR & log-rank annotation/i));
+        const withStats = onSpecChange.mock.calls[2]![0](spec);
+        expect(withStats.kind === "km" && withStats.showStats).toBe(false);
+    });
 
     it("updateCustomizationTitle writes into spec.customizations only", () => {
         const spec = createDefaultChartSpec("barError", {

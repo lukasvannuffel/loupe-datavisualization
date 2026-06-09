@@ -21,6 +21,7 @@ import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
 import { colorByIndex, resolvePalette } from "./palettes";
+import { drawHorizontalGrid } from "./drawHorizontalGrid";
 import { drawBoxGlyph, drawStripGlyph } from "./boxGlyphs";
 import { ChartLabelLayer } from "./ChartLabelLayer";
 import { chartLabelLayout } from "./chartLabelLayout";
@@ -92,6 +93,10 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
             const groupCount = data.groups.length;
             const useEditorialFill = palette === "editorial";
 
+            if (spec.showGrid) {
+                drawHorizontalGrid(plotG, yScale, innerWidth, tokens);
+            }
+
             data.groups.forEach((group, index) => {
                 const bandX = xScale(group.label);
                 if (bandX === undefined) {
@@ -121,10 +126,19 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
                         tokens,
                         groupColor,
                         useEditorialFill,
+                        spec.strokeWeight,
                     );
                 }
                 else {
-                    drawStripGlyph(groupG, group, xCenter, yScale, stripLabelY, tokens);
+                    drawStripGlyph(
+                        groupG,
+                        group,
+                        xCenter,
+                        yScale,
+                        stripLabelY,
+                        tokens,
+                        spec.strokeWeight,
+                    );
                 }
             });
 
@@ -164,7 +178,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, palette, spec]);
+    }, [data, dims, editable, labels, palette, spec.showGrid, spec.strokeWeight, spec]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;

@@ -31,7 +31,7 @@ const ExportError = ({ error, reset }: ExportErrorProps): JSX.Element => {
                 {/* NOTE: may redirect to /upload/map if wizard state is empty — expected RecommendGate behaviour. */}
                 <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    className="btn btn--secondary btn--sm"
                     onClick={() => {
                         router.push("/recommend");
                     }}

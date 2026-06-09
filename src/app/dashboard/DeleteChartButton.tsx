@@ -97,7 +97,7 @@ export const DeleteChartButton = ({
                 <div className="rerun-actions">
                     <button
                         type="button"
-                        className="btn btn--ghost btn--sm"
+                        className="btn btn--secondary btn--sm"
                         onClick={() => setOpen(false)}
                     >
                         Cancel

@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
-import type { KMSpec } from "@/lib/chartSpec/types";
+import type { KMSpec, StatTest } from "@/lib/chartSpec/types";
 
 import { applyAxes, axisTickCountForWidth } from "./applyAxes";
 import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
@@ -23,8 +23,10 @@ import { chartLabelLayout } from "./chartLabelLayout";
 import { DEFAULT_MARGIN } from "./chart.types";
 import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
+import { drawHorizontalGrid } from "./drawHorizontalGrid";
 import { colorByIndex, resolvePalette } from "./palettes";
 import { drawKMCurve } from "./kmCurves";
+import { drawKmStatAnnotation, resolveKmStatLines } from "./kmStatsAnnotation";
 import { useResizeObserver } from "./useResizeObserver";
 
 const CHART_MIN_HEIGHT = 240;
@@ -33,10 +35,11 @@ const LABEL_MARGIN = marginWithLabels(DEFAULT_MARGIN);
 type Props = {
     readonly spec: KMSpec;
     readonly data: KMPlotData;
+    readonly statTests?: readonly StatTest[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Element => {
+export const KaplanMeierChart = ({ spec, data, statTests, onSpecChange }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
@@ -80,18 +83,7 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
             .range([innerHeight, 0]);
 
         if (spec.showGrid) {
-            plotG
-                .append("g")
-                .attr("class", "km-grid")
-                .selectAll("line")
-                .data(yScale.ticks(5))
-                .join("line")
-                .attr("x1", 0)
-                .attr("x2", innerWidth)
-                .attr("y1", (t) => yScale(t))
-                .attr("y2", (t) => yScale(t))
-                .attr("stroke", tokens.hairline)
-                .attr("stroke-width", 0.6);
+            drawHorizontalGrid(plotG, yScale, innerWidth, tokens);
         }
 
         const palette = resolvePalette(spec);
@@ -104,8 +96,17 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
                 .append("g")
                 .attr("class", "km-group")
                 .attr("data-group-index", String(index));
-            drawKMCurve(g, group, xScale, yScale, styleIndex, color);
+            drawKMCurve(g, group, xScale, yScale, styleIndex, color, spec.strokeWeight);
         });
+
+        if (spec.showStats) {
+            drawKmStatAnnotation(
+                plotG,
+                innerWidth,
+                tokens,
+                resolveKmStatLines(statTests),
+            );
+        }
 
         const axisResult = applyAxes(
             {
@@ -136,7 +137,17 @@ export const KaplanMeierChart = ({ spec, data, onSpecChange }: Props): JSX.Eleme
         }
 
         setExtraBottomPx(axisResult.extraBottomPx);
-    }, [data, dims, editable, labels, palette, spec.showGrid]);
+    }, [
+        data,
+        dims,
+        editable,
+        labels,
+        palette,
+        spec.showGrid,
+        spec.showStats,
+        spec.strokeWeight,
+        statTests,
+    ]);
 
     const marginLeft = LABEL_MARGIN.left;
     const innerWidth =

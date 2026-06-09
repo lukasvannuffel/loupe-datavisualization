@@ -331,7 +331,7 @@ export const Upload = (): JSX.Element => {
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn btn--ghost btn--sm sheet-repick-file"
+                                            className="btn btn--secondary btn--sm sheet-repick-file"
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 fileInputRef.current?.click();
@@ -368,7 +368,7 @@ export const Upload = (): JSX.Element => {
                                         {canReturnToSheetPicker && (
                                             <button
                                                 type="button"
-                                                className="btn btn--ghost btn--sm"
+                                                className="btn btn--secondary btn--sm"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     void returnToSheetSelection();
@@ -379,7 +379,7 @@ export const Upload = (): JSX.Element => {
                                         )}
                                         <button
                                             type="button"
-                                            className="btn btn--ghost btn--sm"
+                                            className="btn btn--secondary btn--sm"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onReplace();
@@ -393,9 +393,16 @@ export const Upload = (): JSX.Element => {
                         )}
                     </div>
 
-                    <div className="privacy-diag">
-                        <h4>Where things go.</h4>
-                        <PrivacyDiagram active={phase !== "empty" && phase !== "error"} />
+                    <div className="privacy-diag surface-paper-deep">
+                        <div>
+                            <h4>Where things go.</h4>
+                            <p className="privacy-diag-sub">Your rows never leave this browser.</p>
+                        </div>
+                        <PrivacyDiagram
+                            active={phase !== "empty" && phase !== "error"}
+                            fileName={result?.fileName}
+                            rowCount={result?.rowCount}
+                        />
                         <div className="privacy-diag-foot">
                             <span>ROWS · LOCAL</span>
                             <span style={{ color: "var(--amber)" }}>SCHEMA · OUTBOUND</span>
@@ -420,7 +427,7 @@ export const Upload = (): JSX.Element => {
                         <button
                             ref={tryAgainRef}
                             type="button"
-                            className="btn btn--ghost btn--sm"
+                            className="btn btn--secondary btn--sm"
                             onClick={onReplace}
                         >
                             {multiTableError !== undefined ? "Replace file" : "Try again"}

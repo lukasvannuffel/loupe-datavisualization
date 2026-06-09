@@ -78,7 +78,7 @@ export const SaveChartDialog = ({
                 </div>
                 <TagChipInput tags={tags} onChange={setTags} placeholder="Add tag… (Enter or comma)" />
                 <div className="rerun-actions">
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={onCancel}>Cancel</button>
                     <button type="submit" className="btn btn--primary btn--sm">Save</button>
                 </div>
             </form>

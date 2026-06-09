@@ -19,7 +19,7 @@ import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { LongitudinalData, XYPlotData } from "@/lib/chartSpec/aggregators/xyPlot.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
-import type { ChartSpec } from "@/lib/chartSpec/types";
+import type { ChartSpec, StatTest } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 type SpecChartPanelProps = {
@@ -27,6 +27,7 @@ type SpecChartPanelProps = {
     readonly dataset: LoupeDataset;
     readonly mapping: Mapping;
     readonly spec: ChartSpec;
+    readonly statTests?: readonly StatTest[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
@@ -41,6 +42,7 @@ export const SpecChartPanel = ({
     dataset,
     mapping,
     spec,
+    statTests,
     onSpecChange,
 }: SpecChartPanelProps): JSX.Element => {
     if (chartKind === "barError" && spec.kind === "barError") {
@@ -93,7 +95,14 @@ export const SpecChartPanel = ({
         }
 
         if (kmData !== undefined) {
-            return <KaplanMeierChart data={kmData} spec={spec} onSpecChange={onSpecChange} />;
+            return (
+                <KaplanMeierChart
+                    data={kmData}
+                    spec={spec}
+                    statTests={statTests}
+                    onSpecChange={onSpecChange}
+                />
+            );
         }
     }
 

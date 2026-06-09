@@ -1,23 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAppState, type LoupeDataset } from "@/app/providers";
 import { CHART_PREVIEWS } from "@/components/charts/chartPreviews";
 import { aggregateBarError } from "@/lib/chartSpec/aggregators/barError";
 import type { ChartSpec, Receipt } from "@/lib/chartSpec/types";
+import { computeConfigHash } from "@/lib/receipt/configHash";
 
 import { getOverrideDisplayState } from "./overrideDisplay";
 import { canCustomizeRecommendation } from "./recommendation/canCustomize";
 import { mappingForBarError, type BarErrorMappingResult } from "./recommendation/barErrorMapping";
 import { isSpecKind } from "./recommendation/isSpecKind";
-import { RecommendationBottomBar } from "./recommendation/RecommendationBottomBar";
+import { RecommendationActionsPanel } from "./recommendation/RecommendationActionsPanel";
 import { RecommendationChartPreview } from "./recommendation/RecommendationChartPreview";
 import { RecommendationIntentBand } from "./recommendation/RecommendationIntentBand";
 import { useRecommendationLiveSpec } from "./recommendation/useRecommendationLiveSpec";
 import { useRecommendationPhase } from "./recommendation/useRecommendationPhase";
-import { RecommendationOverride } from "./RecommendationOverride";
 import { RecommendationWhy } from "./RecommendationWhy";
 
 export type RecommendationProps = {
@@ -47,6 +47,21 @@ export const Recommendation = ({
 
     const liveSpec = useRecommendationLiveSpec(spec, receipt);
     const phase = useRecommendationPhase();
+    const [configHash, setConfigHash] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void computeConfigHash(liveSpec).then((hash) => {
+            if (!cancelled) {
+                setConfigHash(hash);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [liveSpec]);
 
     let barErrorMapResult: BarErrorMappingResult = { mapping };
     let barErrorAggregation: ReturnType<typeof aggregateBarError> | undefined;
@@ -62,7 +77,6 @@ export const Recommendation = ({
     const transform = receipt.transformations[0];
     const text = receipt.intent || intent;
     const words = text.split(/(\s+)/);
-    const [overrideOpen, setOverrideOpen] = useState<boolean>(false);
     const { isDisplayOverridden, title } = getOverrideDisplayState(receipt, chartKind);
 
     const canCustomize = canCustomizeRecommendation({
@@ -90,13 +104,6 @@ export const Recommendation = ({
         setSelectionMode("manual");
         router.push("/recommend/manual");
     };
-    const onOverrideSelect = (target: ChartSpec["kind"]): void => {
-        if (target === chartKind) {
-            return;
-        }
-        appendOverride({ at: new Date().toISOString(), from: chartKind, to: target });
-        setOverrideOpen(false);
-    };
     const handleCustomize = (): void => {
         if (!canCustomize) {
             return;
@@ -119,20 +126,30 @@ export const Recommendation = ({
                 />
 
                 <div className="rec-grid">
-                    <RecommendationChartPreview
-                        barErrorAggregation={barErrorAggregation}
-                        barErrorMapResult={barErrorMapResult}
-                        barErrorMapping={barErrorMapping}
-                        canCustomize={canCustomize}
-                        chartKind={chartKind}
-                        dataset={dataset}
-                        isDisplayOverridden={isDisplayOverridden}
-                        liveSpec={liveSpec}
-                        mapping={mapping}
-                        phase={phase}
-                        receipt={receipt}
-                        title={title}
-                    />
+                    <div className="rec-grid-col">
+                        <RecommendationChartPreview
+                            barErrorAggregation={barErrorAggregation}
+                            barErrorMapResult={barErrorMapResult}
+                            barErrorMapping={barErrorMapping}
+                            canCustomize={canCustomize}
+                            chartKind={chartKind}
+                            dataset={dataset}
+                            isDisplayOverridden={isDisplayOverridden}
+                            liveSpec={liveSpec}
+                            mapping={mapping}
+                            phase={phase}
+                            receipt={receipt}
+                            title={title}
+                        />
+
+                        <RecommendationActionsPanel
+                            canCustomize={canCustomize}
+                            changeCount={receipt.overrides.length}
+                            configHash={configHash}
+                            onCustomize={handleCustomize}
+                            onSwitchToManual={onSwitchToManual}
+                        />
+                    </div>
 
                     <RecommendationWhy
                         AltPreview={AltPreview}
@@ -145,24 +162,6 @@ export const Recommendation = ({
                     />
                 </div>
             </div>
-
-            <RecommendationBottomBar
-                canCustomize={canCustomize}
-                onCustomize={handleCustomize}
-                onOpenOverride={() => {
-                    setOverrideOpen(true);
-                }}
-                onSwitchToManual={onSwitchToManual}
-            />
-
-            <RecommendationOverride
-                current={chartKind}
-                onClose={() => {
-                    setOverrideOpen(false);
-                }}
-                onSelect={onOverrideSelect}
-                open={overrideOpen}
-            />
         </div>
     );
 };

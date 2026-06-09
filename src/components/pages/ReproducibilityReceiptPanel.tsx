@@ -13,6 +13,7 @@ import { useToast } from "@/lib/toast/useToast";
 
 type ReproducibilityReceiptPanelProps = {
     readonly input: ReceiptInput | null;
+    readonly variant?: "standalone" | "embedded";
 };
 
 const downloadTextFile = (filename: string, content: string, mime: string): void => {
@@ -30,6 +31,7 @@ const downloadTextFile = (filename: string, content: string, mime: string): void
 
 export const ReproducibilityReceiptPanel = ({
     input,
+    variant = "standalone",
 }: ReproducibilityReceiptPanelProps): JSX.Element | null => {
     const { toast } = useToast();
     const [receipt, setReceipt] = useState<ComposedReceipt | null>(null);
@@ -131,18 +133,40 @@ export const ReproducibilityReceiptPanel = ({
     }
 
     const disabled = loading || receipt === null;
+    const embedded = variant === "embedded";
+    const sectionClass = embedded
+        ? "export-receipt export-receipt--embedded actions-panel__zone"
+        : "export-receipt";
+    const headingClass = embedded ? "actions-panel__label" : undefined;
+    const HeadingTag = embedded ? "h3" : "h4";
 
     return (
-        <section className="export-receipt" aria-labelledby="reproducibility-receipt-heading">
-            <h4 id="reproducibility-receipt-heading">Reproducibility receipt</h4>
-            <p>
+        <section
+            className={sectionClass}
+            aria-labelledby="reproducibility-receipt-heading"
+        >
+            <HeadingTag
+                id="reproducibility-receipt-heading"
+                className={headingClass}
+            >
+                Reproducibility receipt
+            </HeadingTag>
+            <p className={embedded ? "export-receipt-desc" : undefined}>
                 Paste into supplementary materials. Records analytical intent, chart choice,
                 aggregated computations, and a configuration hash — no raw patient data.
             </p>
-            <div className="export-receipt-actions">
+            <div className={`export-receipt-actions${embedded ? " export-toolbar" : ""}`}>
+                <span className="export-dpi" role="group" aria-label="Download receipt">
+                    <button type="button" disabled={disabled} onClick={onDownloadTxt}>
+                        {loading ? "Preparing…" : "Download .txt"}
+                    </button>
+                    <button type="button" disabled={disabled} onClick={onDownloadMd}>
+                        {loading ? "Preparing…" : "Download .md"}
+                    </button>
+                </span>
                 <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    className="btn btn--quiet btn--sm"
                     disabled={disabled}
                     onClick={() => {
                         void onCopy();
@@ -157,22 +181,6 @@ export const ReproducibilityReceiptPanel = ({
                     ) : (
                         "Copy receipt"
                     )}
-                </button>
-                <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    disabled={disabled}
-                    onClick={onDownloadTxt}
-                >
-                    {loading ? "Preparing…" : "Download .txt"}
-                </button>
-                <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    disabled={disabled}
-                    onClick={onDownloadMd}
-                >
-                    {loading ? "Preparing…" : "Download .md"}
                 </button>
             </div>
             {receipt !== null ? (
