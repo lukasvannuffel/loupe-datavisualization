@@ -25,6 +25,7 @@ export interface ComputationSummary {
     readonly kmTotalN?: number;
     readonly kmGroupCount?: number;
     readonly kmStepCount?: number;
+    readonly kmLogRankP?: number;
     readonly barGroupCount?: number;
     readonly barErrorType?: string;
     readonly xyPointCount?: number;
@@ -167,8 +168,13 @@ const computationLines = (summary: ComputationSummary): readonly string[] => {
             if (summary.kmStepCount !== undefined) {
                 lines.push(`KM steps computed: ${summary.kmStepCount}`);
             }
+            if (summary.kmLogRankP !== undefined) {
+                const pText =
+                    summary.kmLogRankP < 0.001 ? "p < 0.001" : `p = ${summary.kmLogRankP.toFixed(3)}`;
+                lines.push(`Log-rank test (Mantel–Cox): ${pText}`);
+            }
             lines.push(
-                "Note: No p-values or log-rank statistics were computed. Survival estimates use the Kaplan-Meier product-limit estimator with Greenwood confidence intervals.",
+                "Survival estimates use the Kaplan-Meier product-limit estimator with Greenwood confidence intervals.",
             );
             break;
         case "barError":

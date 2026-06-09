@@ -35,7 +35,9 @@ export const summarizeComputations = (
         );
         const kmTotalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
         const logRank =
-            plotData.logRank ?? (rows !== undefined ? computeKmLogRank(rows, mapping) : null);
+            rows !== undefined
+                ? computeKmLogRank(rows, mapping)
+                : (plotData.logRank ?? null);
 
         return {
             ...base,

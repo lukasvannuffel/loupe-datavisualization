@@ -12,6 +12,7 @@ import { aggregateBoxPlot } from "@/lib/chartSpec/aggregators/boxPlot";
 import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { computeKmLogRank } from "@/lib/chartSpec/aggregators/kmLogRank";
 import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
 import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
 import { LongitudinalError, XYPlotError } from "@/lib/chartSpec/aggregators/xyPlot.types";
@@ -19,7 +20,7 @@ import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { LongitudinalData, XYPlotData } from "@/lib/chartSpec/aggregators/xyPlot.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
-import type { ChartSpec, StatTest } from "@/lib/chartSpec/types";
+import type { ChartSpec } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 type SpecChartPanelProps = {
@@ -27,7 +28,6 @@ type SpecChartPanelProps = {
     readonly dataset: LoupeDataset;
     readonly mapping: Mapping;
     readonly spec: ChartSpec;
-    readonly statTests?: readonly StatTest[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
@@ -42,7 +42,6 @@ export const SpecChartPanel = ({
     dataset,
     mapping,
     spec,
-    statTests,
     onSpecChange,
 }: SpecChartPanelProps): JSX.Element => {
     if (chartKind === "barError" && spec.kind === "barError") {
@@ -95,11 +94,14 @@ export const SpecChartPanel = ({
         }
 
         if (kmData !== undefined) {
+            const kmLogRank =
+                spec.showStats ? computeKmLogRank(dataset.rows, mapping) : null;
+
             return (
                 <KaplanMeierChart
                     data={kmData}
                     spec={spec}
-                    statTests={statTests}
+                    logRank={kmLogRank}
                     onSpecChange={onSpecChange}
                 />
             );

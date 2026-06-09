@@ -286,14 +286,17 @@ const receipt: Receipt = {
     ],
     testsTitle: "Tests we ran on your data",
     tests: [
-        { label: "log-rank p < 0.001" },
         {
-            label: "Cox HR 0.74 (95% CI 0.61-0.89)",
-            name: "Cox proportional hazards",
-            statistic: 0.74,
-            ci95: [0.61, 0.89],
-            pValue: 0.0008,
-            notes: "Schoenfeld residuals: PH assumption holds.",
+            label: "log-rank p = 0.012",
+            name: "log-rank",
+            statistic: 12.34,
+            pValue: 0.012,
+        },
+        {
+            label: "Kaplan-Meier 95% CI",
+            name: "Greenwood",
+            statistic: 0.82,
+            ci95: [0.71, 0.91],
         },
     ],
 };

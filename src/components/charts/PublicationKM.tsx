@@ -182,17 +182,6 @@ export const PublicationKM = ({
             </g>
         )}
 
-        {showStats && (
-            <>
-                <text x="600" y="178" textAnchor="end" fontSize="10.5" fontFamily="Inter" fill="var(--gray)">
-                    HR 0.74 (95% CI 0.61–0.89)
-                </text>
-                <text x="600" y="192" textAnchor="end" fontSize="10.5" fontFamily="Inter" fill="var(--gray)">
-                    log-rank p &lt; 0.001
-                </text>
-            </>
-        )}
-
         {showAtRisk && (
             <g transform="translate(0, 332)">
                 <text

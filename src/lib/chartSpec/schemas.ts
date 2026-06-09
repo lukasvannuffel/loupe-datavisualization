@@ -182,11 +182,20 @@ const kmGroupSchema = z
     })
     .strict();
 
+const logRankResultSchema = z
+    .object({
+        chi2: z.number(),
+        df: z.number(),
+        pValue: z.number(),
+    })
+    .strict();
+
 const kmPlotDataSchema = z
     .object({
         kind: z.literal("km"),
         groups: z.array(kmGroupSchema).readonly(),
         tMax: z.number(),
+        logRank: logRankResultSchema.optional(),
     })
     .strict();
 
