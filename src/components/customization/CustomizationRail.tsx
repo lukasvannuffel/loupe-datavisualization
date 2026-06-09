@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
 import { resolvePalette } from "@/components/charts/d3/palettes";
+import { CustomSection } from "@/components/pages/CustomSection";
 import {
     updateCustomizationPalette,
     type SpecUpdater,
@@ -11,6 +14,8 @@ import type { Mapping } from "@/lib/roles/types";
 import { AxisLabelInput } from "./AxisLabelInput";
 import { BarRail } from "./BarRail";
 import { BoxRail } from "./BoxRail";
+import { FrameRail } from "./FrameRail";
+import { KmRail } from "./KmRail";
 import { PaletteSelector } from "./PaletteSelector";
 import { TitleInput } from "./TitleInput";
 import { XYRail } from "./XYRail";
@@ -27,40 +32,55 @@ export const CustomizationRail = ({
     mapping,
     errorBandsAvailable = false,
     onSpecChange,
-}: CustomizationRailProps): JSX.Element => (
-    <aside aria-label="Customize chart" className="customization-rail">
-        <section className="customization-rail__section">
-            <h3 className="customization-rail__heading">Title and labels</h3>
-            <TitleInput spec={spec} onSpecChange={onSpecChange} />
-            <AxisLabelInput axis="x" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
-            <AxisLabelInput axis="y" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
-        </section>
+}: CustomizationRailProps): JSX.Element => {
+    const [openSection, setOpenSection] = useState<string | null>("chart-options");
 
-        <section className="customization-rail__section">
-            <h3 className="customization-rail__heading">Colors</h3>
-            <p className="customization-rail__hint muted">Colorblind-safe options included</p>
-            <PaletteSelector
-                value={resolvePalette(spec)}
-                onChange={(next) => {
-                    onSpecChange((prev) => updateCustomizationPalette(prev, next));
-                }}
-            />
-        </section>
+    return (
+        <aside aria-label="Customize chart" className="customization-rail">
+            <CustomSection
+                id="titles"
+                label="Title and labels"
+                open={openSection}
+                setOpen={setOpenSection}
+            >
+                <TitleInput spec={spec} onSpecChange={onSpecChange} />
+                <AxisLabelInput axis="x" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
+                <AxisLabelInput axis="y" mapping={mapping} spec={spec} onSpecChange={onSpecChange} />
+            </CustomSection>
 
-        <section className="customization-rail__section">
-            <h3 className="customization-rail__heading">Chart options</h3>
-            {spec.kind === "barError" ? <BarRail spec={spec} onSpecChange={onSpecChange} /> : null}
-            {spec.kind === "km" ? (
-                <p className="customization-rail__empty muted">No options yet.</p>
-            ) : null}
-            {spec.kind === "box" ? <BoxRail spec={spec} onSpecChange={onSpecChange} /> : null}
-            {spec.kind === "xy" ? (
-                <XYRail
-                    errorBandsAvailable={errorBandsAvailable}
-                    spec={spec}
-                    onSpecChange={onSpecChange}
+            <CustomSection
+                id="colors"
+                hint="Colorblind-safe options included"
+                label="Colors"
+                open={openSection}
+                setOpen={setOpenSection}
+            >
+                <PaletteSelector
+                    value={resolvePalette(spec)}
+                    onChange={(next) => {
+                        onSpecChange((prev) => updateCustomizationPalette(prev, next));
+                    }}
                 />
-            ) : null}
-        </section>
-    </aside>
-);
+            </CustomSection>
+
+            <CustomSection
+                id="chart-options"
+                label="Chart options"
+                open={openSection}
+                setOpen={setOpenSection}
+            >
+                <FrameRail spec={spec} onSpecChange={onSpecChange} />
+                {spec.kind === "km" ? <KmRail spec={spec} onSpecChange={onSpecChange} /> : null}
+                {spec.kind === "barError" ? <BarRail spec={spec} onSpecChange={onSpecChange} /> : null}
+                {spec.kind === "box" ? <BoxRail spec={spec} onSpecChange={onSpecChange} /> : null}
+                {spec.kind === "xy" ? (
+                    <XYRail
+                        errorBandsAvailable={errorBandsAvailable}
+                        spec={spec}
+                        onSpecChange={onSpecChange}
+                    />
+                ) : null}
+            </CustomSection>
+        </aside>
+    );
+};

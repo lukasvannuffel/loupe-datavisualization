@@ -19,6 +19,7 @@ import { ChartLegend } from "@/components/charts/legend/ChartLegend";
 
 import { colorByIndex, resolvePalette } from "./palettes";
 import { applyAxes } from "./applyAxes";
+import { drawHorizontalGrid } from "./drawHorizontalGrid";
 import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
 import { applyDesignTokens, readDesignTokens } from "./applyDesignTokens";
 import { ChartLabelLayer } from "./ChartLabelLayer";
@@ -91,6 +92,10 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
             const palette = resolvePalette(spec);
             const groupCount = groups.length;
 
+            if (spec.showGrid) {
+                drawHorizontalGrid(g, yScale, innerWidth, tokens);
+            }
+
             g.selectAll("rect.bar")
                 .data(groups)
                 .join("rect")
@@ -128,7 +133,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                         .attr("y1", y1)
                         .attr("y2", y2)
                         .attr("stroke", tokens.ink)
-                        .attr("stroke-width", 1.5);
+                        .attr("stroke-width", spec.strokeWeight);
                 };
                 line(cx, cx, yTop, yBot);
                 line(cx - capW, cx + capW, yTop, yTop);
@@ -159,7 +164,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [dims, editable, groups, labels, palette, spec.errorBarType, spec]);
+    }, [dims, editable, groups, labels, palette, spec.errorBarType, spec.showGrid, spec.strokeWeight]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
