@@ -3,9 +3,7 @@ import type { BaseSpec, ChartSpec, PaletteName } from "../types";
 export type SpecUpdater = (prev: ChartSpec) => ChartSpec;
 
 export const updateCustomizationTitle = (spec: ChartSpec, title: string): ChartSpec => {
-    const trimmed = title.trim();
-
-    if (trimmed.length === 0) {
+    if (title.trim().length === 0) {
         if (spec.customizations?.title === undefined) {
             return spec;
         }
@@ -24,7 +22,7 @@ export const updateCustomizationTitle = (spec: ChartSpec, title: string): ChartS
         ...spec,
         customizations: {
             ...spec.customizations,
-            title: trimmed,
+            title,
         },
     };
 };

@@ -35,6 +35,26 @@ describe("updateCustomizationTitle", () => {
         expect(cleared.customizations?.title).toBeUndefined();
         expect(cleared.title).toBe(initial.title);
     });
+
+    it("preserves interior spaces in title", () => {
+        const initial = createDefaultChartSpec("km", {
+            id: "patch-title-spaces",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+        const patched = updateCustomizationTitle(initial, "Survival curve");
+
+        expect(patched.customizations?.title).toBe("Survival curve");
+    });
+
+    it("preserves trailing space while typing", () => {
+        const initial = createDefaultChartSpec("km", {
+            id: "patch-title-trailing-space",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        });
+        const patched = updateCustomizationTitle(initial, "hello ");
+
+        expect(patched.customizations?.title).toBe("hello ");
+    });
 });
 
 describe("patchBaseSpec", () => {
