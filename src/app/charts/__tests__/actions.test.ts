@@ -27,7 +27,7 @@ vi.mock("@/utils/supabase/server", () => ({
     createClient: createClientMock,
 }));
 
-import { deleteChart, getChart, saveChart } from "@/app/charts/actions";
+import { deleteChart, getChart, saveChart, updateChartMetadata } from "@/app/charts/actions";
 
 const chartSpec: ChartSpec = {
     kind: "km",
@@ -169,7 +169,18 @@ const createSupabaseMock = (
     );
     const selectUpdateMock = vi.fn(() => ({ single: singleUpdateMock }));
     const matchMock = vi.fn(() => ({ select: selectUpdateMock }));
-    const updateMock = vi.fn(() => ({ match: matchMock }));
+    const singleUpdateMetaMock = vi.fn(async () =>
+        options?.updateError !== undefined
+            ? { data: null, error: { message: options.updateError } }
+            : { data: { updated_at: "2026-05-28T12:00:00.000Z" }, error: null },
+    );
+    const selectUpdateMetaMock = vi.fn(() => ({ single: singleUpdateMetaMock }));
+    const eqUpdateSecondMock = vi.fn(() => ({ select: selectUpdateMetaMock }));
+    const eqUpdateFirstMock = vi.fn(() => ({ eq: eqUpdateSecondMock }));
+    const updateMock = vi.fn(() => ({
+        match: matchMock,
+        eq: eqUpdateFirstMock,
+    }));
     const singleGetMock = vi.fn(async () =>
         options?.getError !== undefined
             ? {
@@ -248,6 +259,10 @@ const createSupabaseMock = (
             deleteMock,
             eqDeleteFirstMock,
             eqDeleteSecondMock,
+            eqUpdateFirstMock,
+            eqUpdateSecondMock,
+            selectUpdateMetaMock,
+            singleUpdateMetaMock,
             updateMock,
         },
     };
@@ -848,4 +863,77 @@ describe("getChart and deleteChart", () => {
     //   Re-run "deleteChart deletes scoped to the authenticated user".
     //   The user_id scoping assertion fails -> test RED.
     //   Verified manually: 2026-05-28. REVERTED.
+});
+
+describe("updateChartMetadata", () => {
+    beforeEach(() => {
+        cookiesMock.mockClear();
+        createClientMock.mockReset();
+        revalidatePathMock.mockClear();
+    });
+
+    it("updates chart name scoped to the authenticated user", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const result = await updateChartMetadata({
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Renamed chart",
+        });
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.updated_at).toBe("2026-05-28T12:00:00.000Z");
+        }
+        expect(mocks.updateMock).toHaveBeenCalledTimes(1);
+        expect(mocks.eqUpdateFirstMock).toHaveBeenCalledWith(
+            "id",
+            "11111111-1111-4111-8111-111111111111",
+        );
+        expect(mocks.eqUpdateSecondMock).toHaveBeenCalledWith("user_id", "user-123");
+        expect(revalidatePathMock).toHaveBeenCalledWith("/dashboard");
+    });
+
+    it("updates tags with lowercase normalization", async () => {
+        const { client, mocks } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const result = await updateChartMetadata({
+            id: "11111111-1111-4111-8111-111111111111",
+            tags: ["Pilot-Study"],
+        });
+
+        expect(result.success).toBe(true);
+        expect(mocks.updateMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: ["pilot-study"],
+            }),
+        );
+    });
+
+    it("returns not authenticated without a session", async () => {
+        const { client } = createSupabaseMock({ authUserId: null });
+        createClientMock.mockReturnValue(client);
+
+        const result = await updateChartMetadata({
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Renamed chart",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toMatch(/not authenticated/i);
+        }
+    });
+
+    it("rejects payloads with neither name nor tags", async () => {
+        const { client } = createSupabaseMock();
+        createClientMock.mockReturnValue(client);
+
+        const result = await updateChartMetadata({
+            id: "11111111-1111-4111-8111-111111111111",
+        });
+
+        expect(result.success).toBe(false);
+    });
 });
