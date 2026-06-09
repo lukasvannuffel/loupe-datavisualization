@@ -1,27 +1,39 @@
-import { Eyebrow } from "@/components/primitives/Eyebrow";
-import { listCharts } from "@/lib/charts/listCharts";
-import { requireUser } from "@/utils/supabase/server";
+import { cookies } from "next/headers";
 
-import { DashboardChartGrid } from "./DashboardChartGrid";
-import { DashboardLoadError } from "./DashboardLoadError";
-import { EmptyState } from "./EmptyState";
-import styles from "./dashboard.module.css";
+import { DashboardEmpty } from "@/app/dashboard/DashboardEmpty";
+import { DashboardLoadError } from "@/app/dashboard/DashboardLoadError";
+import { DashboardShell } from "@/app/dashboard/DashboardShell";
+import { listCharts } from "@/lib/charts/listCharts";
+import { displayNameFor, loadProfile } from "@/lib/profile";
+import { createClient, requireUser } from "@/utils/supabase/server";
 
 const DashboardPage = async (): Promise<JSX.Element> => {
-    await requireUser();
+    const user = await requireUser();
     const result = await listCharts();
 
-    return (
-        <main className={`container ${styles.page}`}>
-            <Eyebrow>Dashboard</Eyebrow>
-            <h1 className={`serif ${styles.heading}`}>Your charts</h1>
-            {!result.ok ? (
+    if (!result.ok) {
+        return (
+            <main className="container page-enter">
                 <DashboardLoadError />
-            ) : result.charts.length === 0 ? (
-                <EmptyState />
-            ) : (
-                <DashboardChartGrid charts={result.charts} />
-            )}
+            </main>
+        );
+    }
+
+    if (result.charts.length === 0) {
+        return (
+            <main className="container page-enter">
+                <DashboardEmpty variant="zero" />
+            </main>
+        );
+    }
+
+    const supabase = createClient(await cookies());
+    const profile = await loadProfile(supabase, user.id);
+    const displayName = displayNameFor(profile, user.email ?? null);
+
+    return (
+        <main className="container">
+            <DashboardShell initialCharts={result.charts} displayName={displayName} />
         </main>
     );
 };
