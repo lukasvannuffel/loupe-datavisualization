@@ -1,4 +1,6 @@
+import { computeKmLogRank } from "@/lib/chartSpec/aggregators/kmLogRank";
 import type { ChartSpec, PlotData } from "@/lib/chartSpec/types";
+import type { PrivateRows } from "@/lib/parser/types";
 import type { Mapping } from "@/lib/roles/types";
 
 import type { ComputationSummary } from "./composeReceipt";
@@ -17,6 +19,7 @@ export const summarizeComputations = (
     plotData: PlotData,
     mapping: Mapping,
     computedAt: string = new Date().toISOString(),
+    rows?: PrivateRows,
 ): ComputationSummary => {
     const base = {
         chartType: spec.kind,
@@ -31,6 +34,10 @@ export const summarizeComputations = (
             0,
         );
         const kmTotalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
+        const logRank =
+            rows !== undefined
+                ? computeKmLogRank(rows, mapping)
+                : (plotData.logRank ?? null);
 
         return {
             ...base,
@@ -38,6 +45,7 @@ export const summarizeComputations = (
             kmGroupCount: plotData.groups.length,
             kmStepCount,
             kmTotalN,
+            ...(logRank !== null ? { kmLogRankP: logRank.pValue } : {}),
         };
     }
 

@@ -12,7 +12,8 @@ import { useEffect, useState } from "react";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
-import type { KMSpec, StatTest } from "@/lib/chartSpec/types";
+import type { LogRankResult } from "@/lib/chartSpec/aggregators/kmLogRank";
+import type { KMSpec } from "@/lib/chartSpec/types";
 
 import { applyAxes, axisTickCountForWidth } from "./applyAxes";
 import { applyChartLabels, clearStaticChartLabels, marginWithLabels } from "./applyChartLabels";
@@ -35,11 +36,11 @@ const LABEL_MARGIN = marginWithLabels(DEFAULT_MARGIN);
 type Props = {
     readonly spec: KMSpec;
     readonly data: KMPlotData;
-    readonly statTests?: readonly StatTest[];
+    readonly logRank?: LogRankResult | null;
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const KaplanMeierChart = ({ spec, data, statTests, onSpecChange }: Props): JSX.Element => {
+export const KaplanMeierChart = ({ spec, data, logRank, onSpecChange }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
@@ -100,12 +101,11 @@ export const KaplanMeierChart = ({ spec, data, statTests, onSpecChange }: Props)
         });
 
         if (spec.showStats) {
-            drawKmStatAnnotation(
-                plotG,
-                innerWidth,
-                tokens,
-                resolveKmStatLines(statTests),
-            );
+            const statLines = resolveKmStatLines(logRank);
+
+            if (statLines.length > 0) {
+                drawKmStatAnnotation(plotG, innerWidth, tokens, statLines);
+            }
         }
 
         const axisResult = applyAxes(
@@ -146,7 +146,7 @@ export const KaplanMeierChart = ({ spec, data, statTests, onSpecChange }: Props)
         spec.showGrid,
         spec.showStats,
         spec.strokeWeight,
-        statTests,
+        logRank,
     ]);
 
     const marginLeft = LABEL_MARGIN.left;

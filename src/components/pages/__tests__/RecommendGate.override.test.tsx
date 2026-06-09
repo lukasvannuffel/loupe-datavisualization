@@ -40,10 +40,15 @@ const aggregateBarErrorMock = vi.fn(
     }),
 );
 
-vi.mock("@/lib/chartSpec/aggregators/barError", () => ({
-    aggregateBarError: (rows: PrivateRows, mapping: Mapping) =>
-        aggregateBarErrorMock(rows, mapping),
-}));
+vi.mock("@/lib/chartSpec/aggregators/barError", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/chartSpec/aggregators/barError")>();
+
+    return {
+        ...actual,
+        aggregateBarError: (rows: PrivateRows, mapping: Mapping) =>
+            aggregateBarErrorMock(rows, mapping),
+    };
+});
 
 vi.mock("@/lib/chartSpec/aggregators/kaplanMeier", () => ({
     aggregateKaplanMeier: () => ({

@@ -27,6 +27,7 @@ import { BoxPlotError } from "@/lib/chartSpec/aggregators/boxPlot.types";
 import { aggregateKaplanMeier } from "@/lib/chartSpec/aggregators/kaplanMeier";
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
 import { KaplanMeierError } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import { computeKmLogRank } from "@/lib/chartSpec/aggregators/kmLogRank";
 import { aggregateLongitudinal } from "@/lib/chartSpec/aggregators/longitudinalAggregator";
 import { aggregateXYPlot } from "@/lib/chartSpec/aggregators/xyPlot";
 import type {
@@ -145,11 +146,17 @@ type SlugDefaults = {
   rationale: string;
 };
 
+const buildKmCaption = (hasLogRank: boolean): string => {
+  const base = "Estimates by Kaplan–Meier method.";
+  const comparison = hasLogRank ? " Comparison by log-rank test." : "";
+
+  return base + comparison;
+};
+
 const SLUG_DEFAULTS: Record<ChartSlug, SlugDefaults> = {
   km: {
     title: "Five-year overall survival by treatment arm.",
-    caption:
-      "Estimates by Kaplan–Meier method. Comparison by log-rank test. Hazard ratio from Cox proportional hazards. CI from profile likelihood.",
+    caption: "Estimates by Kaplan–Meier method.",
     xLabel: "MONTHS SINCE RANDOMIZATION",
     yLabel: "SURVIVAL PROBABILITY",
     legendA: "Treatment A — n=312",
@@ -520,7 +527,10 @@ const computePlotData = (
       return null;
     }
     try {
-      return aggregateKaplanMeier(dataset.rows, mapping);
+      const data = aggregateKaplanMeier(dataset.rows, mapping);
+      const logRank = computeKmLogRank(dataset.rows, mapping);
+
+      return logRank !== null ? { ...data, logRank } : data;
     } catch (error) {
       if (error instanceof KaplanMeierError) {
         return null;
@@ -864,6 +874,23 @@ export const Export = ({
     useSpecFigure,
   ]);
 
+  const kmLogRank = useMemo(() => {
+    if (!useSpecFigure || liveSpec?.kind !== "km" || dataset === null) {
+      return null;
+    }
+
+    if (exportPlotData?.kind === "km" && exportPlotData.logRank !== undefined) {
+      return exportPlotData.logRank;
+    }
+
+    return computeKmLogRank(dataset.rows, mapping);
+  }, [dataset, exportPlotData, liveSpec, mapping, useSpecFigure]);
+
+  const figureCaption =
+    useSpecFigure && liveSpec?.kind === "km"
+      ? buildKmCaption(kmLogRank !== null)
+      : caption;
+
   useEffect(() => {
     if (liveSpec === null || exportPlotData === null) {
       setComputationSnapshot(null);
@@ -871,9 +898,15 @@ export const Export = ({
     }
 
     setComputationSnapshot(
-      summarizeComputations(liveSpec, exportPlotData, mapping),
+      summarizeComputations(
+        liveSpec,
+        exportPlotData,
+        mapping,
+        undefined,
+        dataset?.rows,
+      ),
     );
-  }, [exportPlotData, liveSpec, mapping]);
+  }, [dataset, exportPlotData, liveSpec, mapping]);
 
   const reproducibilityInput = useMemo((): ReceiptInput | null => {
     if (!useSpecFigure || liveSpec === null || computationSnapshot === null) {
@@ -1498,7 +1531,6 @@ export const Export = ({
                         dataset={dataset}
                         mapping={mapping}
                         spec={liveSpec}
-                        statTests={liveSpec.kind === "km" ? receipt?.tests : undefined}
                         onSpecChange={onSpecChange}
                       />
                     </ChartFrameLoader>
@@ -1510,12 +1542,12 @@ export const Export = ({
                 ) : (
                   <ChartComponent {...chartProps} />
                 )}
-                {caption ? (
+                {figureCaption ? (
                   <div className="export-caption">
                     <span className="export-caption-num mono">
                       Figure {figureNumber}.
                     </span>{" "}
-                    {caption}
+                    {figureCaption}
                   </div>
                 ) : null}
               </div>

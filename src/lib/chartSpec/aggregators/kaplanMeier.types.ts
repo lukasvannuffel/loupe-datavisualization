@@ -1,3 +1,5 @@
+import type { LogRankResult } from "./kmLogRank";
+
 export type KMPoint = {
     readonly t: number;
     readonly survival: number;
@@ -28,6 +30,7 @@ export type KMPlotData = {
     readonly kind: "km";
     readonly groups: readonly KMGroup[];
     readonly tMax: number;
+    readonly logRank?: LogRankResult;
 };
 
 export class KaplanMeierError extends Error {
