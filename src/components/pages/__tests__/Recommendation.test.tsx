@@ -361,6 +361,33 @@ describe("Recommendation", () => {
         expect(screen.queryByRole("listbox", { name: /chart palette/i })).toBeNull();
     });
 
+    it("groups recommendation actions in a labeled panel with clear hierarchy", async () => {
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+
+        expect(screen.getByRole("heading", { name: /next step/i })).toBeTruthy();
+        expect(screen.getByRole("heading", { name: /change approach/i })).toBeTruthy();
+        expect(screen.queryByRole("heading", { name: /explore alternatives/i })).toBeNull();
+        expect(screen.queryByRole("button", { name: /try a different chart/i })).toBeNull();
+
+        const gridCol = document.querySelector(".rec-grid-col");
+        expect(gridCol).toBeTruthy();
+        expect(gridCol?.querySelector(".rec-chart")).toBeTruthy();
+        expect(gridCol?.querySelector(".rec-panel")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: /save to project/i })).toBeNull();
+        expect(screen.getByTestId("switch-to-manual")).toBeTruthy();
+    });
+
+    it("navigates to manual selection when Pick a chart myself is clicked", async () => {
+        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
+        await advanceToChartPhase();
+
+        fireEvent.click(screen.getByTestId("switch-to-manual"));
+
+        expect(setSelectionMode).toHaveBeenCalledWith("manual");
+        expect(push).toHaveBeenCalledWith("/recommend/manual");
+    });
+
     it("keeps the chart read-only on recommend", async () => {
         setChartSpec.mockClear();
         render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
@@ -425,18 +452,6 @@ describe("Recommendation", () => {
         expect(badge.getAttribute("aria-label")).toMatch(/at \d{2}:\d{2}/);
     });
 
-    it("calls appendOverride when selecting a different chart in the override shell", async () => {
-        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
-        await advanceToChartPhase();
-        fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
-        fireEvent.click(screen.getByRole("button", { name: /Box plot/i }));
-        expect(appendOverride).toHaveBeenCalledTimes(1);
-        expect(appendOverride.mock.calls[0]?.[0]).toMatchObject({ from: "km", to: "box" });
-        expect(appendOverride.mock.calls[0]?.[0].at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-        expect(push).not.toHaveBeenCalled();
-        expect(replace).not.toHaveBeenCalled();
-    });
-
     it("calls appendOverride with reason when clicking Use instead on an alternative", async () => {
         render(
             <Recommendation {...chartRenderProps("km", receiptWithBarAlt())} />,
@@ -452,60 +467,6 @@ describe("Recommendation", () => {
         );
         expect(appendOverride.mock.calls[0]?.[0].reason).toBeUndefined();
         expect(appendOverride.mock.calls[0]?.[0].at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    });
-
-    it("does not call appendOverride when selecting the current chart", async () => {
-        render(<Recommendation {...chartRenderProps("km", sampleReceipt())} />);
-        await advanceToChartPhase();
-        fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
-        fireEvent.click(screen.getByRole("button", { name: /Kaplan–Meier/i }));
-        expect(appendOverride).not.toHaveBeenCalled();
-    });
-
-    it("updates placeholder and badge after override via rerender", async () => {
-        const { rerender } = render(
-            <Recommendation {...chartRenderProps("km", sampleReceipt())} />,
-        );
-        await advanceToChartPhase();
-        fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
-        fireEvent.click(screen.getByRole("button", { name: /Box plot/i }));
-        const event: OverrideEvent = {
-            at: "2026-05-19T14:23:00.000Z",
-            from: "km",
-            to: "box",
-        };
-        rerender(
-            <Recommendation {...chartRenderProps("box", sampleReceipt([event]))} />,
-        );
-        expect(screen.getByTestId("box-chart")).toBeTruthy();
-        expect(screen.getByRole("status", { name: /Chart overridden/i })).toBeTruthy();
-    });
-
-    it("appends a second override when switching back to the original kind", async () => {
-        const first: OverrideEvent = {
-            at: "2026-05-19T14:23:00.000Z",
-            from: "km",
-            to: "box",
-        };
-        const { rerender } = render(
-            <Recommendation {...chartRenderProps("box", sampleReceipt([first]))} />,
-        );
-        await advanceToChartPhase();
-        fireEvent.click(screen.getByRole("button", { name: /Try a different chart/i }));
-        fireEvent.click(screen.getByRole("button", { name: /Kaplan–Meier/i }));
-        expect(appendOverride).toHaveBeenCalledWith(
-            expect.objectContaining({ from: "box", to: "km" }),
-        );
-        const second: OverrideEvent = {
-            at: "2026-05-19T14:25:00.000Z",
-            from: "box",
-            to: "km",
-        };
-        rerender(
-            <Recommendation {...chartRenderProps("km", sampleReceipt([first, second]))} />,
-        );
-        expect(screen.queryByRole("status", { name: /Chart overridden/i })).toBeNull();
-        expect(document.querySelector(".rec-chart-title")?.textContent).toBe("Kaplan–Meier");
     });
 
     it("shows AI chart name as title when overrides is empty", () => {

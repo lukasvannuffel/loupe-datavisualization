@@ -97,7 +97,7 @@ export const PhiRenameModal = ({
                     </label>
                 ))}
                 <div className="phi-modal-actions">
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={onClose}>
                         Close
                     </button>
                     <button type="button" className="btn btn--primary btn--sm" onClick={save}>

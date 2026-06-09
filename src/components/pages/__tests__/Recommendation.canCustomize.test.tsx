@@ -213,5 +213,36 @@ describe("Recommendation — canCustomize gate", () => {
 
         const button = screen.getByRole("button", { name: /customize/i });
         expect(button).toHaveProperty("disabled", false);
+        expect(button.className).toContain("btn--primary");
+        expect(button.className).toContain("btn--lg");
+        expect(button.className).toContain("actions-panel__primary");
+    });
+
+    it("shows override count in the actions panel status", async () => {
+        chartSpecState = createDefaultChartSpec("km", {
+            id: "spec-override-count",
+            createdAt: "2026-06-01T10:00:00.000Z",
+        });
+        render(
+            <Recommendation
+                chartKind="km"
+                dataset={emptyDataset}
+                fromCache={false}
+                receipt={{
+                    ...sampleReceipt(),
+                    overrides: [
+                        {
+                            at: "2026-06-01T10:00:00.000Z",
+                            from: "km",
+                            to: "box",
+                        },
+                    ],
+                }}
+                spec={chartSpecState}
+            />,
+        );
+        await advanceToChartPhase();
+
+        expect(screen.getByText(/1 change/i)).toBeTruthy();
     });
 });

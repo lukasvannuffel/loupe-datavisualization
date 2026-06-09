@@ -77,7 +77,7 @@ export const PasswordForm = (): JSX.Element => {
             <form className="profile-grid" action={requestAction}>
                 <div className="profile-grid-full">
                     <button
-                        className="btn btn--ghost btn--lg"
+                        className="btn btn--secondary btn--lg"
                         type="submit"
                         disabled={isRequesting || isUpdating}
                     >

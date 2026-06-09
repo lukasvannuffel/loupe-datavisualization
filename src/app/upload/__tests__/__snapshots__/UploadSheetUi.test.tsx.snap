@@ -48,7 +48,7 @@ exports[`Upload sheet UI > matches mobile snapshot for sheet picker layout 1`] =
     Continue
   </button>
   <button
-    class="btn btn--ghost btn--sm sheet-repick-file"
+    class="btn btn--secondary btn--sm sheet-repick-file"
     type="button"
   >
     Choose a different file

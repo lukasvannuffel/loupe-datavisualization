@@ -29,7 +29,7 @@ const GlobalErrorPage = ({ error, reset }: GlobalErrorPageProps): JSX.Element =>
                                 padding: "8px 16px",
                                 borderRadius: 4,
                                 border: "none",
-                                background: "#0B2A4A",
+                                background: "#8F4F17",
                                 color: "#FAFAF7",
                                 cursor: "pointer",
                             }}

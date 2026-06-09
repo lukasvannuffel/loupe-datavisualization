@@ -97,7 +97,7 @@ export const MappingResetDialog = ({
                     Switching sheet will reset your column mapping. Continue?
                 </p>
                 <div className="mapping-reset-actions">
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={onCancel}>
                         Cancel
                     </button>
                     <button
