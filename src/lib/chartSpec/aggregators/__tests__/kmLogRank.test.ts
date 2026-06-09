@@ -54,25 +54,25 @@ describe("chi2pValue", () => {
 describe("computeKmLogRank", () => {
     // R: library(survival); df <- data.frame(time=c(5,8,10,12,15,18,20,22,25,30),
     //     event=c(1,1,0,1,0,1,1,0,1,1), group=c("A","A","A","A","A","B","B","B","B","B"))
-    // survdiff(Surv(time, event) ~ group, data=df) → chisq=3.089, p=0.0788
+    // survdiff(Surv(time, event) ~ group, data=df) → Chisq=4.468, p=0.0345
     it("matches R survdiff on 2-group synthetic fixture", () => {
         const result = computeKmLogRank(twoGroupRows, mapping);
 
         expect(result).not.toBeNull();
-        expect(result?.chi2).toBeCloseTo(3.0891689222, 4);
+        expect(result?.chi2).toBeCloseTo(4.4684158505, 4);
         expect(result?.df).toBe(1);
-        expect(result?.pValue).toBeCloseTo(0.0788150527, 4);
+        expect(result?.pValue).toBeCloseTo(0.0345269891, 4);
     });
 
     // R: library(survival); survdiff(Surv(time, event) ~ group, data=df3)
-    // df3 adds group C rows → chisq=4.304, df=2, p=0.1162
+    // df3 adds group C rows → Chisq=6.860, df=2, p=0.0324
     it("matches R survdiff on 3-group fixture, df=2", () => {
         const result = computeKmLogRank(threeGroupRows, mapping);
 
         expect(result).not.toBeNull();
-        expect(result?.chi2).toBeCloseTo(4.3040649763, 4);
+        expect(result?.chi2).toBeCloseTo(6.8599631771, 4);
         expect(result?.df).toBe(2);
-        expect(result?.pValue).toBeCloseTo(0.1162476455, 4);
+        expect(result?.pValue).toBeCloseTo(0.0323875371, 4);
     });
 
     it("returns null for single group", () => {
@@ -96,6 +96,6 @@ describe("computeKmLogRank", () => {
         expect(computeKmLogRank(rows, mapping)).toBeNull();
     });
 
-    // MUTATION-VERIFY: change (O[g]! - E[g]!) ** 2 to (O[g]! + E[g]!) ** 2 in kmLogRank.ts chi2 reduce.
+    // MUTATION-VERIFY: kmLogRank.ts:69 — change `u += d0 - (n0 * d) / n` to `u += d0 + (n0 * d) / n`.
     // Test: "matches R survdiff on 2-group synthetic fixture" must red. Verified manually: 2026-06-09. REVERTED.
 });
