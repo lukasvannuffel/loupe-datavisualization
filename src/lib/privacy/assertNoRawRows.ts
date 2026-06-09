@@ -95,7 +95,9 @@ const assertBarErrorShape = (plotData: unknown): void => {
 
 const assertKMShape = (plotData: unknown): void => {
     const root = assertRecord(plotData, "plot_data");
-    assertExactKeys(root, ["kind", "groups", "tMax"], "plot_data");
+    const kmKeys =
+        root.logRank !== undefined ? ["kind", "groups", "tMax", "logRank"] : ["kind", "groups", "tMax"];
+    assertExactKeys(root, kmKeys, "plot_data");
     if (root.kind !== "km") {
         throw new Error("Privacy violation: expected km plot_data kind");
     }
@@ -139,6 +141,14 @@ const assertKMShape = (plotData: unknown): void => {
             assertNumber(tickRecord.nAtRisk, `${tickPath}.nAtRisk`);
         });
     });
+
+    if (root.logRank !== undefined) {
+        const logRank = assertRecord(root.logRank, "plot_data.logRank");
+        assertExactKeys(logRank, ["chi2", "df", "pValue"], "plot_data.logRank");
+        assertNumber(logRank.chi2, "plot_data.logRank.chi2");
+        assertNumber(logRank.df, "plot_data.logRank.df");
+        assertNumber(logRank.pValue, "plot_data.logRank.pValue");
+    }
 };
 
 const assertBoxShape = (plotData: unknown): void => {

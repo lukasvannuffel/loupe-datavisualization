@@ -400,27 +400,23 @@ describe("KaplanMeierChart", () => {
         });
     });
 
-    it("renders HR and log-rank annotation inside the SVG when showStats is true", async () => {
+    it("renders log-rank annotation inside the SVG when showStats is true", async () => {
         const { container } = render(
             <KaplanMeierChart
                 data={plotData(1)}
                 spec={{ ...kmSpec, showStats: true }}
-                statTests={[
-                    { label: "Cox HR 0.74 (95% CI 0.61-0.89)" },
-                    { label: "log-rank p < 0.001" },
-                ]}
+                logRank={{ chi2: 10.827, df: 1, pValue: 0.0008 }}
             />,
         );
 
         await waitFor(() => {
             const lines = container.querySelectorAll('[data-role="km-stat-line"]');
-            expect(lines.length).toBe(2);
-            expect(lines[0]?.textContent).toContain("Cox HR");
-            expect(lines[1]?.textContent).toContain("log-rank");
+            expect(lines.length).toBe(1);
+            expect(lines[0]?.textContent).toBe("log-rank p < 0.001");
         });
     });
 
-    it("hides HR and log-rank annotation when showStats is false", async () => {
+    it("hides log-rank annotation when showStats is false", async () => {
         const { container } = render(
             <KaplanMeierChart data={plotData(1)} spec={{ ...kmSpec, showStats: false }} />,
         );

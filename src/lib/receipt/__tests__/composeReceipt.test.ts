@@ -182,3 +182,51 @@ describe("composeReceipt", () => {
     // MUTATION-VERIFY: composeReceipt.ts PRIVACY_STATEMENT — append " mutated".
     // Test: "privacy statement is present and verbatim". Verified manually: 2026-05-30. REVERTED.
 });
+
+describe("composeReceipt — KM log-rank stat line", () => {
+    const kmBase = {
+        chartType: "km" as const,
+        dataColumns: ["arm", "time", "event"],
+        computedAt: "2026-05-27T12:00:00.000Z",
+    };
+
+    it("includes log-rank p-value line when kmLogRankP is defined", async () => {
+        const receipt = await composeReceipt({
+            ...baseInput,
+            computations: { ...kmBase, kmLogRankP: 0.035 },
+        });
+
+        expect(receipt.plainText).toContain("0.035");
+        expect(receipt.markdown).toContain("0.035");
+    });
+
+    it("formats p < 0.001 when kmLogRankP < 0.001", async () => {
+        const receipt = await composeReceipt({
+            ...baseInput,
+            computations: { ...kmBase, kmLogRankP: 0.0005 },
+        });
+
+        expect(receipt.plainText).toContain("p < 0.001");
+        expect(receipt.markdown).toContain("p < 0.001");
+    });
+
+    it("omits comparison line entirely when kmLogRankP is undefined", async () => {
+        const receipt = await composeReceipt({
+            ...baseInput,
+            computations: kmBase,
+        });
+
+        expect(receipt.plainText).not.toMatch(/log-rank/i);
+        expect(receipt.markdown).not.toMatch(/log-rank/i);
+    });
+
+    it("includes Mantel–Cox log-rank label when kmLogRankP is defined", async () => {
+        const receipt = await composeReceipt({
+            ...baseInput,
+            computations: { ...kmBase, kmLogRankP: 0.035 },
+        });
+
+        expect(receipt.plainText).toContain("Log-rank test (Mantel–Cox):");
+        expect(receipt.markdown).toContain("Log-rank test (Mantel–Cox):");
+    });
+});

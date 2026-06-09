@@ -153,16 +153,6 @@ const buildKmCaption = (hasLogRank: boolean): string => {
   return base + comparison;
 };
 
-const buildKmMetaLine = (plotData: KMPlotData): string => {
-  const totalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
-  const censoredN = plotData.groups.reduce(
-    (sum, group) => sum + group.points.filter((point) => point.censored).length,
-    0,
-  );
-
-  return `n = ${totalN} · censored = ${censoredN}`;
-};
-
 const SLUG_DEFAULTS: Record<ChartSlug, SlugDefaults> = {
   km: {
     title: "Five-year overall survival by treatment arm.",
@@ -171,9 +161,10 @@ const SLUG_DEFAULTS: Record<ChartSlug, SlugDefaults> = {
     yLabel: "SURVIVAL PROBABILITY",
     legendA: "Treatment A — n=312",
     legendB: "Treatment B — n=298",
-    metaLine: "",
-    method: "Kaplan–Meier, log-rank",
-    rationale: "Time-to-event with right-censoring; two-arm comparison.",
+    metaLine: "n = 610 · censored = 218",
+    method: "Kaplan–Meier, log-rank, Cox PH",
+    rationale:
+      "Time-to-event with right-censoring; two-arm comparison; PH assumption verified by Schoenfeld residuals.",
   },
   barError: {
     title: "5-year survival probability by stage.",
@@ -900,11 +891,6 @@ export const Export = ({
       ? buildKmCaption(kmLogRank !== null)
       : caption;
 
-  const figureMetaLine =
-    useSpecFigure && liveSpec?.kind === "km" && exportPlotData?.kind === "km"
-      ? buildKmMetaLine(exportPlotData)
-      : slugDefaults.metaLine;
-
   useEffect(() => {
     if (liveSpec === null || exportPlotData === null) {
       setComputationSnapshot(null);
@@ -1497,7 +1483,7 @@ export const Export = ({
                 </div>
               </div>
               <div className="muted mono export-canvas-meta">
-                {figureMetaLine}
+                {slugDefaults.metaLine}
               </div>
             </div>
             <div className="export-figure-host">
@@ -1859,7 +1845,7 @@ export const Export = ({
                           checked={showStats}
                           onChange={(e) => setShowStats(e.target.checked)}
                         />
-                        <span>Show log-rank annotation</span>
+                        <span>Show HR &amp; log-rank annotation</span>
                       </label>
                     </div>
                     <div className="custom-row">

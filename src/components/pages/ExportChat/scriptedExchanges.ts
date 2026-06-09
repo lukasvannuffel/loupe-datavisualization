@@ -98,8 +98,7 @@ export const SCRIPTED_EXCHANGES: readonly ScriptedExchange[] = [
         response:
             "Drafted a caption that names the method, the comparison, and the headline test result. Edit it inline or in the rail; the receipt records the suggestion source.",
         patch: {
-            caption:
-                "Five-year overall survival was higher in arm A than arm B (HR 0.74; 95% CI 0.61–0.89; log-rank p < 0.001). 218 of 610 patients were censored before 60 months.",
+            caption: "Estimates by Kaplan–Meier method. Comparison by log-rank test.",
         },
         receiptEntry: "Caption suggested by Loupe; user-edited",
     },

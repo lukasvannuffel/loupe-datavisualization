@@ -60,21 +60,26 @@ const barSpec = createDefaultChartSpec(
     },
 ) as BarErrorSpec;
 
-vi.mock("@/lib/chartSpec/aggregators/barError", () => ({
-    aggregateBarError: () => ({
-        groups: [
-            { label: "A", mean: 10, sd: 1, n: 20 },
-            { label: "B", mean: 14, sd: 1.5, n: 25 },
-        ],
-        missing: {
-            dropRate: 0,
-            droppedRows: 0,
-            missingGroupRows: 0,
-            missingOutcomeRows: 0,
-            totalRows: 2,
-        },
-    }),
-}));
+vi.mock("@/lib/chartSpec/aggregators/barError", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/chartSpec/aggregators/barError")>();
+
+    return {
+        ...actual,
+        aggregateBarError: () => ({
+            groups: [
+                { label: "A", mean: 10, sd: 1, n: 20 },
+                { label: "B", mean: 14, sd: 1.5, n: 25 },
+            ],
+            missing: {
+                dropRate: 0,
+                droppedRows: 0,
+                missingGroupRows: 0,
+                missingOutcomeRows: 0,
+                totalRows: 2,
+            },
+        }),
+    };
+});
 
 const stableDims = { width: 400, height: 250 };
 
