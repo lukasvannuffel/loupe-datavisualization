@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { deleteChart } from "@/app/charts/actions";
-import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/lib/toast/useToast";
 
 import styles from "./dashboard.module.css";
@@ -18,6 +16,7 @@ type DeleteChartButtonProps = {
     readonly chartName: string;
     readonly open?: boolean;
     readonly onOpenChange?: (open: boolean) => void;
+    readonly onDeleted?: (id: string) => void;
     readonly renderTrigger?: (handlers: DeleteChartTriggerHandlers) => ReactNode;
 };
 
@@ -26,9 +25,9 @@ export const DeleteChartButton = ({
     chartName,
     open: openProp,
     onOpenChange,
+    onDeleted,
     renderTrigger,
 }: DeleteChartButtonProps): JSX.Element => {
-    const router = useRouter();
     const { toast } = useToast();
     const [internalOpen, setInternalOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -44,6 +43,30 @@ export const DeleteChartButton = ({
         }
     };
 
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const onKeyDown = (event: KeyboardEvent): void => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            if (isControlled) {
+                onOpenChange?.(false);
+            } else {
+                setInternalOpen(false);
+            }
+        };
+
+        document.addEventListener("keydown", onKeyDown);
+
+        return () => {
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [isControlled, onOpenChange, open]);
+
     const onConfirm = async (): Promise<void> => {
         setDeleting(true);
         const result = await deleteChart(chartId);
@@ -57,16 +80,17 @@ export const DeleteChartButton = ({
                 variant: "error",
             });
             console.error("[deleteChart]", result.error);
+
             return;
         }
 
+        setOpen(false);
+        onDeleted?.(chartId);
         toast({
             description: `"${chartName}" was removed from your dashboard.`,
             title: "Chart deleted.",
             variant: "success",
         });
-        setOpen(false);
-        router.refresh();
     };
 
     const openDialog = (): void => {
@@ -87,33 +111,43 @@ export const DeleteChartButton = ({
                     Delete
                 </button>
             ) : null}
-            <Dialog open={open} onClose={() => setOpen(false)} title={`Delete ${chartName}`}>
-                <header className="rerun-head">
-                    <div>
-                        <h3>{`Delete "${chartName}"?`}</h3>
-                        <p className="muted">This cannot be undone.</p>
+            {open ? (
+                <div
+                    className={styles.deleteOverlay}
+                    role="presentation"
+                    onClick={() => setOpen(false)}
+                >
+                    <div
+                        className={styles.deletePanel}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`Delete ${chartName}`}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h3 className={styles.deleteTitle}>{`Delete "${chartName}"?`}</h3>
+                        <p className={styles.deleteHint}>This cannot be undone.</p>
+                        <div className={styles.deleteActions}>
+                            <button
+                                type="button"
+                                className="btn btn--secondary btn--sm"
+                                onClick={() => setOpen(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn--primary btn--sm"
+                                disabled={deleting}
+                                onClick={() => {
+                                    void onConfirm();
+                                }}
+                            >
+                                {deleting ? "Deleting..." : "Delete"}
+                            </button>
+                        </div>
                     </div>
-                </header>
-                <div className="rerun-actions">
-                    <button
-                        type="button"
-                        className="btn btn--secondary btn--sm"
-                        onClick={() => setOpen(false)}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn--primary btn--sm"
-                        disabled={deleting}
-                        onClick={() => {
-                            void onConfirm();
-                        }}
-                    >
-                        {deleting ? "Deleting..." : "Delete"}
-                    </button>
                 </div>
-            </Dialog>
+            ) : null}
         </>
     );
 };

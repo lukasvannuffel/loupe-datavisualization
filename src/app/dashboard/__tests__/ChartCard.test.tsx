@@ -9,17 +9,28 @@ import type { ChartListItem } from "@/lib/charts/listCharts";
 import { THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from "@/lib/thumbnail/generateThumbnail";
 
 vi.mock("next/navigation", () => ({
-    useRouter: () => ({ refresh: vi.fn() }),
+    useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/app/charts/actions", () => ({
     deleteChart: vi.fn(),
+    updateChartMetadata: vi.fn(async () => ({
+        success: true,
+        updated_at: "2026-05-28T10:00:00Z",
+    })),
 }));
+
+const onUpdateChart = vi.fn(async () => true);
+const onDeleteChart = vi.fn();
 
 const renderCard = (chart: ChartListItem) =>
     render(
         <ToastProvider>
-            <ChartCard chart={chart} />
+            <ChartCard
+                chart={chart}
+                onUpdateChart={onUpdateChart}
+                onDeleteChart={onDeleteChart}
+            />
         </ToastProvider>,
     );
 
@@ -36,15 +47,16 @@ const baseChart: ChartListItem = {
 describe("ChartCard", () => {
     afterEach(() => {
         cleanup();
+        onUpdateChart.mockClear();
     });
 
-    it("renders a card with name, badge, and date", () => {
+    it("renders a card with name, type chip, and date", () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-05-28T10:00:00Z"));
         renderCard(baseChart);
 
         expect(screen.getByText("My KM")).not.toBeNull();
-        expect(screen.getByText(/Kaplan-Meier/)).not.toBeNull();
+        expect(screen.getByText(/Kaplan–Meier/)).not.toBeNull();
         expect(screen.getByText(/2 days ago/)).not.toBeNull();
         vi.useRealTimers();
     });
@@ -73,30 +85,31 @@ describe("ChartCard", () => {
     it("links to export with the chart id", () => {
         renderCard({ ...baseChart, id: "abc-123" });
 
-        expect(screen.getByRole("link").getAttribute("href")).toBe("/export?id=abc-123");
+        expect(screen.getByRole("link", { name: /open/i }).getAttribute("href")).toBe(
+            "/export?id=abc-123",
+        );
     });
 
-    it("exposes kebab summary with More actions label", () => {
+    it("exposes more actions control on the thumbnail", () => {
         renderCard(baseChart);
 
-        const kebab = screen.getByLabelText(/more actions/i);
-        expect(kebab.tagName).toBe("SUMMARY");
-        expect(kebab.getAttribute("aria-expanded")).toBe("false");
+        const more = screen.getByLabelText(/more actions/i);
+        expect(more.getAttribute("aria-expanded")).toBe("false");
     });
 
-    it("keeps delete as a menuitem inside kebab, not a root-level button", () => {
-        const { container } = renderCard(baseChart);
+    it("opens delete dialog from the more actions menu", () => {
+        renderCard(baseChart);
 
-        const details = container.querySelector("details") as HTMLDetailsElement | null;
-        expect(details?.open).toBe(false);
-        expect(screen.queryByRole("button", { name: /^delete$/i })).toBeNull();
-
+        expect(screen.queryByRole("dialog")).toBeNull();
         fireEvent.click(screen.getByLabelText(/more actions/i));
-        expect(details?.open).toBe(true);
-        expect(screen.getByRole("menuitem", { name: /^delete$/i })).not.toBeNull();
-
-        fireEvent.click(screen.getByRole("menuitem", { name: /^delete$/i }));
+        fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
         expect(screen.getByRole("dialog")).not.toBeNull();
-        expect(details?.open).toBe(false);
+    });
+
+    it("starts rename on double-clicking the title", () => {
+        renderCard(baseChart);
+
+        fireEvent.doubleClick(screen.getByText("My KM"));
+        expect(screen.getByDisplayValue("My KM")).not.toBeNull();
     });
 });

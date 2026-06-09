@@ -48,6 +48,38 @@ export type SaveChartResult =
 export type DeleteChartResult =
     | { readonly success: true }
     | { readonly success: false; readonly error: string };
+
+export type UpdateChartMetadataPayload = {
+    readonly id: string;
+    readonly name?: string;
+    readonly tags?: readonly string[];
+};
+
+export type UpdateChartMetadataResult =
+    | { readonly success: true; readonly updated_at: string }
+    | { readonly success: false; readonly error: string };
+
+const chartTagsSchema = z
+    .array(
+        z
+            .string()
+            .trim()
+            .min(1)
+            .max(50)
+            .transform((value) => value.toLowerCase()),
+    )
+    .max(10);
+
+const updateChartMetadataSchema = z
+    .object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(200).optional(),
+        tags: chartTagsSchema.optional(),
+    })
+    .strict()
+    .refine((value) => value.name !== undefined || value.tags !== undefined, {
+        message: "At least one of name or tags must be provided",
+    });
 export type ChartRow = {
     readonly id: string;
     readonly name: string;
@@ -71,17 +103,7 @@ const payloadSchema = z
         receipt: receiptSchema,
         plot_data: z.unknown(),
         thumbnail: z.string().min(1).max(500_000).regex(/^data:image\/(png|svg\+xml);/),
-        tags: z
-            .array(
-                z
-                    .string()
-                    .trim()
-                    .min(1)
-                    .max(50)
-                    .transform((value) => value.toLowerCase()),
-            )
-            .max(10)
-            .default([]),
+        tags: chartTagsSchema.default([]),
     })
     .strict();
 
@@ -324,6 +346,57 @@ export const getChart = async (id: string): Promise<GetChartResult> => {
         console.error("[getChart] unexpected", error);
 
         return { ok: false, reason: "load_failed" };
+    }
+};
+
+export const updateChartMetadata = async (
+    payload: UpdateChartMetadataPayload,
+): Promise<UpdateChartMetadataResult> => {
+    try {
+        const parsed = updateChartMetadataSchema.parse(payload);
+        const supabase = createClient(await cookies());
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError !== null || user === null) {
+            return { success: false, error: "Not authenticated" };
+        }
+
+        const patch: { name?: string; tags?: string[]; updated_at: string } = {
+            updated_at: new Date().toISOString(),
+        };
+
+        if (parsed.name !== undefined) {
+            patch.name = parsed.name;
+        }
+
+        if (parsed.tags !== undefined) {
+            patch.tags = parsed.tags;
+        }
+
+        const { data, error } = await supabase
+            .from("charts")
+            .update(patch)
+            .eq("id", parsed.id)
+            .eq("user_id", user.id)
+            .select("updated_at")
+            .single();
+
+        if (error !== null || data === null) {
+            console.error("[updateChartMetadata]", error);
+
+            return { success: false, error: error?.message ?? "Update failed" };
+        }
+
+        revalidatePath("/dashboard");
+
+        return { success: true, updated_at: data.updated_at as string };
+    } catch (error) {
+        console.error("[updateChartMetadata]", error);
+
+        return { success: false, error: "Update failed" };
     }
 };
 

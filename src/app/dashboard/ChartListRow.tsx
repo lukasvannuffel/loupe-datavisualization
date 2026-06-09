@@ -6,7 +6,6 @@ import { useState } from "react";
 
 import type { ChartListItem } from "@/lib/charts/listCharts";
 import { chartKindIcon } from "@/lib/thumbnail/chartKindIcons";
-import { THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from "@/lib/thumbnail/generateThumbnail";
 import { useToast } from "@/lib/toast/useToast";
 
 import { TYPE_META } from "./chartKindMeta";
@@ -14,7 +13,6 @@ import { DeleteChartButton } from "./DeleteChartButton";
 import {
     IconDownload,
     IconEdit,
-    IconMore,
     IconOpen,
     IconPlus,
     IconShare,
@@ -23,7 +21,7 @@ import { exportHref, formatRelativeDate, shareChartUrl } from "./dashboardUtils"
 import { TagEditor } from "./TagEditor";
 import styles from "./dashboard.module.css";
 
-type ChartCardProps = {
+type ChartListRowProps = {
     readonly chart: ChartListItem;
     readonly onUpdateChart: (
         id: string,
@@ -32,16 +30,16 @@ type ChartCardProps = {
     readonly onDeleteChart: (id: string) => void;
 };
 
-type CardMenu = "export" | "tags" | "more" | null;
+type RowMenu = "export" | "tags" | null;
 
-export const ChartCard = ({
+export const ChartListRow = ({
     chart,
     onUpdateChart,
     onDeleteChart,
-}: ChartCardProps): JSX.Element => {
+}: ChartListRowProps): JSX.Element => {
     const router = useRouter();
     const { toast } = useToast();
-    const [menu, setMenu] = useState<CardMenu>(null);
+    const [menu, setMenu] = useState<RowMenu>(null);
     const [renaming, setRenaming] = useState(false);
     const [draft, setDraft] = useState(chart.name);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -92,70 +90,20 @@ export const ChartCard = ({
         });
     };
 
-    const cardClass = menu !== null ? styles.menuOpen : styles.chartCard;
-
     return (
-        <article className={`${cardClass} loupe-card`}>
-            <div className={styles.chartThumb} onClick={openExport}>
-                <img
-                    src={thumbnail}
-                    alt=""
-                    width={THUMBNAIL_WIDTH}
-                    height={THUMBNAIL_HEIGHT}
-                    loading="lazy"
-                />
-                <span className={styles.chartThumbFocus} aria-hidden />
-                <div className={styles.thumbQuick} onClick={(event) => event.stopPropagation()}>
-                    <button type="button" className={styles.iconBtn} title="Open" onClick={openExport}>
-                        <IconOpen />
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title="Share link"
-                        onClick={() => {
-                            void onShare();
-                        }}
-                    >
-                        <IconShare />
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.iconBtn}
-                        title="More actions"
-                        aria-label="More actions"
-                        aria-expanded={menu === "more"}
-                        onClick={() => setMenu(menu === "more" ? null : "more")}
-                    >
-                        <IconMore />
-                    </button>
-                    {menu === "more" ? (
-                        <>
-                            <div className={styles.scrim} onClick={() => setMenu(null)} aria-hidden />
-                            <div className={styles.popover} style={{ top: "calc(100% + 6px)", right: 0 }}>
-                                <button
-                                    type="button"
-                                    className={styles.popItem}
-                                    onClick={() => {
-                                        setMenu(null);
-                                        setDeleteOpen(true);
-                                    }}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </>
-                    ) : null}
-                </div>
+        <div className={`${styles.listRow}${menu !== null ? ` ${styles.listRowMenuOpen}` : ""}`}>
+            <div className={styles.listThumb} onClick={openExport}>
+                <img src={thumbnail} alt="" loading="lazy" />
             </div>
 
-            <div className={styles.chartBody}>
-                <div className={styles.chartTitleRow}>
+            <div className={styles.listMain}>
+                <div className={styles.listTitleline}>
                     {renaming ? (
                         <input
                             className={styles.chartTitleInput}
                             autoFocus
                             value={draft}
+                            style={{ maxWidth: 360 }}
                             onChange={(event) => setDraft(event.target.value)}
                             onBlur={() => {
                                 void commitRename();
@@ -172,30 +120,22 @@ export const ChartCard = ({
                             }}
                         />
                     ) : (
-                        <h3
-                            className={`serif ${styles.chartTitle}`}
-                            title="Double-click to rename"
+                        <span
+                            className={`serif ${styles.listTitle}`}
                             onDoubleClick={() => {
                                 setDraft(chart.name);
                                 setRenaming(true);
                             }}
                         >
                             {chart.name}
-                        </h3>
+                        </span>
                     )}
-                </div>
-
-                <div className={styles.chartTypeline}>
                     <span className={typeMeta.chipClass}>
                         <span className={styles.typeDot} />
                         {typeMeta.label}
                     </span>
-                    <time dateTime={chart.updated_at} className={styles.chartTime}>
-                        {formatRelativeDate(chart.updated_at)}
-                    </time>
                 </div>
-
-                <div className={styles.chartTags}>
+                <div className={styles.listSub}>
                     {chart.tags.map((tag) => (
                         <span key={tag} className={styles.chipTag}>
                             {tag}
@@ -204,6 +144,7 @@ export const ChartCard = ({
                     <button
                         type="button"
                         className={`${styles.chipTag} ${styles.chipTagAdd}`}
+                        style={{ position: "relative" }}
                         onClick={() => setMenu(menu === "tags" ? null : "tags")}
                     >
                         <IconPlus style={{ width: 10, height: 10 }} /> tag
@@ -218,59 +159,73 @@ export const ChartCard = ({
                                 void removeTag(tag);
                             }}
                             onClose={() => setMenu(null)}
-                            style={{ left: 0, bottom: "calc(100% + 6px)" }}
+                            style={{ left: 0, top: "calc(100% + 6px)" }}
                         />
                     ) : null}
                 </div>
+            </div>
 
-                <div className={styles.chartActions}>
-                    <Link href={exportUrl} className={`${styles.act} ${styles.actPrimary}`}>
-                        <IconOpen /> Open
-                    </Link>
+            <div className={styles.listTrailing}>
+                <time dateTime={chart.updated_at} className={styles.listTime}>
+                    {formatRelativeDate(chart.updated_at)}
+                </time>
+                <div className={styles.listActions}>
+                    <button type="button" className={styles.iconBtn} title="Open" onClick={openExport}>
+                        <IconOpen />
+                    </button>
                     <button
                         type="button"
-                        className={styles.act}
+                        className={styles.iconBtn}
+                        title="Rename"
                         onClick={() => {
                             setDraft(chart.name);
                             setRenaming(true);
                         }}
                     >
-                        <IconEdit /> Rename
+                        <IconEdit />
                     </button>
                     <button
                         type="button"
-                        className={styles.act}
+                        className={styles.iconBtn}
+                        title="Share link"
                         onClick={() => {
                             void onShare();
                         }}
                     >
-                        <IconShare /> Share
+                        <IconShare />
                     </button>
-                    <div className={`${styles.act} ${styles.actSpacer}`}>
+                    <div style={{ position: "relative" }}>
                         <button
                             type="button"
-                            className={styles.act}
+                            className={styles.iconBtn}
+                            title="Export"
                             onClick={() => setMenu(menu === "export" ? null : "export")}
                         >
-                            <IconDownload /> Export
+                            <IconDownload />
                         </button>
                         {menu === "export" ? (
                             <>
                                 <div className={styles.scrim} onClick={() => setMenu(null)} aria-hidden />
                                 <div
                                     className={styles.popover}
-                                    style={{ right: 0, bottom: "calc(100% + 6px)" }}
+                                    style={{ right: 0, top: "calc(100% + 6px)" }}
                                 >
+                                    <Link
+                                        href={exportUrl}
+                                        className={styles.popItem}
+                                        onClick={() => setMenu(null)}
+                                    >
+                                        <IconDownload /> Open export
+                                    </Link>
                                     <button
                                         type="button"
                                         className={styles.popItem}
                                         onClick={() => {
                                             setMenu(null);
-                                            openExport();
+                                            setDeleteOpen(true);
                                         }}
                                     >
-                                        <IconDownload /> Open export
-                                        <span className={styles.popSub}>SVG · PNG</span>
+                                        Delete
                                     </button>
                                 </div>
                             </>
@@ -286,6 +241,6 @@ export const ChartCard = ({
                 onOpenChange={setDeleteOpen}
                 onDeleted={onDeleteChart}
             />
-        </article>
+        </div>
     );
 };
