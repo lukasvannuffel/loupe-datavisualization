@@ -12,7 +12,10 @@ import { SEMANTIC_TAG_LABEL } from "@/lib/parser/inference.types";
 import { inferColumnTypes } from "@/lib/parser/inferColumnTypes";
 import { useFileParser } from "@/lib/parser/useFileParser";
 
+import { DEMO_CONFIGS, type DemoConfig } from "./Upload.demoConfig";
 import { PrivacyDiagram } from "./PrivacyDiagram";
+
+const DEMO_MODE_ENABLED = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 const PLACEHOLDERS: readonly string[] = [
     "Compare 5-year survival between treatment arms…",
@@ -56,7 +59,9 @@ export const Upload = (): JSX.Element => {
         state,
     } = useFileParser();
 
-    const { mapping, setDataset, clearDataset, setMapping } = useAppState();
+    const { mapping, setDataset, clearDataset, setMapping, setIntent } = useAppState();
+
+    const pendingDemoRef = useRef<DemoConfig | null>(null);
 
     const [dragOver, setDragOver] = useState<boolean>(false);
     const [phIndex, setPhIndex] = useState<number>(0);
@@ -138,6 +143,30 @@ export const Upload = (): JSX.Element => {
         void parse(file);
     };
 
+    const loadDemo = async (config: DemoConfig): Promise<void> => {
+        if (phase !== "empty") {
+            return;
+        }
+
+        pendingDemoRef.current = config;
+
+        try {
+            const res = await fetch(`/demo/${config.file}`);
+
+            if (!res.ok) {
+                throw new Error(`Failed to fetch demo file: ${res.status}`);
+            }
+
+            const blob = await res.blob();
+            const file = new File([blob], config.file, { type: "text/csv" });
+
+            handleFile(file);
+        } catch (err) {
+            pendingDemoRef.current = null;
+            console.error("[demo] failed to load demo CSV", err);
+        }
+    };
+
     const onDrop = (e: DragEvent<HTMLDivElement>): void => {
         e.preventDefault();
         setDragOver(false);
@@ -171,6 +200,18 @@ export const Upload = (): JSX.Element => {
         });
         setMapping({});
     }, [inferences, result, setDataset, setMapping]);
+
+    useEffect(() => {
+        const config = pendingDemoRef.current;
+
+        if (config === null || result === null || inferences === null) {
+            return;
+        }
+
+        pendingDemoRef.current = null;
+        setMapping(config.mapping);
+        setIntent(config.intent);
+    }, [result, inferences, setMapping, setIntent]);
 
     const onReplace = (): void => {
         reset();
@@ -253,39 +294,40 @@ export const Upload = (): JSX.Element => {
                 </div>
 
                 <div className="upload-grid">
-                    <div
-                        className={
-                            "dropzone " +
-                            (dragOver || phase === "scanning" ? "is-active " : "") +
-                            (phase === "uploaded" ? "is-uploaded " : "") +
-                            (phase === "choose_sheet" ? "is-active " : "")
-                        }
-                        role="button"
-                        tabIndex={phase === "empty" ? 0 : -1}
-                        aria-label="Choose a CSV or Excel file"
-                        aria-busy={phase === "scanning"}
-                        onDragOver={(e) => {
-                            e.preventDefault();
-                            setDragOver(true);
-                        }}
-                        onDragLeave={() => setDragOver(false)}
-                        onDrop={onDrop}
-                        onClick={() => {
-                            if (phase === "empty") {
-                                fileInputRef.current?.click();
+                    <div className="upload-primary-col">
+                        <div
+                            className={
+                                "dropzone " +
+                                (dragOver || phase === "scanning" ? "is-active " : "") +
+                                (phase === "uploaded" ? "is-uploaded " : "") +
+                                (phase === "choose_sheet" ? "is-active " : "")
                             }
-                        }}
-                        onKeyDown={(e) => {
-                            if (phase !== "empty") {
-                                return;
-                            }
-
-                            if (e.key === "Enter" || e.key === " ") {
+                            role="button"
+                            tabIndex={phase === "empty" ? 0 : -1}
+                            aria-label="Choose a CSV or Excel file"
+                            aria-busy={phase === "scanning"}
+                            onDragOver={(e) => {
                                 e.preventDefault();
-                                fileInputRef.current?.click();
-                            }
-                        }}
-                    >
+                                setDragOver(true);
+                            }}
+                            onDragLeave={() => setDragOver(false)}
+                            onDrop={onDrop}
+                            onClick={() => {
+                                if (phase === "empty") {
+                                    fileInputRef.current?.click();
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (phase !== "empty") {
+                                    return;
+                                }
+
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    fileInputRef.current?.click();
+                                }
+                            }}
+                        >
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -389,6 +431,25 @@ export const Upload = (): JSX.Element => {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+                        </div>
+
+                        {DEMO_MODE_ENABLED && (
+                            <div className="demo-launcher">
+                                {DEMO_CONFIGS.map((config) => (
+                                    <button
+                                        key={config.id}
+                                        type="button"
+                                        className="btn btn--quiet btn--sm"
+                                        disabled={phase !== "empty"}
+                                        onClick={() => {
+                                            void loadDemo(config);
+                                        }}
+                                    >
+                                        {config.label}
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </div>

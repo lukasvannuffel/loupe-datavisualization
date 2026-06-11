@@ -1,0 +1,301 @@
+patient_id,arm,age,sex,stage,histology,ecog_ps,os_months,os_event
+PT0001,Observation,65,Male,IIB,Squamous cell,0,8.2,1
+PT0002,Chemo,61,Female,IIB,Adenocarcinoma,0,8.7,1
+PT0003,Chemo,62,Male,IIB,Squamous cell,1,45.7,0
+PT0004,Chemo,57,Female,IIB,Squamous cell,0,43.3,0
+PT0005,Chemo,77,Male,IIB,Squamous cell,1,47.8,1
+PT0006,Chemo,66,Male,IIIA,Adenocarcinoma,0,54.9,0
+PT0007,Observation,57,Male,IIB,Squamous cell,1,19.1,1
+PT0008,Observation,76,Female,IIB,Adenocarcinoma,0,55.0,0
+PT0009,Observation,65,Male,IIA,Adenocarcinoma,1,41.3,0
+PT0010,Observation,57,Male,IIIA,Adenocarcinoma,0,48.3,1
+PT0011,Chemo,75,Male,IIA,Adenocarcinoma,1,6.5,0
+PT0012,Observation,71,Male,IIB,Adenocarcinoma,0,2.7,1
+PT0013,Chemo,66,Male,IIB,Adenocarcinoma,1,20.1,0
+PT0014,Observation,61,Male,IIIA,Adenocarcinoma,1,6.4,1
+PT0015,Observation,59,Female,IIB,Squamous cell,1,16.6,1
+PT0016,Chemo,77,Male,IIA,Squamous cell,1,35.3,1
+PT0017,Observation,62,Male,IIIA,Large cell,1,35.6,1
+PT0018,Observation,76,Female,IIIA,Adenocarcinoma,1,26.5,1
+PT0019,Observation,76,Male,IIA,Squamous cell,2,12.8,1
+PT0020,Chemo,56,Male,IIA,Adenocarcinoma,0,56.9,0
+PT0021,Observation,69,Male,IIA,Large cell,1,49.9,0
+PT0022,Chemo,65,Female,IIB,Adenocarcinoma,0,16.5,1
+PT0023,Chemo,75,Male,IIB,Squamous cell,0,4.6,1
+PT0024,Chemo,63,Female,IIIA,Large cell,0,51.2,0
+PT0025,Chemo,69,Male,IIIA,Adenocarcinoma,0,8.5,0
+PT0026,Chemo,56,Male,IIIA,Adenocarcinoma,0,58.4,0
+PT0027,Chemo,77,Male,IIA,Squamous cell,0,46.3,0
+PT0028,Observation,61,Male,IIIA,Adenocarcinoma,0,1.7,1
+PT0029,Observation,74,Male,IIA,Squamous cell,0,42.6,0
+PT0030,Observation,78,Male,IIB,Adenocarcinoma,1,46.6,0
+PT0031,Chemo,56,Male,IIA,Adenocarcinoma,0,44.8,1
+PT0032,Observation,72,Male,IIA,Adenocarcinoma,0,19.8,1
+PT0033,Observation,77,Female,IIA,Large cell,1,36.4,1
+PT0034,Chemo,60,Male,IIA,Squamous cell,1,47.1,0
+PT0035,Chemo,58,Male,IIB,Squamous cell,0,40.6,0
+PT0036,Chemo,66,Male,IIIA,Squamous cell,1,6.6,1
+PT0037,Observation,55,Male,IIB,Adenocarcinoma,1,56.7,0
+PT0038,Observation,69,Male,IIB,Adenocarcinoma,0,29.1,0
+PT0039,Observation,64,Male,IIIA,Squamous cell,0,30.4,1
+PT0040,Observation,73,Female,IIB,Adenocarcinoma,0,9.7,0
+PT0041,Chemo,75,Male,IIA,Squamous cell,1,16.6,1
+PT0042,Observation,62,Male,IIA,Large cell,0,57.4,0
+PT0043,Chemo,68,Male,IIB,Large cell,0,39.7,1
+PT0044,Observation,78,Male,IIB,Squamous cell,1,12.0,1
+PT0045,Observation,59,Male,IIA,Squamous cell,1,13.8,1
+PT0046,Chemo,62,Male,IIA,Adenocarcinoma,1,38.4,0
+PT0047,Observation,68,Male,IIB,Adenocarcinoma,0,25.4,1
+PT0048,Observation,57,Male,IIA,Adenocarcinoma,1,1.1,1
+PT0049,Observation,57,Female,IIB,Large cell,0,38.9,0
+PT0050,Chemo,72,Male,IIB,Adenocarcinoma,1,36.1,0
+PT0051,Observation,68,Male,IIB,Squamous cell,0,17.3,0
+PT0052,Chemo,63,Male,IIIA,Squamous cell,1,25.5,1
+PT0053,Observation,70,Male,IIA,Squamous cell,1,0.5,1
+PT0054,Observation,75,Female,IIA,Adenocarcinoma,0,54.8,1
+PT0055,Observation,62,Male,IIIA,Squamous cell,0,1.7,0
+PT0056,Chemo,72,Male,IIA,Adenocarcinoma,0,30.5,1
+PT0057,Chemo,69,Male,IIA,Large cell,1,39.1,0
+PT0058,Chemo,71,Male,IIB,Squamous cell,1,38.0,0
+PT0059,Observation,55,Female,IIA,Adenocarcinoma,2,31.2,1
+PT0060,Observation,58,Male,IIIA,Adenocarcinoma,1,56.0,0
+PT0061,Observation,58,Male,IIIA,Adenocarcinoma,2,46.2,1
+PT0062,Chemo,74,Male,IIIA,Adenocarcinoma,0,25.0,1
+PT0063,Chemo,69,Male,IIA,Squamous cell,0,53.8,0
+PT0064,Chemo,58,Female,IIA,Squamous cell,0,36.4,0
+PT0065,Chemo,76,Male,IIB,Adenocarcinoma,1,55.0,0
+PT0066,Chemo,64,Male,IIB,Squamous cell,0,54.7,0
+PT0067,Chemo,73,Male,IIB,Squamous cell,2,45.9,0
+PT0068,Observation,72,Female,IIA,Squamous cell,0,37.6,0
+PT0069,Chemo,62,Male,IIA,Adenocarcinoma,0,25.7,0
+PT0070,Observation,78,Male,IIA,Squamous cell,1,40.9,1
+PT0071,Observation,73,Male,IIA,Adenocarcinoma,1,42.4,0
+PT0072,Observation,78,Male,IIB,Adenocarcinoma,0,7.2,1
+PT0073,Observation,64,Male,IIB,Squamous cell,1,13.7,1
+PT0074,Chemo,63,Male,IIB,Squamous cell,0,51.5,0
+PT0075,Chemo,58,Female,IIA,Squamous cell,1,9.4,0
+PT0076,Chemo,69,Male,IIB,Large cell,2,59.9,0
+PT0077,Observation,63,Male,IIA,Squamous cell,0,10.2,1
+PT0078,Chemo,75,Male,IIA,Adenocarcinoma,2,3.5,1
+PT0079,Observation,62,Male,IIB,Adenocarcinoma,0,43.9,0
+PT0080,Chemo,73,Male,IIA,Squamous cell,0,39.0,0
+PT0081,Observation,57,Male,IIIA,Adenocarcinoma,1,35.2,1
+PT0082,Chemo,75,Female,IIIA,Adenocarcinoma,1,41.8,0
+PT0083,Chemo,62,Male,IIB,Squamous cell,1,39.3,1
+PT0084,Observation,67,Male,IIB,Adenocarcinoma,0,17.8,1
+PT0085,Observation,74,Male,IIB,Large cell,0,50.8,0
+PT0086,Chemo,68,Male,IIA,Adenocarcinoma,2,33.2,1
+PT0087,Observation,72,Male,IIA,Adenocarcinoma,1,49.2,0
+PT0088,Observation,68,Female,IIIA,Squamous cell,1,42.1,0
+PT0089,Chemo,75,Male,IIB,Squamous cell,1,34.3,1
+PT0090,Chemo,60,Male,IIIA,Large cell,2,4.8,1
+PT0091,Chemo,70,Male,IIB,Adenocarcinoma,2,7.3,1
+PT0092,Chemo,60,Male,IIA,Squamous cell,1,38.4,0
+PT0093,Observation,76,Male,IIB,Squamous cell,0,39.1,1
+PT0094,Observation,62,Male,IIB,Adenocarcinoma,0,16.6,1
+PT0095,Chemo,75,Female,IIA,Adenocarcinoma,1,44.3,0
+PT0096,Observation,62,Female,IIIA,Large cell,0,7.7,1
+PT0097,Chemo,78,Male,IIB,Squamous cell,0,52.5,0
+PT0098,Observation,65,Male,IIA,Adenocarcinoma,2,36.9,0
+PT0099,Observation,69,Male,IIA,Adenocarcinoma,0,8.4,0
+PT0100,Observation,77,Male,IIIA,Squamous cell,0,56.2,0
+PT0101,Observation,60,Male,IIIA,Squamous cell,1,26.9,1
+PT0102,Observation,64,Male,IIB,Squamous cell,1,26.0,1
+PT0103,Chemo,59,Male,IIB,Adenocarcinoma,0,41.4,1
+PT0104,Chemo,78,Male,IIIA,Large cell,2,43.9,0
+PT0105,Chemo,68,Male,IIB,Adenocarcinoma,0,31.2,0
+PT0106,Chemo,60,Male,IIA,Adenocarcinoma,0,54.9,0
+PT0107,Chemo,74,Male,IIB,Adenocarcinoma,0,33.2,1
+PT0108,Chemo,55,Male,IIB,Adenocarcinoma,0,56.6,0
+PT0109,Observation,60,Female,IIB,Adenocarcinoma,1,19.2,1
+PT0110,Chemo,60,Male,IIIA,Adenocarcinoma,1,23.0,1
+PT0111,Observation,60,Male,IIIA,Squamous cell,0,40.5,0
+PT0112,Chemo,61,Male,IIB,Adenocarcinoma,1,39.1,0
+PT0113,Chemo,77,Male,IIA,Adenocarcinoma,1,37.6,0
+PT0114,Chemo,61,Male,IIB,Squamous cell,1,40.8,0
+PT0115,Observation,74,Male,IIIA,Squamous cell,0,45.9,0
+PT0116,Observation,71,Male,IIB,Adenocarcinoma,0,50.1,0
+PT0117,Chemo,62,Male,IIA,Squamous cell,0,36.4,0
+PT0118,Chemo,73,Male,IIA,Squamous cell,2,58.4,0
+PT0119,Chemo,76,Male,IIA,Adenocarcinoma,1,54.1,0
+PT0120,Observation,75,Male,IIB,Squamous cell,1,51.2,0
+PT0121,Observation,59,Male,IIB,Squamous cell,0,47.6,0
+PT0122,Observation,78,Female,IIA,Adenocarcinoma,2,21.0,1
+PT0123,Chemo,77,Male,IIB,Squamous cell,0,45.0,0
+PT0124,Observation,64,Male,IIIA,Squamous cell,0,10.7,1
+PT0125,Chemo,61,Male,IIB,Large cell,0,27.3,1
+PT0126,Chemo,72,Male,IIIA,Adenocarcinoma,0,59.4,0
+PT0127,Chemo,72,Male,IIA,Adenocarcinoma,1,29.8,1
+PT0128,Chemo,59,Female,IIA,Adenocarcinoma,1,55.4,0
+PT0129,Observation,65,Male,IIIA,Adenocarcinoma,1,57.7,0
+PT0130,Observation,62,Male,IIIA,Adenocarcinoma,1,22.7,1
+PT0131,Observation,67,Male,IIA,Adenocarcinoma,1,53.7,0
+PT0132,Chemo,65,Male,IIIA,Adenocarcinoma,1,53.2,0
+PT0133,Observation,76,Female,IIB,Adenocarcinoma,0,16.3,1
+PT0134,Chemo,55,Female,IIIA,Adenocarcinoma,2,10.9,0
+PT0135,Chemo,64,Male,IIA,Squamous cell,0,31.2,0
+PT0136,Chemo,72,Male,IIB,Squamous cell,0,42.5,1
+PT0137,Observation,71,Male,IIA,Squamous cell,0,37.6,0
+PT0138,Observation,68,Male,IIA,Adenocarcinoma,0,37.6,0
+PT0139,Observation,64,Male,IIB,Squamous cell,1,27.1,1
+PT0140,Observation,75,Male,IIIA,Squamous cell,2,15.1,0
+PT0141,Observation,66,Male,IIB,Squamous cell,1,17.0,0
+PT0142,Observation,67,Male,IIB,Adenocarcinoma,1,28.6,1
+PT0143,Chemo,69,Female,IIIA,Squamous cell,1,3.1,1
+PT0144,Chemo,73,Male,IIIA,Squamous cell,0,49.9,0
+PT0145,Observation,60,Male,IIIA,Adenocarcinoma,1,7.2,1
+PT0146,Observation,63,Male,IIA,Squamous cell,0,50.8,0
+PT0147,Observation,57,Male,IIIA,Squamous cell,0,8.4,1
+PT0148,Observation,62,Male,IIIA,Adenocarcinoma,1,47.1,0
+PT0149,Chemo,73,Male,IIB,Adenocarcinoma,0,57.0,0
+PT0150,Observation,60,Male,IIA,Adenocarcinoma,0,47.0,0
+PT0151,Observation,70,Male,IIIA,Adenocarcinoma,1,21.3,1
+PT0152,Observation,64,Male,IIB,Adenocarcinoma,0,2.2,0
+PT0153,Chemo,76,Male,IIA,Adenocarcinoma,1,38.2,0
+PT0154,Chemo,68,Female,IIB,Squamous cell,2,41.9,0
+PT0155,Observation,55,Male,IIA,Adenocarcinoma,0,40.0,1
+PT0156,Observation,72,Male,IIB,Squamous cell,2,37.6,0
+PT0157,Observation,65,Male,IIB,Adenocarcinoma,0,57.5,0
+PT0158,Chemo,76,Male,IIA,Large cell,2,40.7,0
+PT0159,Chemo,73,Female,IIB,Large cell,0,42.1,0
+PT0160,Chemo,65,Female,IIA,Adenocarcinoma,2,20.3,1
+PT0161,Chemo,65,Male,IIB,Squamous cell,0,26.4,0
+PT0162,Chemo,68,Male,IIB,Adenocarcinoma,0,34.3,1
+PT0163,Chemo,60,Male,IIA,Adenocarcinoma,0,36.9,0
+PT0164,Observation,70,Male,IIB,Adenocarcinoma,2,57.6,0
+PT0165,Chemo,73,Male,IIIA,Adenocarcinoma,1,51.1,0
+PT0166,Chemo,56,Male,IIB,Adenocarcinoma,1,30.4,0
+PT0167,Observation,64,Male,IIB,Squamous cell,1,33.8,1
+PT0168,Chemo,76,Male,IIB,Squamous cell,2,37.0,0
+PT0169,Observation,59,Female,IIA,Adenocarcinoma,1,15.1,1
+PT0170,Observation,57,Female,IIB,Adenocarcinoma,2,17.9,1
+PT0171,Observation,75,Female,IIB,Large cell,0,50.2,0
+PT0172,Chemo,62,Male,IIA,Adenocarcinoma,0,52.7,0
+PT0173,Observation,70,Female,IIA,Squamous cell,0,20.5,0
+PT0174,Observation,69,Male,IIIA,Squamous cell,1,53.1,0
+PT0175,Chemo,62,Male,IIIA,Squamous cell,1,28.6,1
+PT0176,Chemo,74,Male,IIIA,Squamous cell,0,41.5,0
+PT0177,Chemo,63,Male,IIA,Large cell,1,59.2,0
+PT0178,Chemo,73,Female,IIA,Squamous cell,0,49.2,0
+PT0179,Chemo,69,Female,IIIA,Squamous cell,1,48.1,1
+PT0180,Chemo,75,Male,IIB,Squamous cell,1,50.9,0
+PT0181,Chemo,65,Male,IIA,Squamous cell,1,53.4,0
+PT0182,Observation,64,Female,IIIA,Adenocarcinoma,2,32.2,0
+PT0183,Observation,71,Female,IIIA,Adenocarcinoma,1,23.9,1
+PT0184,Observation,70,Female,IIA,Large cell,1,53.7,0
+PT0185,Chemo,69,Male,IIA,Adenocarcinoma,1,36.9,0
+PT0186,Observation,66,Male,IIB,Squamous cell,1,2.0,1
+PT0187,Chemo,63,Male,IIB,Adenocarcinoma,0,18.9,0
+PT0188,Observation,69,Female,IIA,Squamous cell,0,3.0,1
+PT0189,Observation,64,Male,IIIA,Squamous cell,0,42.7,1
+PT0190,Chemo,75,Male,IIB,Adenocarcinoma,1,36.3,0
+PT0191,Chemo,59,Female,IIB,Squamous cell,1,7.9,1
+PT0192,Observation,70,Male,IIA,Adenocarcinoma,0,53.6,1
+PT0193,Chemo,75,Male,IIA,Adenocarcinoma,2,7.5,1
+PT0194,Chemo,74,Male,IIB,Squamous cell,1,46.5,0
+PT0195,Observation,59,Male,IIA,Adenocarcinoma,1,51.4,0
+PT0196,Chemo,76,Female,IIB,Large cell,1,33.3,1
+PT0197,Observation,73,Male,IIB,Squamous cell,0,58.3,0
+PT0198,Observation,70,Female,IIA,Large cell,0,27.5,0
+PT0199,Observation,55,Male,IIB,Adenocarcinoma,2,14.9,0
+PT0200,Chemo,76,Male,IIIA,Squamous cell,0,43.1,1
+PT0201,Chemo,64,Female,IIA,Adenocarcinoma,1,27.9,1
+PT0202,Observation,57,Male,IIIA,Adenocarcinoma,2,32.0,1
+PT0203,Chemo,56,Female,IIIA,Large cell,1,39.2,0
+PT0204,Observation,56,Male,IIA,Squamous cell,2,5.5,1
+PT0205,Observation,72,Male,IIB,Adenocarcinoma,0,0.9,0
+PT0206,Observation,56,Male,IIA,Adenocarcinoma,0,12.3,1
+PT0207,Chemo,68,Male,IIA,Adenocarcinoma,2,22.2,1
+PT0208,Chemo,59,Female,IIB,Squamous cell,1,55.9,1
+PT0209,Chemo,67,Male,IIIA,Adenocarcinoma,1,8.9,0
+PT0210,Observation,60,Male,IIB,Squamous cell,2,5.7,0
+PT0211,Observation,64,Male,IIB,Squamous cell,1,43.2,1
+PT0212,Observation,67,Male,IIB,Large cell,0,36.8,0
+PT0213,Observation,59,Male,IIA,Large cell,0,8.4,1
+PT0214,Chemo,58,Male,IIB,Large cell,0,49.7,0
+PT0215,Observation,60,Male,IIB,Adenocarcinoma,0,45.1,1
+PT0216,Observation,77,Male,IIB,Adenocarcinoma,0,30.7,1
+PT0217,Chemo,76,Male,IIB,Adenocarcinoma,1,47.5,0
+PT0218,Chemo,78,Male,IIB,Adenocarcinoma,1,37.9,0
+PT0219,Chemo,58,Female,IIIA,Squamous cell,0,54.6,0
+PT0220,Chemo,68,Female,IIB,Adenocarcinoma,0,58.0,0
+PT0221,Chemo,58,Male,IIA,Squamous cell,1,38.9,0
+PT0222,Observation,74,Female,IIIA,Large cell,0,59.5,0
+PT0223,Chemo,65,Female,IIIA,Adenocarcinoma,0,43.8,0
+PT0224,Chemo,68,Female,IIIA,Adenocarcinoma,1,9.4,1
+PT0225,Chemo,72,Male,IIB,Squamous cell,0,24.3,1
+PT0226,Chemo,70,Male,IIIA,Squamous cell,0,44.8,0
+PT0227,Observation,59,Female,IIA,Adenocarcinoma,0,7.7,1
+PT0228,Observation,69,Male,IIB,Squamous cell,1,12.2,1
+PT0229,Chemo,58,Female,IIIA,Adenocarcinoma,0,24.3,1
+PT0230,Observation,74,Male,IIA,Adenocarcinoma,1,9.9,1
+PT0231,Chemo,63,Male,IIA,Adenocarcinoma,0,28.4,1
+PT0232,Chemo,68,Male,IIB,Adenocarcinoma,1,51.6,0
+PT0233,Chemo,73,Male,IIB,Adenocarcinoma,1,37.4,0
+PT0234,Chemo,58,Male,IIA,Adenocarcinoma,0,4.1,1
+PT0235,Observation,78,Male,IIB,Adenocarcinoma,1,57.6,0
+PT0236,Observation,61,Male,IIA,Squamous cell,0,40.1,0
+PT0237,Chemo,72,Male,IIB,Large cell,1,53.3,1
+PT0238,Observation,73,Female,IIB,Squamous cell,0,37.9,0
+PT0239,Observation,74,Male,IIIA,Squamous cell,0,6.4,1
+PT0240,Observation,78,Female,IIB,Squamous cell,0,40.6,0
+PT0241,Chemo,62,Female,IIB,Squamous cell,1,50.2,0
+PT0242,Observation,73,Male,IIB,Squamous cell,0,58.9,0
+PT0243,Observation,57,Male,IIB,Adenocarcinoma,1,0.6,0
+PT0244,Observation,74,Male,IIIA,Adenocarcinoma,1,36.5,1
+PT0245,Observation,59,Male,IIA,Large cell,1,57.1,0
+PT0246,Chemo,75,Female,IIB,Squamous cell,0,16.6,1
+PT0247,Observation,63,Male,IIB,Adenocarcinoma,1,49.4,0
+PT0248,Chemo,75,Male,IIA,Adenocarcinoma,1,19.2,1
+PT0249,Observation,74,Male,IIB,Squamous cell,1,5.8,1
+PT0250,Chemo,69,Male,IIB,Large cell,1,53.5,0
+PT0251,Observation,69,Male,IIA,Adenocarcinoma,0,20.9,1
+PT0252,Chemo,57,Male,IIA,Adenocarcinoma,1,1.0,0
+PT0253,Observation,62,Male,IIA,Squamous cell,0,15.8,0
+PT0254,Observation,78,Male,IIB,Squamous cell,2,3.9,1
+PT0255,Observation,70,Female,IIIA,Squamous cell,0,25.8,1
+PT0256,Observation,77,Female,IIB,Squamous cell,1,29.3,0
+PT0257,Observation,69,Male,IIA,Adenocarcinoma,0,34.1,1
+PT0258,Observation,62,Male,IIB,Adenocarcinoma,0,21.0,1
+PT0259,Chemo,64,Female,IIB,Adenocarcinoma,2,30.2,1
+PT0260,Observation,71,Female,IIB,Squamous cell,0,1.1,1
+PT0261,Observation,71,Female,IIIA,Adenocarcinoma,1,49.1,0
+PT0262,Chemo,59,Male,IIA,Squamous cell,0,37.9,0
+PT0263,Observation,76,Male,IIB,Adenocarcinoma,0,41.0,0
+PT0264,Observation,68,Male,IIB,Adenocarcinoma,0,58.0,0
+PT0265,Observation,78,Male,IIIA,Squamous cell,0,24.2,1
+PT0266,Chemo,64,Male,IIIA,Adenocarcinoma,0,37.2,0
+PT0267,Chemo,57,Male,IIB,Large cell,2,52.4,0
+PT0268,Chemo,72,Male,IIA,Adenocarcinoma,0,39.7,0
+PT0269,Chemo,69,Male,IIB,Adenocarcinoma,1,39.1,0
+PT0270,Chemo,55,Male,IIA,Adenocarcinoma,0,15.7,1
+PT0271,Chemo,55,Male,IIB,Adenocarcinoma,0,49.2,0
+PT0272,Observation,69,Female,IIB,Adenocarcinoma,1,36.7,0
+PT0273,Observation,56,Female,IIA,Squamous cell,1,2.7,1
+PT0274,Observation,70,Female,IIB,Squamous cell,0,2.2,1
+PT0275,Chemo,64,Male,IIIA,Squamous cell,1,9.2,1
+PT0276,Chemo,71,Male,IIIA,Adenocarcinoma,1,31.0,1
+PT0277,Observation,63,Male,IIB,Squamous cell,0,55.3,0
+PT0278,Observation,74,Female,IIIA,Squamous cell,0,47.8,1
+PT0279,Chemo,55,Female,IIB,Adenocarcinoma,0,4.9,1
+PT0280,Chemo,72,Male,IIB,Adenocarcinoma,0,33.6,1
+PT0281,Observation,67,Male,IIIA,Squamous cell,0,21.1,1
+PT0282,Chemo,78,Female,IIA,Adenocarcinoma,1,29.7,1
+PT0283,Observation,61,Male,IIB,Squamous cell,0,52.9,0
+PT0284,Observation,75,Male,IIB,Adenocarcinoma,1,38.4,0
+PT0285,Observation,77,Male,IIB,Adenocarcinoma,0,30.5,1
+PT0286,Chemo,64,Male,IIB,Squamous cell,0,32.2,1
+PT0287,Observation,78,Female,IIA,Adenocarcinoma,0,42.9,0
+PT0288,Chemo,64,Male,IIB,Adenocarcinoma,0,12.0,1
+PT0289,Observation,68,Male,IIB,Adenocarcinoma,0,12.4,1
+PT0290,Chemo,68,Male,IIA,Large cell,0,20.6,1
+PT0291,Chemo,68,Male,IIIA,Adenocarcinoma,2,54.0,0
+PT0292,Chemo,58,Female,IIA,Adenocarcinoma,1,46.6,0
+PT0293,Observation,57,Male,IIA,Adenocarcinoma,0,49.6,1
+PT0294,Chemo,59,Male,IIIA,Adenocarcinoma,0,41.9,0
+PT0295,Chemo,63,Male,IIA,Squamous cell,0,58.1,0
+PT0296,Chemo,58,Male,IIB,Adenocarcinoma,0,48.6,0
+PT0297,Observation,71,Male,IIB,Adenocarcinoma,0,12.0,1
+PT0298,Chemo,75,Male,IIB,Squamous cell,2,19.6,1
+PT0299,Observation,75,Male,IIA,Adenocarcinoma,1,45.7,0
+PT0300,Observation,75,Male,IIB,Squamous cell,2,58.6,0
