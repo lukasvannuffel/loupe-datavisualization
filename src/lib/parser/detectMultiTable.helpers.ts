@@ -94,6 +94,37 @@ export const isHeaderLikeText = (cell: unknown, profile: NumericProfile): boolea
     return letterMatches !== null && letterMatches.length >= 2 && !isNumeric(trimmed, profile);
 };
 
+const EMBEDDED_HEADER_PERIOD = /\d+\s*(?:months?|weeks?|years?|days?)\b/i;
+const EMBEDDED_HEADER_PAREN_LABEL = /\([^)]+\)/u;
+const EMBEDDED_HEADER_ID = /^(?:[A-Z]{2,}\d{3,}|\w+-\d+)$/i;
+
+/**
+ * Stricter than `isHeaderLikeText` for embedded-header detection: excludes multi-word
+ * clinical labels and trial IDs so categorical data rows are not mistaken for a
+ * repeated header row. Parenthetical summary labels (e.g. `Baseline (n)`) still count.
+ */
+export const isEmbeddedHeaderLikeText = (cell: unknown, profile: NumericProfile): boolean => {
+    if (!isHeaderLikeText(cell, profile)) {
+        return false;
+    }
+
+    const trimmed = String(cell).trim();
+    if (EMBEDDED_HEADER_PERIOD.test(trimmed)) {
+        return true;
+    }
+    if (EMBEDDED_HEADER_PAREN_LABEL.test(trimmed)) {
+        return true;
+    }
+    if (/\s/u.test(trimmed)) {
+        return false;
+    }
+    if (EMBEDDED_HEADER_ID.test(trimmed)) {
+        return false;
+    }
+
+    return true;
+};
+
 export const headerCellsWithoutTrailingEmpties = (headerRow: readonly unknown[]): readonly unknown[] => {
     let lastNonEmptyIndex = -1;
     for (let index = 0; index < headerRow.length; index++) {
