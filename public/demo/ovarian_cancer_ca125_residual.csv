@@ -1,0 +1,181 @@
+patient_id,figo_stage,age,histology,ecog_ps,neoadjuvant_chemo,ca125_preop_u_ml,residual_tumour_mm
+OC0001,Stage IV,53,High-grade serous,1,Yes,660.8,14.6
+OC0002,Stage III,57,High-grade serous,1,Yes,1403.5,10.6
+OC0003,Stage IV,55,Clear cell,0,No,83.8,5.1
+OC0004,Stage III,56,High-grade serous,1,Yes,1222.0,0.0
+OC0005,Stage III,66,Mucinous,0,No,2779.2,15.9
+OC0006,Stage IV,64,Clear cell,1,Yes,4174.9,33.2
+OC0007,Stage IV,54,Mucinous,0,No,853.3,11.1
+OC0008,Stage IV,76,High-grade serous,1,No,1015.8,30.9
+OC0009,Stage III,69,High-grade serous,0,Yes,542.5,4.7
+OC0010,Stage IV,67,High-grade serous,0,No,1274.3,28.6
+OC0011,Stage III,61,High-grade serous,0,No,201.0,1.4
+OC0012,Stage III,58,High-grade serous,2,Yes,327.8,0.0
+OC0013,Stage IV,75,Endometrioid,1,No,186.1,9.5
+OC0014,Stage III,66,High-grade serous,1,No,581.8,14.8
+OC0015,Stage IV,75,High-grade serous,1,Yes,103.9,0.0
+OC0016,Stage IV,61,High-grade serous,0,No,1163.1,18.4
+OC0017,Stage III,66,High-grade serous,1,No,403.8,2.2
+OC0018,Stage III,71,Mucinous,1,No,127.6,3.0
+OC0019,Stage IV,52,High-grade serous,1,Yes,1161.1,13.8
+OC0020,Stage IV,54,Mucinous,0,Yes,528.3,33.9
+OC0021,Stage III,70,High-grade serous,0,No,345.2,4.4
+OC0022,Stage IV,68,Endometrioid,1,Yes,323.5,25.2
+OC0023,Stage IV,57,High-grade serous,0,No,544.3,19.9
+OC0024,Stage IV,61,High-grade serous,1,No,1172.3,6.3
+OC0025,Stage III,69,High-grade serous,0,Yes,1939.4,8.4
+OC0026,Stage III,60,Clear cell,1,No,2440.3,13.6
+OC0027,Stage IV,71,High-grade serous,0,No,1020.7,22.4
+OC0028,Stage IV,56,Clear cell,0,No,2653.9,0.6
+OC0029,Stage IV,69,High-grade serous,1,Yes,1156.5,20.7
+OC0030,Stage III,71,High-grade serous,0,No,3327.9,13.9
+OC0031,Stage IV,57,High-grade serous,0,No,1240.7,22.6
+OC0032,Stage IV,64,High-grade serous,1,Yes,1060.1,12.8
+OC0033,Stage III,52,Endometrioid,1,No,1154.9,12.5
+OC0034,Stage III,53,High-grade serous,1,No,434.4,4.4
+OC0035,Stage III,71,Clear cell,1,Yes,278.4,12.6
+OC0036,Stage III,59,High-grade serous,2,Yes,2476.9,19.0
+OC0037,Stage III,68,High-grade serous,0,Yes,797.4,3.7
+OC0038,Stage III,58,High-grade serous,0,No,558.8,10.9
+OC0039,Stage III,75,High-grade serous,2,No,986.5,13.2
+OC0040,Stage III,73,High-grade serous,0,No,990.0,10.3
+OC0041,Stage IV,62,High-grade serous,2,Yes,300.1,10.4
+OC0042,Stage III,54,High-grade serous,1,No,57.9,7.1
+OC0043,Stage III,64,Endometrioid,0,Yes,342.9,14.1
+OC0044,Stage IV,74,Endometrioid,1,Yes,489.1,10.9
+OC0045,Stage III,75,Mucinous,2,No,187.8,12.0
+OC0046,Stage III,68,High-grade serous,0,No,209.1,0.5
+OC0047,Stage IV,65,Clear cell,2,No,1305.8,28.8
+OC0048,Stage IV,56,High-grade serous,1,Yes,520.4,9.7
+OC0049,Stage IV,67,Clear cell,0,No,296.5,18.3
+OC0050,Stage III,61,High-grade serous,0,No,218.6,1.9
+OC0051,Stage IV,59,Endometrioid,1,Yes,692.3,14.3
+OC0052,Stage III,72,High-grade serous,0,No,471.0,6.5
+OC0053,Stage III,67,Clear cell,0,No,564.7,0.0
+OC0054,Stage IV,63,High-grade serous,0,Yes,620.8,28.8
+OC0055,Stage III,64,High-grade serous,0,No,1603.1,8.0
+OC0056,Stage III,71,High-grade serous,1,No,255.7,0.0
+OC0057,Stage IV,73,Endometrioid,1,No,892.3,16.2
+OC0058,Stage III,58,High-grade serous,1,Yes,457.9,13.3
+OC0059,Stage III,55,Mucinous,1,No,208.0,0.9
+OC0060,Stage IV,53,High-grade serous,2,Yes,1211.8,12.4
+OC0061,Stage IV,52,Clear cell,1,No,677.9,17.9
+OC0062,Stage IV,54,High-grade serous,2,No,3808.3,28.5
+OC0063,Stage IV,56,High-grade serous,0,Yes,410.3,3.6
+OC0064,Stage III,67,High-grade serous,1,No,532.9,10.8
+OC0065,Stage III,67,Clear cell,2,No,991.2,11.0
+OC0066,Stage IV,66,High-grade serous,2,Yes,3297.7,33.9
+OC0067,Stage III,62,High-grade serous,1,No,416.2,6.8
+OC0068,Stage IV,67,High-grade serous,1,Yes,1467.0,18.6
+OC0069,Stage III,75,High-grade serous,1,No,902.8,0.0
+OC0070,Stage III,58,High-grade serous,0,Yes,80.8,0.0
+OC0071,Stage III,52,Clear cell,0,Yes,693.3,13.7
+OC0072,Stage IV,59,Endometrioid,0,Yes,1241.3,13.8
+OC0073,Stage IV,55,High-grade serous,0,No,6290.6,31.7
+OC0074,Stage IV,55,High-grade serous,2,Yes,906.2,0.5
+OC0075,Stage IV,53,Clear cell,1,Yes,926.7,16.0
+OC0076,Stage III,64,High-grade serous,2,Yes,227.8,7.2
+OC0077,Stage III,62,High-grade serous,0,No,556.2,10.4
+OC0078,Stage III,68,High-grade serous,2,No,785.1,0.0
+OC0079,Stage IV,64,High-grade serous,1,Yes,808.7,25.2
+OC0080,Stage III,59,High-grade serous,1,No,349.1,6.6
+OC0081,Stage IV,64,High-grade serous,1,No,806.0,4.3
+OC0082,Stage III,73,High-grade serous,1,No,506.8,12.6
+OC0083,Stage III,54,High-grade serous,1,No,478.7,0.9
+OC0084,Stage IV,52,High-grade serous,1,No,4295.6,34.0
+OC0085,Stage III,66,High-grade serous,0,No,81.0,0.0
+OC0086,Stage III,56,High-grade serous,0,No,449.7,3.5
+OC0087,Stage III,52,High-grade serous,1,Yes,280.9,6.5
+OC0088,Stage III,64,High-grade serous,2,No,1846.7,13.2
+OC0089,Stage IV,62,High-grade serous,1,Yes,1055.9,23.2
+OC0090,Stage III,64,Endometrioid,0,Yes,428.0,1.1
+OC0091,Stage III,70,High-grade serous,0,No,1142.3,12.2
+OC0092,Stage III,72,High-grade serous,0,No,836.1,14.6
+OC0093,Stage IV,59,High-grade serous,0,No,674.7,7.3
+OC0094,Stage IV,61,High-grade serous,2,Yes,1214.8,26.4
+OC0095,Stage IV,74,High-grade serous,1,No,3377.2,29.9
+OC0096,Stage III,54,High-grade serous,1,No,482.6,7.8
+OC0097,Stage IV,52,Mucinous,0,Yes,309.4,17.2
+OC0098,Stage IV,52,Mucinous,1,Yes,1135.9,32.4
+OC0099,Stage IV,61,High-grade serous,1,Yes,460.0,20.1
+OC0100,Stage IV,69,Clear cell,0,Yes,987.1,20.4
+OC0101,Stage IV,65,Endometrioid,1,No,842.4,0.0
+OC0102,Stage III,57,Mucinous,1,No,2957.4,11.3
+OC0103,Stage III,68,Clear cell,1,No,2797.3,14.4
+OC0104,Stage IV,61,High-grade serous,0,No,4402.5,22.1
+OC0105,Stage IV,61,High-grade serous,1,Yes,936.1,14.5
+OC0106,Stage III,71,Mucinous,1,No,1008.5,14.0
+OC0107,Stage III,68,High-grade serous,0,Yes,397.7,5.9
+OC0108,Stage III,69,High-grade serous,0,No,956.5,12.7
+OC0109,Stage IV,75,Mucinous,1,Yes,568.9,21.3
+OC0110,Stage III,72,Endometrioid,0,Yes,386.4,8.8
+OC0111,Stage III,60,Endometrioid,0,No,1362.6,8.6
+OC0112,Stage IV,68,High-grade serous,0,Yes,677.9,16.2
+OC0113,Stage IV,54,Endometrioid,1,Yes,1194.6,23.8
+OC0114,Stage III,69,High-grade serous,0,No,282.1,8.8
+OC0115,Stage IV,62,High-grade serous,1,No,327.2,12.7
+OC0116,Stage IV,52,High-grade serous,0,No,801.3,34.5
+OC0117,Stage III,71,High-grade serous,2,No,237.8,0.0
+OC0118,Stage III,60,High-grade serous,1,No,350.1,0.0
+OC0119,Stage III,73,High-grade serous,0,Yes,653.6,13.1
+OC0120,Stage IV,56,High-grade serous,1,Yes,262.7,20.0
+OC0121,Stage IV,64,Clear cell,1,Yes,1274.6,21.2
+OC0122,Stage III,67,High-grade serous,1,No,146.5,0.6
+OC0123,Stage IV,58,Clear cell,0,Yes,6198.6,44.5
+OC0124,Stage III,73,Clear cell,2,No,103.9,0.9
+OC0125,Stage III,54,High-grade serous,2,Yes,392.9,4.8
+OC0126,Stage IV,71,Endometrioid,0,Yes,1994.0,7.5
+OC0127,Stage IV,63,High-grade serous,0,Yes,2214.6,26.3
+OC0128,Stage III,73,High-grade serous,1,No,132.8,2.5
+OC0129,Stage III,69,High-grade serous,1,Yes,587.5,7.7
+OC0130,Stage IV,72,High-grade serous,2,No,698.5,4.9
+OC0131,Stage III,75,High-grade serous,0,No,606.6,2.9
+OC0132,Stage III,75,Mucinous,1,Yes,712.5,8.9
+OC0133,Stage IV,71,High-grade serous,0,Yes,1237.4,22.3
+OC0134,Stage IV,68,Clear cell,0,Yes,1209.7,7.4
+OC0135,Stage IV,54,Endometrioid,0,Yes,1242.0,14.6
+OC0136,Stage IV,60,High-grade serous,2,Yes,440.8,23.1
+OC0137,Stage IV,58,High-grade serous,0,No,5992.6,23.9
+OC0138,Stage III,55,Clear cell,1,No,330.1,6.0
+OC0139,Stage IV,54,High-grade serous,0,No,560.2,18.1
+OC0140,Stage IV,52,Endometrioid,0,No,226.5,14.5
+OC0141,Stage III,67,High-grade serous,0,No,1122.7,22.8
+OC0142,Stage III,74,High-grade serous,1,No,922.4,10.9
+OC0143,Stage IV,74,High-grade serous,1,No,1042.7,15.4
+OC0144,Stage III,57,High-grade serous,0,No,942.1,3.5
+OC0145,Stage IV,69,High-grade serous,0,No,2093.5,28.1
+OC0146,Stage III,66,Clear cell,1,No,2093.0,14.1
+OC0147,Stage III,52,High-grade serous,2,No,398.5,6.4
+OC0148,Stage III,63,High-grade serous,2,No,810.8,8.8
+OC0149,Stage III,54,Endometrioid,1,No,790.0,9.1
+OC0150,Stage III,58,High-grade serous,1,Yes,491.9,4.0
+OC0151,Stage IV,69,High-grade serous,0,No,7597.9,16.5
+OC0152,Stage III,53,High-grade serous,0,No,346.4,4.1
+OC0153,Stage III,59,Endometrioid,1,No,734.3,2.2
+OC0154,Stage III,65,High-grade serous,0,No,790.4,7.9
+OC0155,Stage III,55,High-grade serous,1,No,799.2,2.6
+OC0156,Stage III,68,Clear cell,1,Yes,1034.3,13.8
+OC0157,Stage III,64,Endometrioid,0,No,176.0,0.0
+OC0158,Stage IV,53,Mucinous,0,Yes,126.1,0.0
+OC0159,Stage IV,74,Endometrioid,1,Yes,2276.5,18.6
+OC0160,Stage III,75,Mucinous,1,No,492.5,7.8
+OC0161,Stage IV,68,High-grade serous,1,Yes,66.2,24.9
+OC0162,Stage III,74,High-grade serous,1,Yes,1608.1,16.4
+OC0163,Stage IV,59,High-grade serous,1,Yes,398.1,31.6
+OC0164,Stage IV,59,Endometrioid,1,Yes,321.2,4.8
+OC0165,Stage III,58,High-grade serous,2,No,579.0,8.7
+OC0166,Stage III,74,High-grade serous,1,Yes,979.7,12.3
+OC0167,Stage IV,66,High-grade serous,0,Yes,280.9,11.5
+OC0168,Stage III,75,High-grade serous,1,No,918.7,18.8
+OC0169,Stage IV,52,High-grade serous,1,Yes,692.9,0.0
+OC0170,Stage III,74,High-grade serous,1,Yes,254.6,0.0
+OC0171,Stage III,52,Clear cell,1,Yes,304.9,4.7
+OC0172,Stage III,53,High-grade serous,1,Yes,1543.7,6.4
+OC0173,Stage IV,56,Mucinous,0,Yes,1100.3,28.4
+OC0174,Stage III,74,High-grade serous,0,Yes,250.1,11.5
+OC0175,Stage III,56,Endometrioid,1,Yes,157.8,5.7
+OC0176,Stage III,54,High-grade serous,1,No,224.7,7.0
+OC0177,Stage IV,66,Clear cell,1,Yes,226.5,16.7
+OC0178,Stage III,70,High-grade serous,0,No,408.3,10.1
+OC0179,Stage III,66,High-grade serous,0,Yes,512.2,11.3
+OC0180,Stage IV,65,High-grade serous,0,Yes,2280.1,24.6

@@ -1286,6 +1286,51 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     align-items: stretch;
 }
 
+.upload-primary-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.demo-launcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.demo-launcher .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+    border: 1px solid var(--amber);
+    background: var(--paper-card);
+    text-decoration: none;
+}
+
+.demo-launcher .btn:hover:not(:disabled) {
+    border-color: var(--amber);
+    background: var(--paper);
+    text-decoration: none;
+}
+
+.demo-launcher .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (min-width: 480px) {
+    .demo-launcher .btn {
+        flex: 1 1 calc(50% - 4px);
+    }
+}
+
+@media (min-width: 640px) {
+    .demo-launcher .btn {
+        flex: 0 1 auto;
+        justify-content: flex-start;
+    }
+}
+
 .dropzone {
     position: relative;
     background: var(--paper-card);

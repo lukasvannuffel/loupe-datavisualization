@@ -114,6 +114,26 @@ describe("detectMultiTable", () => {
 
             expect(detectMultiTable(aoa)).toEqual({ detected: false });
         });
+
+        it("does NOT trigger on categorical clinical trial rows with verbose labels", () => {
+            const aoa = [
+                [
+                    "patient_id",
+                    "arm",
+                    "age",
+                    "sex",
+                    "stage",
+                    "histology",
+                    "ecog_ps",
+                    "os_months",
+                    "os_event",
+                ],
+                ["PT0001", "Observation", "65", "Male", "IIB", "Squamous cell", "0", "8.2", "1"],
+                ["PT0002", "Chemo", "61", "Female", "IIB", "Adenocarcinoma", "0", "8.7", "1"],
+            ];
+
+            expect(detectMultiTable(aoa)).toEqual({ detected: false });
+        });
     });
 
     describe("privacy invariant", () => {

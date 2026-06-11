@@ -4,7 +4,7 @@ import {
     headerCellsWithoutTrailingEmpties,
     inferNumericProfile,
     isEffectivelyEmpty,
-    isHeaderLikeText,
+    isEmbeddedHeaderLikeText,
     isNumeric,
 } from "./detectMultiTable.helpers";
 
@@ -44,7 +44,9 @@ export function detectMultiTable(aoa: readonly (readonly unknown[])[]): MultiTab
         if (nonNumericCount / nonEmptyCells.length < 0.5) {
             continue;
         }
-        const headerLikeCount = nonEmptyCells.filter((cell) => isHeaderLikeText(cell, numericProfile)).length;
+        const headerLikeCount = nonEmptyCells.filter((cell) =>
+            isEmbeddedHeaderLikeText(cell, numericProfile),
+        ).length;
         if (headerLikeCount < 2 || headerLikeCount / nonEmptyCells.length < 0.5) {
             continue;
         }

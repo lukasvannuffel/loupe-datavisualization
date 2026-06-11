@@ -129,6 +129,10 @@ const renderExport = (spec: ChartSpec = defaultSpec): ReturnType<typeof render> 
         </ToastProvider>,
     );
 
+const openCustomizationSection = (label: RegExp): void => {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+};
+
 afterEach(() => {
     cleanup();
     window.sessionStorage.clear();
@@ -384,6 +388,8 @@ describe("Export customization rail", () => {
 
     it("rail title input edits the spec live", async () => {
         renderExport();
+        await screen.findByRole("complementary", { name: /customize chart/i });
+        openCustomizationSection(/Title and labels/i);
 
         const titleInput = await screen.findByLabelText(/figure title/i);
         fireEvent.change(titleInput, { target: { value: "New title" } });
@@ -398,12 +404,16 @@ describe("Export customization rail", () => {
 
     it("palette selector is available on export", async () => {
         renderExport();
+        await screen.findByRole("complementary", { name: /customize chart/i });
+        openCustomizationSection(/Colors/i);
         expect(screen.getByRole("listbox", { name: /chart palette/i })).toBeTruthy();
         expect(screen.getAllByRole("option")).toHaveLength(7);
     });
 
     it("selecting okabe-ito palette marks the option active", async () => {
         renderExport();
+        await screen.findByRole("complementary", { name: /customize chart/i });
+        openCustomizationSection(/Colors/i);
         const okabeOption = screen.getByRole("option", { name: /Okabe–Ito/i });
         fireEvent.click(okabeOption);
         expect(okabeOption.getAttribute("aria-selected")).toBe("true");
@@ -411,6 +421,8 @@ describe("Export customization rail", () => {
 
     it("selecting okabe-ito palette updates the live chart spec", async () => {
         renderExport();
+        await screen.findByRole("complementary", { name: /customize chart/i });
+        openCustomizationSection(/Colors/i);
         fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
 
         await waitFor(() => {
@@ -426,6 +438,9 @@ describe("Export customization rail", () => {
         await waitFor(() => {
             expect(screen.getByRole("button", { name: /copy receipt/i })).toBeTruthy();
         });
+
+        await screen.findByRole("complementary", { name: /customize chart/i });
+        openCustomizationSection(/Colors/i);
 
         const hashBefore = screen.getByText(/config hash:/i).textContent;
         fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
@@ -462,110 +477,120 @@ describe("computation snapshot", () => {
         const buildSpy = vi.spyOn(buildReceiptModule, "buildReceipt");
         const composeSpy = vi.spyOn(composeReceiptModule, "composeReceipt");
 
-        renderExport();
+        try {
+            renderExport();
 
-        await waitFor(() => {
-            expect(summarizeSpy).toHaveBeenCalled();
-            expect(buildSpy).toHaveBeenCalled();
-            expect(composeSpy).toHaveBeenCalled();
-        });
+            await waitFor(() => {
+                expect(summarizeSpy).toHaveBeenCalled();
+                expect(buildSpy).toHaveBeenCalled();
+                expect(composeSpy).toHaveBeenCalled();
+            });
 
-        const buildInput = buildSpy.mock.calls.at(-1)?.[0];
-        const composeInput = composeSpy.mock.calls.at(-1)?.[0];
+            const buildInput = buildSpy.mock.calls.at(-1)?.[0];
+            const composeInput = composeSpy.mock.calls.at(-1)?.[0];
 
-        expect(buildInput?.computations).toBe(composeInput?.computations);
+            expect(buildInput?.computations).toBe(composeInput?.computations);
 
-        const composedResult = composeSpy.mock.results.at(-1);
-        const savedResult = buildSpy.mock.results.at(-1);
-        expect(composedResult?.type).toBe("return");
-        expect(savedResult?.type).toBe("return");
+            const composedResult = composeSpy.mock.results.at(-1);
+            const savedResult = buildSpy.mock.results.at(-1);
+            expect(composedResult?.type).toBe("return");
+            expect(savedResult?.type).toBe("return");
 
-        const composed = await (composedResult?.value as Promise<Awaited<ReturnType<typeof composeReceiptModule.composeReceipt>>>);
-        const saved = await (savedResult?.value as Promise<Awaited<ReturnType<typeof buildReceiptModule.buildReceipt>>>);
+            const composed = await (composedResult?.value as Promise<Awaited<ReturnType<typeof composeReceiptModule.composeReceipt>>>);
+            const saved = await (savedResult?.value as Promise<Awaited<ReturnType<typeof buildReceiptModule.buildReceipt>>>);
 
-        expect(saved.config_hash).toBe(composed.hash);
-
-        summarizeSpy.mockRestore();
-        buildSpy.mockRestore();
-        composeSpy.mockRestore();
+            expect(saved.config_hash).toBe(composed.hash);
+        } finally {
+            summarizeSpy.mockRestore();
+            buildSpy.mockRestore();
+            composeSpy.mockRestore();
+        }
     });
 
     it("snapshot recomputes when spec changes", async () => {
         const summarizeSpy = vi.spyOn(summarizeComputationsModule, "summarizeComputations");
 
-        renderExport();
+        try {
+            renderExport();
 
-        await waitFor(() => {
-            expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
-        });
+            await waitFor(() => {
+                expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+            });
 
-        const firstSnapshot = summarizeSpy.mock.results.at(-1)?.value;
+            const firstSnapshot = summarizeSpy.mock.results.at(-1)?.value;
 
-        fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
+            await screen.findByRole("complementary", { name: /customize chart/i });
+            openCustomizationSection(/Colors/i);
+            fireEvent.click(screen.getByRole("option", { name: /Okabe–Ito/i }));
 
-        await waitFor(() => {
-            expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-        });
+            await waitFor(() => {
+                expect(summarizeSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+            });
 
-        const secondSnapshot = summarizeSpy.mock.results.at(-1)?.value;
+            const secondSnapshot = summarizeSpy.mock.results.at(-1)?.value;
 
-        expect(secondSnapshot).not.toBe(firstSnapshot);
-
-        summarizeSpy.mockRestore();
+            expect(secondSnapshot).not.toBe(firstSnapshot);
+        } finally {
+            summarizeSpy.mockRestore();
+        }
     });
 
     it("save is blocked when computation snapshot is null", async () => {
+        window.sessionStorage.clear();
+
         const summarizeSpy = vi.spyOn(summarizeComputationsModule, "summarizeComputations");
         const buildSpy = vi.spyOn(buildReceiptModule, "buildReceipt");
 
-        render(
-            <ToastProvider>
-                <AppStateProvider>
-                    <Export
-                        initialChartId="box-1"
-                        initialChart={{
-                            id: "box-1",
-                            name: "Saved scatter",
-                            chart_spec: createDefaultChartSpec(
-                                "box",
-                                { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
-                                { inferences: [], mapping: {}, rows: brandRows([]) },
-                            ),
-                            column_mapping: {},
-                            receipt: {
-                                generated_at: "2026-05-28T08:00:00.000Z",
-                                config_hash:
-                                    "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-                                method: "method",
-                                sample: "sample",
-                                palette: "editorial",
-                                software: "Loupe v0.1.0 · client-side",
-                                ai_rationale: "why",
-                                csv_columns: ["arm"],
-                                n_rows_input: 1,
-                            },
-                            plot_data: null,
-                            thumbnail: "data:image/svg+xml;utf8,test",
-                            chart_kind: "box",
-                            tags: [],
-                            created_at: "2026-05-28T08:00:00.000Z",
-                            updated_at: "2026-05-28T08:00:00.000Z",
-                        }}
-                    />
-                </AppStateProvider>
-            </ToastProvider>,
-        );
+        try {
+            render(
+                <ToastProvider>
+                    <AppStateProvider>
+                        <Export
+                            initialChartId="box-1"
+                            initialChart={{
+                                id: "box-1",
+                                name: "Saved scatter",
+                                chart_spec: createDefaultChartSpec(
+                                    "box",
+                                    { id: "saved-box", createdAt: "2026-05-28T08:00:00.000Z" },
+                                    { inferences: [], mapping: {}, rows: brandRows([]) },
+                                ),
+                                column_mapping: {},
+                                receipt: {
+                                    generated_at: "2026-05-28T08:00:00.000Z",
+                                    config_hash:
+                                        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+                                    method: "method",
+                                    sample: "sample",
+                                    palette: "editorial",
+                                    software: "Loupe v0.1.0 · client-side",
+                                    ai_rationale: "why",
+                                    csv_columns: ["arm"],
+                                    n_rows_input: 1,
+                                },
+                                plot_data: null,
+                                thumbnail: "data:image/svg+xml;utf8,test",
+                                chart_kind: "box",
+                                tags: [],
+                                created_at: "2026-05-28T08:00:00.000Z",
+                                updated_at: "2026-05-28T08:00:00.000Z",
+                            }}
+                        />
+                    </AppStateProvider>
+                </ToastProvider>,
+            );
 
-        await waitFor(() => {
-            expect(screen.getByText(/saved as a snapshot to protect patient data/i)).toBeTruthy();
-        });
+            await waitFor(() => {
+                expect(screen.getByText(/saved as a snapshot to protect patient data/i)).toBeTruthy();
+            });
 
-        expect(summarizeSpy).not.toHaveBeenCalled();
-        expect(buildSpy).not.toHaveBeenCalled();
-        expect(saveChartMock).not.toHaveBeenCalled();
-
-        summarizeSpy.mockRestore();
-        buildSpy.mockRestore();
+            expect(summarizeSpy).not.toHaveBeenCalled();
+            expect(buildSpy).not.toHaveBeenCalled();
+            expect(saveChartMock).not.toHaveBeenCalled();
+        } finally {
+            summarizeSpy.mockRestore();
+            buildSpy.mockRestore();
+        }
     });
 
     // MUTATION-VERIFY: mock summarizeComputations to return two distinct objects on successive calls;
