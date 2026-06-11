@@ -78,6 +78,7 @@ import type { ChartConfig, RailSection } from "./ExportChat/types";
 import { SaveChartDialog } from "./Export/SaveChartDialog";
 import { ExportFigureActions } from "./Export/ExportFigureActions";
 import { ExportProjectActions } from "./Export/ExportProjectActions";
+import { buildBarErrorCaption, buildBarErrorMetaLine } from "./exportBarErrorFigureText";
 import { buildXyCaption, buildXyMetaLine } from "./exportXyFigureText";
 
 type LegacyPaletteId =
@@ -178,13 +179,12 @@ const SLUG_DEFAULTS: Record<ChartSlug, SlugDefaults> = {
   },
   barError: {
     title: "5-year survival probability by stage.",
-    caption:
-      "Bar heights are group means with 95% confidence intervals from within-group variance. ANOVA F = 18.4, p < 0.001.",
+    caption: "Bar chart. Upload data to compute group means.",
     xLabel: "DISEASE STAGE",
     yLabel: "5-YEAR SURVIVAL PROBABILITY",
     legendA: "Cohort",
     legendB: "",
-    metaLine: "n = 610 · groups = 4",
+    metaLine: "n = —",
     method: "Group means with 95% CI · one-way ANOVA",
     rationale:
       "Single-series across pre-specified named groups; uncertainty visualized via 95% CI bars.",
@@ -900,14 +900,18 @@ export const Export = ({
       ? buildKmCaption(kmLogRank !== null)
       : useSpecFigure && liveSpec?.kind === "xy" && exportPlotData?.kind === "xy"
         ? buildXyCaption(exportPlotData)
-        : caption;
+        : useSpecFigure && liveSpec?.kind === "barError"
+          ? buildBarErrorCaption(liveSpec.errorBarType ?? "ci95")
+          : caption;
 
   const figureMetaLine =
     useSpecFigure && liveSpec?.kind === "km" && exportPlotData?.kind === "km"
       ? buildKmMetaLine(exportPlotData)
       : useSpecFigure && liveSpec?.kind === "xy" && exportPlotData?.kind === "xy"
         ? buildXyMetaLine(exportPlotData)
-        : slugDefaults.metaLine;
+        : useSpecFigure && liveSpec?.kind === "barError" && exportPlotData?.kind === "barError"
+          ? buildBarErrorMetaLine(exportPlotData.groups)
+          : slugDefaults.metaLine;
 
   useEffect(() => {
     if (liveSpec === null || exportPlotData === null) {
