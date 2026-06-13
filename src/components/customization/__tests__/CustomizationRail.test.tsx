@@ -17,6 +17,24 @@ afterEach(() => {
 });
 
 describe("CustomizationRail", () => {
+    it("opens Title and labels by default", () => {
+        const spec = createDefaultChartSpec("barError", {
+            id: "bar-rail-default",
+            createdAt: "2026-05-20T10:00:00.000Z",
+        }) as BarErrorSpec;
+
+        render(
+            <CustomizationRail
+                mapping={{ group: "arm", outcome: "value" }}
+                spec={spec}
+                onSpecChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByLabelText("Figure title")).toBeTruthy();
+        expect(screen.queryByLabelText("Error bar type")).toBeNull();
+    });
+
     it("renders bar error type controls for barError specs", () => {
         const spec = createDefaultChartSpec("barError", {
             id: "bar-rail",
@@ -31,6 +49,7 @@ describe("CustomizationRail", () => {
             />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Chart options/i }));
         expect(screen.getByLabelText("Error bar type")).toBeTruthy();
         expect(screen.getByLabelText("95% CI")).toBeTruthy();
         expect(screen.queryByText("No options yet.")).toBeNull();
@@ -105,6 +124,7 @@ describe("CustomizationRail", () => {
             />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Chart options/i }));
         expect(screen.getByLabelText("Show notch (95% CI of median)")).toBeTruthy();
         expect(screen.getByLabelText("Show mean marker")).toBeTruthy();
     });
@@ -125,6 +145,7 @@ describe("CustomizationRail", () => {
             <CustomizationRail mapping={{ time: "t", event: "e" }} spec={spec} onSpecChange={vi.fn()} />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Chart options/i }));
         expect(screen.getByLabelText(/Show gridlines/i)).toBeTruthy();
         expect(screen.getByLabelText(/Stroke weight/i)).toBeTruthy();
         expect(screen.getByLabelText(/Show HR & log-rank annotation/i)).toBeTruthy();
@@ -146,6 +167,7 @@ describe("CustomizationRail", () => {
             />,
         );
 
+        fireEvent.click(screen.getByRole("button", { name: /Chart options/i }));
         fireEvent.click(screen.getByLabelText(/Show gridlines/i));
         expect(onSpecChange).toHaveBeenCalled();
         const withoutGrid = onSpecChange.mock.calls[0]![0](spec);

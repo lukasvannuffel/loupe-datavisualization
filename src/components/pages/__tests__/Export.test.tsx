@@ -147,24 +147,64 @@ beforeEach(() => {
 });
 
 describe("Export panel actions", () => {
-    it("groups export actions in a labeled panel with clear hierarchy", async () => {
+    it("places export actions in a horizontal row under the figure", async () => {
         renderExport();
 
-        expect(await screen.findByRole("heading", { name: /export figure/i })).toBeTruthy();
+        expect(await screen.findByRole("group", { name: /export figure/i })).toBeTruthy();
+        expect(screen.queryByRole("heading", { name: /export figure/i })).toBeNull();
         expect(screen.getByRole("heading", { name: /reproducibility receipt/i })).toBeTruthy();
         expect(screen.getByRole("heading", { name: /^project$/i })).toBeTruthy();
-        expect(document.querySelector(".export-panel")).toBeTruthy();
-        expect(document.querySelector(".export-png-row")).toBeTruthy();
+        expect(document.querySelector(".export-sections")).toBeTruthy();
+        expect(document.querySelector(".export-figure-actions")).toBeTruthy();
+        expect(document.querySelector(".export-figure-card")).toBeNull();
+        expect(document.querySelector(".svg-tooltip-host")).toBeTruthy();
+        expect(screen.getByRole("button", { name: /download png/i })).toBeTruthy();
         expect(document.querySelector(".export-dpi")).toBeTruthy();
 
         const downloadSvg = screen.getByRole("button", { name: /download svg/i });
         expect(downloadSvg.className).toContain("btn--primary");
         expect(downloadSvg.className).toContain("btn--lg");
-        expect(downloadSvg.className).toContain("actions-panel__primary");
 
         const saveButton = screen.getByRole("button", { name: /save to project/i });
+        expect(saveButton.className).toContain("btn--primary");
         expect(saveButton.className).toContain("btn--sm");
         expect(saveButton.className).not.toContain("btn--lg");
+
+        const startNewButton = screen.getByRole("button", { name: /start a new chart/i });
+        const projectRow = startNewButton.closest(".export-project-row");
+        const projectButtons = projectRow?.querySelectorAll("button");
+
+        expect(projectButtons?.[0]).toBe(startNewButton);
+        expect(projectButtons?.[1]).toBe(saveButton);
+    });
+
+    it("reveals SVG tooltip on button hover and follows the cursor", async () => {
+        renderExport();
+
+        const downloadSvg = await screen.findByRole("button", { name: /download svg/i });
+        const host = downloadSvg.closest(".svg-tooltip-host");
+        const tooltip = document.getElementById("svg-export-tooltip");
+
+        expect(host).toBeTruthy();
+        expect(tooltip).toBeTruthy();
+        expect(tooltip).toHaveTextContent("Journal publications, web, vector editors");
+        expect(downloadSvg.getAttribute("aria-describedby")).toBe("svg-export-tooltip");
+
+        fireEvent.mouseEnter(host!, { clientX: 100, clientY: 200 });
+        expect(tooltip!.className).not.toContain("svg-tooltip--visible");
+
+        fireEvent.mouseEnter(downloadSvg, { clientX: 100, clientY: 200 });
+
+        expect(tooltip!.className).toContain("svg-tooltip--visible");
+        expect(tooltip).toHaveStyle({ left: "112px", top: "212px" });
+
+        fireEvent.mouseMove(downloadSvg, { clientX: 180, clientY: 260 });
+
+        expect(tooltip).toHaveStyle({ left: "192px", top: "272px" });
+
+        fireEvent.mouseLeave(downloadSvg);
+
+        expect(tooltip!.className).not.toContain("svg-tooltip--visible");
     });
 });
 
@@ -389,7 +429,6 @@ describe("Export customization rail", () => {
     it("rail title input edits the spec live", async () => {
         renderExport();
         await screen.findByRole("complementary", { name: /customize chart/i });
-        openCustomizationSection(/Title and labels/i);
 
         const titleInput = await screen.findByLabelText(/figure title/i);
         fireEvent.change(titleInput, { target: { value: "New title" } });

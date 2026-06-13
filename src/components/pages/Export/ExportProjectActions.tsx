@@ -35,6 +35,9 @@ export const ExportProjectActions = ({
             </p>
         ) : null}
         <div className="export-project-row">
+            <button type="button" className="btn btn--quiet btn--sm" onClick={onStartNew}>
+                Start a new chart <span className="arrow">→</span>
+            </button>
             <button
                 type="button"
                 className="btn btn--primary btn--sm"
@@ -42,9 +45,6 @@ export const ExportProjectActions = ({
                 onClick={onSave}
             >
                 {saving ? "Saving…" : "Save to project"}
-            </button>
-            <button type="button" className="btn btn--quiet btn--sm" onClick={onStartNew}>
-                Start a new chart <span className="arrow">→</span>
             </button>
         </div>
     </section>

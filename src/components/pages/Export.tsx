@@ -1574,35 +1574,34 @@ export const Export = ({
                 ) : null}
               </div>
             </div>
+
+            {viewOnlySnapshot === null ? (
+              <ExportFigureActions
+                copied={copied}
+                copying={copying}
+                exporting={exporting}
+                pngLoading={pngLoading}
+                onDownloadSvg={() => {
+                  void handleDownloadSvg();
+                }}
+                onPngExport={(dpi) => {
+                  void handlePngExport(dpi);
+                }}
+                onCopy={() => {
+                  void onCopy();
+                }}
+              />
+            ) : null}
           </div>
 
-          <div className="actions-panel export-panel">
-            <ExportFigureActions
-              copied={copied}
-              copying={copying}
-              exporting={exporting}
-              pngLoading={pngLoading}
-              onDownloadSvg={() => {
-                void handleDownloadSvg();
-              }}
-              onPngExport={(dpi) => {
-                void handlePngExport(dpi);
-              }}
-              onCopy={() => {
-                void onCopy();
-              }}
-            />
-
-            <hr className="actions-panel__divider" />
-
+          <div className="export-sections">
             <ReproducibilityReceiptPanel
               input={reproducibilityInput}
               variant="embedded"
             />
 
             {viewOnlySnapshot === null ? (
-              <>
-                <hr className="actions-panel__divider" />
+              <div className="export-project-section">
                 <ExportProjectActions
                   onRetryReceiptBuild={retryReceiptBuild}
                   onSave={handleSaveToProject}
@@ -1613,7 +1612,7 @@ export const Export = ({
                   receiptBuilding={receiptBuilding}
                   saving={saving}
                 />
-              </>
+              </div>
             ) : null}
           </div>
         </div>
