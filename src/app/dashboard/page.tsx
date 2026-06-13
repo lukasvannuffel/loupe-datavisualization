@@ -16,8 +16,8 @@ const DashboardPage = async (): Promise<JSX.Element> => {
     if (!result.ok) {
         return (
             <main className="container page-enter">
-                <DashboardLoadError />
                 <PaletteManager initialPalettes={initialPalettes} />
+                <DashboardLoadError />
             </main>
         );
     }
@@ -25,8 +25,8 @@ const DashboardPage = async (): Promise<JSX.Element> => {
     if (result.charts.length === 0) {
         return (
             <main className="container page-enter">
-                <DashboardEmpty variant="zero" />
                 <PaletteManager initialPalettes={initialPalettes} />
+                <DashboardEmpty variant="zero" />
             </main>
         );
     }
@@ -37,8 +37,11 @@ const DashboardPage = async (): Promise<JSX.Element> => {
 
     return (
         <main className="container">
-            <DashboardShell initialCharts={result.charts} displayName={displayName} />
-            <PaletteManager initialPalettes={initialPalettes} />
+            <DashboardShell
+                initialCharts={result.charts}
+                displayName={displayName}
+                initialPalettes={initialPalettes}
+            />
         </main>
     );
 };

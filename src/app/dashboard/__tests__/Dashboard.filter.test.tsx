@@ -17,6 +17,13 @@ vi.mock("@/app/charts/actions", () => ({
     })),
 }));
 
+vi.mock("@/app/palettes/actions", () => ({
+    createPalette: vi.fn(),
+    deletePalette: vi.fn(),
+    renamePalette: vi.fn(),
+    listPalettes: vi.fn(async () => []),
+}));
+
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
@@ -54,7 +61,11 @@ const charts: readonly ChartListItem[] = [
 const renderShell = (items: readonly ChartListItem[] = charts) =>
     render(
         <ToastProvider>
-            <DashboardShell initialCharts={items} displayName="Researcher" />
+            <DashboardShell
+                initialCharts={items}
+                displayName="Researcher"
+                initialPalettes={[]}
+            />
         </ToastProvider>,
     );
 
