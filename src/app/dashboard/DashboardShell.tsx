@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { updateChartMetadata } from "@/app/charts/actions";
+import type { UserPalette } from "@/app/palettes/schemas";
+import { PaletteManager } from "@/components/dashboard/PaletteManager";
 import type { ChartListItem } from "@/lib/charts/listCharts";
 import type { DashboardChartKind } from "@/lib/thumbnail/chartKindIcons";
 import { useToast } from "@/lib/toast/useToast";
@@ -20,11 +22,13 @@ import styles from "./dashboard.module.css";
 type DashboardShellProps = {
     readonly initialCharts: readonly ChartListItem[];
     readonly displayName: string;
+    readonly initialPalettes: readonly UserPalette[];
 };
 
 export const DashboardShell = ({
     initialCharts,
     displayName,
+    initialPalettes,
 }: DashboardShellProps): JSX.Element => {
     const { toast } = useToast();
     const [charts, setCharts] = useState<readonly ChartListItem[]>(() => [...initialCharts]);
@@ -180,6 +184,7 @@ export const DashboardShell = ({
     return (
         <div className={`${styles.page} page-enter`}>
             <DashboardHeader displayName={displayName} chartCount={charts.length} />
+            <PaletteManager initialPalettes={initialPalettes} />
             <DashboardToolbar
                 query={query}
                 sort={sort}

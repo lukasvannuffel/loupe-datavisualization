@@ -1,11 +1,13 @@
 "use client";
 
 import { PALETTE_SWATCH_HEX } from "@/components/charts/d3/palettes";
-import type { PaletteName } from "@/lib/chartSpec/types";
+import type { UserPalette } from "@/app/palettes/schemas";
+import type { PaletteId, PaletteName } from "@/lib/chartSpec/types";
 
 type PaletteSelectorProps = {
-    readonly value: PaletteName;
-    readonly onChange: (next: PaletteName) => void;
+    readonly value: PaletteId;
+    readonly onChange: (next: PaletteId) => void;
+    readonly userPalettes?: readonly UserPalette[];
 };
 
 type PaletteOption = {
@@ -52,7 +54,11 @@ const OPTIONS: readonly PaletteOption[] = [
     },
 ];
 
-export const PaletteSelector = ({ value, onChange }: PaletteSelectorProps): JSX.Element => (
+export const PaletteSelector = ({
+    value,
+    onChange,
+    userPalettes,
+}: PaletteSelectorProps): JSX.Element => (
     <div className="palette-list" role="listbox" aria-label="Chart palette">
         {OPTIONS.map((option) => {
             const isActive = value === option.name;
@@ -93,5 +99,39 @@ export const PaletteSelector = ({ value, onChange }: PaletteSelectorProps): JSX.
                 </button>
             );
         })}
+
+        {userPalettes !== undefined && userPalettes.length > 0 ? (
+            <>
+                <div className="palette-section-label" role="separator">
+                    MY PALETTES
+                </div>
+                {userPalettes.map((palette) => {
+                    const isActive = value === palette.id;
+
+                    return (
+                        <button
+                            key={palette.id}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            className={`palette-row${isActive ? " is-active" : ""}`}
+                            onClick={() => {
+                                onChange(palette.id);
+                            }}
+                        >
+                            <div className="palette-swatches">
+                                {palette.colors.map((color, index) => (
+                                    <span key={`${palette.id}-${index}`} style={{ background: color }} />
+                                ))}
+                            </div>
+                            <div className="palette-meta">
+                                <span className="palette-name">{palette.name}</span>
+                            </div>
+                            {isActive ? <span className="palette-check">✓</span> : null}
+                        </button>
+                    );
+                })}
+            </>
+        ) : null}
     </div>
 );

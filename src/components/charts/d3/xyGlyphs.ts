@@ -8,7 +8,8 @@ import type {
     XYGroup,
     XYPlotData,
 } from "@/lib/chartSpec/aggregators/xyPlot.types";
-import type { PaletteName } from "@/lib/chartSpec/types";
+import type { PaletteId } from "@/lib/chartSpec/types";
+import type { UserPalette } from "@/app/palettes/schemas";
 
 import { DASH_BY_INDEX } from "./lineStyles";
 import { MARKER_BY_INDEX } from "./markerShapes";
@@ -133,8 +134,9 @@ type XYChartRenderOptions = {
     readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
     readonly showErrorBands: boolean;
-    readonly palette: PaletteName | undefined;
+    readonly palette: PaletteId | undefined;
     readonly strokeWeight: number;
+    readonly userPalettes?: readonly UserPalette[];
     readonly xScale: ScaleLinear<number, number>;
     readonly yScale: ScaleLinear<number, number>;
 };
@@ -144,13 +146,14 @@ export const renderXYChartGroups = (
     plotG: Selection<SVGGElement, unknown, null, undefined>,
     options: XYChartRenderOptions,
 ): void => {
-    const { mode, showRegression, showErrorBands, palette, strokeWeight, xScale, yScale } = options;
+    const { mode, showRegression, showErrorBands, palette, strokeWeight, userPalettes, xScale, yScale } =
+        options;
     const groupCount = data.groups.length;
 
     if (data.kind === "longitudinal") {
         for (const [index, group] of data.groups.entries()) {
             const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
-            const color = colorByIndex(palette, styleIndex, groupCount);
+            const color = colorByIndex(palette, styleIndex, groupCount, userPalettes);
             const groupG = plotG
                 .append("g")
                 .attr("class", `xy-group-${group.label}`)
@@ -173,7 +176,7 @@ export const renderXYChartGroups = (
 
     for (const [index, group] of data.groups.entries()) {
         const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
-        const color = colorByIndex(palette, styleIndex, groupCount);
+        const color = colorByIndex(palette, styleIndex, groupCount, userPalettes);
         const groupG = plotG
             .append("g")
             .attr("class", `xy-group-${group.label}`)

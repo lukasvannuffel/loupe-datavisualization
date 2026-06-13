@@ -1,4 +1,4 @@
-import type { BaseSpec, ChartSpec, PaletteName } from "../types";
+import type { BaseSpec, ChartSpec, PaletteId } from "../types";
 
 export type SpecUpdater = (prev: ChartSpec) => ChartSpec;
 
@@ -47,7 +47,7 @@ export const updateAxisLabel = (
 
 export const updateCustomizationPalette = (
     spec: ChartSpec,
-    palette: PaletteName,
+    palette: PaletteId,
 ): ChartSpec => ({
     ...spec,
     customizations: {

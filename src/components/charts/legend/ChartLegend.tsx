@@ -3,7 +3,8 @@
 import { DASH_BY_INDEX } from "@/components/charts/d3/lineStyles";
 import { MARKER_BY_INDEX } from "@/components/charts/d3/markerShapes";
 import { colorByIndex } from "@/components/charts/d3/palettes";
-import type { PaletteName } from "@/lib/chartSpec/types";
+import type { UserPalette } from "@/app/palettes/schemas";
+import type { PaletteId } from "@/lib/chartSpec/types";
 
 import styles from "./chartLegend.module.css";
 import { BarLegendGlyph } from "./glyphs/BarLegendGlyph";
@@ -21,15 +22,17 @@ type ChartLegendProps = {
     readonly chartKind: ChartLegendKind;
     readonly mode?: "line" | "scatter" | "both";
     readonly groups: ReadonlyArray<LegendGroup>;
-    readonly palette: PaletteName | undefined;
+    readonly palette: PaletteId | undefined;
+    readonly userPalettes?: readonly UserPalette[];
 };
 
 type LegendGlyphProps = {
     readonly chartKind: ChartLegendKind;
     readonly mode?: "line" | "scatter" | "both";
     readonly index: 0 | 1 | 2 | 3;
-    readonly palette: PaletteName | undefined;
+    readonly palette: PaletteId | undefined;
     readonly groupCount: number;
+    readonly userPalettes?: readonly UserPalette[];
 };
 
 const LegendGlyph = ({
@@ -38,8 +41,9 @@ const LegendGlyph = ({
     index,
     palette,
     groupCount,
+    userPalettes,
 }: LegendGlyphProps): JSX.Element => {
-    const color = colorByIndex(palette, index, groupCount);
+    const color = colorByIndex(palette, index, groupCount, userPalettes);
     const dash = DASH_BY_INDEX[index] ?? "";
     const shapePath = MARKER_BY_INDEX[index] ?? MARKER_BY_INDEX[0];
     const useEditorialFill = palette === undefined || palette === "editorial";
@@ -77,6 +81,7 @@ export const ChartLegend = ({
     mode,
     groups,
     palette,
+    userPalettes = [],
 }: ChartLegendProps): JSX.Element | null => {
     if (groups.length < 2) {
         return null;
@@ -97,6 +102,7 @@ export const ChartLegend = ({
                             index={styleIndex}
                             mode={mode}
                             palette={palette}
+                            userPalettes={userPalettes}
                         />
                         <span className={styles.label}>{group.label}</span>
                     </li>

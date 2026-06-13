@@ -1,5 +1,6 @@
 "use client";
 
+import type { UserPalette } from "@/app/palettes/schemas";
 import type { LoupeDataset } from "@/app/providers";
 import { BarErrorChart } from "@/components/charts/d3/BarErrorChart";
 import { BoxChart } from "@/components/charts/d3/BoxChart";
@@ -28,6 +29,7 @@ type SpecChartPanelProps = {
     readonly dataset: LoupeDataset;
     readonly mapping: Mapping;
     readonly spec: ChartSpec;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
@@ -42,6 +44,7 @@ export const SpecChartPanel = ({
     dataset,
     mapping,
     spec,
+    userPalettes = [],
     onSpecChange,
 }: SpecChartPanelProps): JSX.Element => {
     if (chartKind === "barError" && spec.kind === "barError") {
@@ -60,6 +63,7 @@ export const SpecChartPanel = ({
             <BarErrorChart
                 groups={barErrorAggregation.groups}
                 spec={spec}
+                userPalettes={userPalettes}
                 onSpecChange={onSpecChange}
             />
         );
@@ -102,6 +106,7 @@ export const SpecChartPanel = ({
                     data={kmData}
                     spec={spec}
                     logRank={kmLogRank}
+                    userPalettes={userPalettes}
                     onSpecChange={onSpecChange}
                 />
             );
@@ -137,7 +142,14 @@ export const SpecChartPanel = ({
         }
 
         if (boxData !== undefined) {
-            return <BoxChart data={boxData} spec={spec} onSpecChange={onSpecChange} />;
+            return (
+                <BoxChart
+                    data={boxData}
+                    spec={spec}
+                    userPalettes={userPalettes}
+                    onSpecChange={onSpecChange}
+                />
+            );
         }
     }
 
@@ -184,6 +196,7 @@ export const SpecChartPanel = ({
                     showErrorBands={spec.showErrorBands}
                     showRegression={spec.showRegression}
                     spec={spec}
+                    userPalettes={userPalettes}
                     onSpecChange={onSpecChange}
                 />
             );

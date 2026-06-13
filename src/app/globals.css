@@ -3033,6 +3033,99 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     color: var(--blue);
     font-size: 13px;
 }
+.palette-section-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gray);
+    padding: 10px 8px 4px;
+}
+.palette-swatches span.is-invalid {
+    background: var(--hairline);
+}
+.palette-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--hairline);
+}
+.palette-bar__pills {
+    display: flex;
+    flex: 1 1 12rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.palette-bar__empty { margin: 0; font-size: 13px; }
+.palette-bar__new { flex: none; margin-left: auto; }
+.palette-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-2);
+}
+.palette-pill:hover { border-color: var(--hairline-strong); }
+.palette-pill__name { font-size: 13px; color: var(--ink); }
+.palette-pill__swatches { display: flex; gap: 2px; }
+.palette-pill__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.palette-pill__swatch.is-invalid { background: var(--hairline); }
+.palette-pill__delete {
+    border: 0;
+    background: transparent;
+    font-size: 11px;
+    color: var(--gray);
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 120ms var(--ease);
+}
+@media (hover: hover) {
+    .palette-pill__delete {
+        opacity: 0;
+    }
+    .palette-pill:hover .palette-pill__delete,
+    .palette-pill:focus-within .palette-pill__delete {
+        opacity: 1;
+    }
+}
+.palette-bar__form {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 200ms ease;
+}
+.palette-bar__form.is-open { max-height: 320px; }
+.palette-bar__form-inner { position: relative; padding: 12px 0 4px; }
+.palette-bar__delete-error {
+    flex-basis: 100%;
+    font-size: 12px;
+    color: var(--error, #b91c1c);
+    margin: 4px 0 0;
+}
+.palette-bar__close {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    border: 0;
+    background: transparent;
+    color: var(--gray);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.palette-bar__error {
+    margin: 0 0 8px;
+    color: var(--red, #b00020);
+    font-size: 13px;
+}
 .customize-reset {
     margin-top: 8px;
     width: 100%;

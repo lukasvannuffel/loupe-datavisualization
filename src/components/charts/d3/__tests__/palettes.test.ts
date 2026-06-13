@@ -32,6 +32,20 @@ describe("colorByIndex", () => {
         expect(g1).toBe("var(--palette-okabe-ito-1)");
     });
 
+    it("returns custom hex colours for a matching user palette UUID", () => {
+        const paletteId = "00000000-0000-0000-0000-000000000001";
+        const userPalettes = [
+            {
+                id: paletteId,
+                name: "Brand",
+                colors: ["#003D6B", "#009FDF"],
+            },
+        ] as const;
+
+        expect(colorByIndex(paletteId, 0, 2, userPalettes)).toBe("#003D6B");
+        expect(colorByIndex(paletteId, 1, 2, userPalettes)).toBe("#009FDF");
+    });
+
     // MUTATION-VERIFY:
     //   palettes.ts:30 — set PALETTE_COLORS["okabe-ito"][1] to PALETTE_COLORS["okabe-ito"][0].
     //   Test: "okabe-ito palette gives distinct colors per group index".

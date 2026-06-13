@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { resolvePalette } from "@/components/charts/d3/palettes";
+import type { UserPalette } from "@/app/palettes/schemas";
+import { storedPaletteId } from "@/components/charts/d3/palettes";
 import { CustomSection } from "@/components/pages/CustomSection";
 import {
     updateCustomizationPalette,
@@ -24,6 +25,7 @@ type CustomizationRailProps = {
     readonly spec: ChartSpec;
     readonly mapping: Mapping;
     readonly errorBandsAvailable?: boolean;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange: (updater: SpecUpdater) => void;
 };
 
@@ -31,6 +33,7 @@ export const CustomizationRail = ({
     spec,
     mapping,
     errorBandsAvailable = false,
+    userPalettes = [],
     onSpecChange,
 }: CustomizationRailProps): JSX.Element => {
     const [openSection, setOpenSection] = useState<string | null>("titles");
@@ -56,7 +59,8 @@ export const CustomizationRail = ({
                 setOpen={setOpenSection}
             >
                 <PaletteSelector
-                    value={resolvePalette(spec)}
+                    userPalettes={userPalettes}
+                    value={storedPaletteId(spec)}
                     onChange={(next) => {
                         onSpecChange((prev) => updateCustomizationPalette(prev, next));
                     }}
