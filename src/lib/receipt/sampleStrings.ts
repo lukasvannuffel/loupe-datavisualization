@@ -18,8 +18,7 @@ export const sampleString = (spec: ChartSpec, plotData: PlotData): string => {
             const censored =
                 plotData.kind === "km"
                     ? plotData.groups.reduce(
-                          (sum, group) =>
-                              sum + group.points.reduce((groupSum, point) => groupSum + (point.censored ? 1 : 0), 0),
+                          (sum, group) => sum + (group.nTotal - group.nEvents),
                           0,
                       )
                     : 0;

@@ -158,7 +158,7 @@ const buildKmCaption = (hasLogRank: boolean): string => {
 const buildKmMetaLine = (plotData: KMPlotData): string => {
   const totalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
   const censoredN = plotData.groups.reduce(
-    (sum, group) => sum + group.points.filter((point) => point.censored).length,
+    (sum, group) => sum + (group.nTotal - group.nEvents),
     0,
   );
 

@@ -71,7 +71,7 @@ describe("sampleString", () => {
             tMax: 12,
         };
 
-        expect(sampleString(spec, plotData)).toBe("n = 18 · censored = 2");
+        expect(sampleString(spec, plotData)).toBe("n = 18 · censored = 18");
     });
 
     it("formats box sample", () => {
