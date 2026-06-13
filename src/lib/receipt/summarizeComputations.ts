@@ -30,7 +30,7 @@ export const summarizeComputations = (
     if (spec.kind === "km" && plotData.kind === "km") {
         const kmStepCount = plotData.groups.reduce((sum, group) => sum + group.points.length, 0);
         const kmCensoredN = plotData.groups.reduce(
-            (sum, group) => sum + group.points.filter((point) => point.censored).length,
+            (sum, group) => sum + (group.nTotal - group.nEvents),
             0,
         );
         const kmTotalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
