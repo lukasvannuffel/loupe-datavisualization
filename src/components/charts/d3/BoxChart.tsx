@@ -11,6 +11,7 @@ import { select } from "d3-selection";
 import { useEffect, useState } from "react";
 
 import type { BoxPlotData } from "@/lib/chartSpec/aggregators/boxPlot.types";
+import type { UserPalette } from "@/app/palettes/schemas";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { BoxSpec } from "@/lib/chartSpec/types";
@@ -36,15 +37,21 @@ const BOX_WIDTH_RATIO = 0.6;
 type Props = {
     readonly data: BoxPlotData;
     readonly spec: BoxSpec;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
+export const BoxChart = ({
+    data,
+    spec,
+    userPalettes = [],
+    onSpecChange,
+}: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const hasStripGroup = data.groups.some((group) => group.kind === "strip");
     const labels = resolveChartLabels(spec);
-    const palette = resolvePalette(spec);
+    const palette = resolvePalette(spec, userPalettes);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -89,7 +96,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
             const boxWidth = xScale.bandwidth() * BOX_WIDTH_RATIO;
             const stripLabelY = innerHeight + 14;
 
-            const palette = resolvePalette(spec);
+            const palette = resolvePalette(spec, userPalettes);
             const groupCount = data.groups.length;
             const useEditorialFill = palette === "editorial";
 
@@ -104,7 +111,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
                 }
 
                 const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
-                const groupColor = colorByIndex(palette, styleIndex, groupCount);
+                const groupColor = colorByIndex(palette, styleIndex, groupCount, userPalettes);
                 const xCenter = bandX + xScale.bandwidth() / 2;
                 const groupG = plotG
                     .append("g")
@@ -178,7 +185,7 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [data, dims, editable, labels, palette, spec.showGrid, spec.strokeWeight, spec]);
+    }, [data, dims, editable, labels, palette, spec.showGrid, spec.strokeWeight, spec, userPalettes]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
@@ -218,7 +225,12 @@ export const BoxChart = ({ data, spec, onSpecChange }: Props): JSX.Element => {
                         </div>
                     ) : null}
                 </div>
-                <ChartLegend chartKind="box" groups={data.groups} palette={palette} />
+                <ChartLegend
+                    chartKind="box"
+                    groups={data.groups}
+                    palette={palette}
+                    userPalettes={userPalettes}
+                />
             </div>
             {hasStripGroup ? (
                 <p className="rec-box-strip-caption muted small">

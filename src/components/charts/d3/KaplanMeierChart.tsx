@@ -10,6 +10,7 @@ import { select } from "d3-selection";
 import { useEffect, useState } from "react";
 
 import type { KMPlotData } from "@/lib/chartSpec/aggregators/kaplanMeier.types";
+import type { UserPalette } from "@/app/palettes/schemas";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { LogRankResult } from "@/lib/chartSpec/aggregators/kmLogRank";
@@ -37,14 +38,21 @@ type Props = {
     readonly spec: KMSpec;
     readonly data: KMPlotData;
     readonly logRank?: LogRankResult | null;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const KaplanMeierChart = ({ spec, data, logRank, onSpecChange }: Props): JSX.Element => {
+export const KaplanMeierChart = ({
+    spec,
+    data,
+    logRank,
+    userPalettes = [],
+    onSpecChange,
+}: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
-    const palette = resolvePalette(spec);
+    const palette = resolvePalette(spec, userPalettes);
     const editable = onSpecChange !== undefined;
 
     useEffect(() => {
@@ -87,12 +95,12 @@ export const KaplanMeierChart = ({ spec, data, logRank, onSpecChange }: Props): 
             drawHorizontalGrid(plotG, yScale, innerWidth, tokens);
         }
 
-        const palette = resolvePalette(spec);
+        const palette = resolvePalette(spec, userPalettes);
         const groupCount = data.groups.length;
 
         data.groups.forEach((group, index) => {
             const styleIndex = Math.min(index, 3) as 0 | 1 | 2 | 3;
-            const color = colorByIndex(palette, styleIndex, groupCount);
+            const color = colorByIndex(palette, styleIndex, groupCount, userPalettes);
             const g = plotG
                 .append("g")
                 .attr("class", "km-group")
@@ -147,6 +155,7 @@ export const KaplanMeierChart = ({ spec, data, logRank, onSpecChange }: Props): 
         spec.showStats,
         spec.strokeWeight,
         logRank,
+        userPalettes,
     ]);
 
     const marginLeft = LABEL_MARGIN.left;
@@ -199,7 +208,12 @@ export const KaplanMeierChart = ({ spec, data, logRank, onSpecChange }: Props): 
                         </div>
                     ) : null}
                 </div>
-                <ChartLegend chartKind="km" groups={data.groups} palette={palette} />
+                <ChartLegend
+                    chartKind="km"
+                    groups={data.groups}
+                    palette={palette}
+                    userPalettes={userPalettes}
+                />
             </div>
             {spec.showAtRisk && dims !== null ? (
                 <AtRiskTable

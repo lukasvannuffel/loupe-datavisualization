@@ -3033,6 +3033,68 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     color: var(--blue);
     font-size: 13px;
 }
+.palette-section-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gray);
+    padding: 10px 8px 4px;
+}
+.palette-swatches span.is-invalid {
+    background: var(--hairline);
+}
+.palette-manager {
+    margin-top: 32px;
+    border-top: 1px solid var(--hairline);
+    padding-top: 8px;
+}
+.palette-manager__empty {
+    margin: 0 0 16px;
+    font-size: 13px;
+}
+.palette-manager__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+}
+.palette-manager__item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.palette-manager__name {
+    flex: 1 1 140px;
+    min-width: 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-2);
+    padding: 8px 10px;
+    font-size: 14px;
+    background: var(--paper);
+}
+.palette-manager__delete {
+    border: 0;
+    background: transparent;
+    color: var(--gray);
+    font-size: 12px;
+    cursor: pointer;
+}
+.palette-manager__form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.palette-manager__preview {
+    margin-bottom: 8px;
+}
+.palette-manager__error {
+    margin: 0 0 8px;
+    color: var(--red, #b00020);
+    font-size: 13px;
+}
 .customize-reset {
     margin-top: 8px;
     width: 100%;

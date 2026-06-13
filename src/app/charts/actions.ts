@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
+import { storedPaletteId } from "@/lib/chartSpec/resolvePalette";
 import { chartSpecSchema } from "@/lib/chartSpec/schemas";
 import type { ChartSpec, PlotData, SpecKind } from "@/lib/chartSpec/types";
 import { assertNoRawRows } from "@/lib/privacy/assertNoRawRows";
@@ -164,7 +164,7 @@ export const saveChart = async (payload: SaveChartPayload): Promise<SaveChartRes
         if (parsed.receipt.software !== expectedSoftware) {
             return { success: false, error: "Receipt software mismatch" };
         }
-        const expectedPalette = resolvePalette(parsed.chart_spec);
+        const expectedPalette = storedPaletteId(parsed.chart_spec);
         if (parsed.receipt.palette !== expectedPalette) {
             return { success: false, error: "Receipt palette mismatch" };
         }

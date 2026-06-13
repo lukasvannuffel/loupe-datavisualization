@@ -1,4 +1,4 @@
-import type { ChartSpec, PaletteName, PlotData } from "@/lib/chartSpec/types";
+import type { ChartSpec, PaletteId, PlotData } from "@/lib/chartSpec/types";
 import type { Mapping } from "@/lib/roles/types";
 
 import packageJson from "../../../package.json";
@@ -17,7 +17,7 @@ export type BuildReceiptInput = {
     readonly columnMapping: Mapping;
     readonly generatedAt?: string;
     readonly nRowsInput: number;
-    readonly palette: PaletteName;
+    readonly palette: PaletteId;
     readonly plotData: PlotData;
     readonly computations?: ComputationSummary;
 };

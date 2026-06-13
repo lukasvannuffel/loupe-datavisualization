@@ -12,6 +12,7 @@ import type {
     LongitudinalData,
     XYPlotData,
 } from "@/lib/chartSpec/aggregators/xyPlot.types";
+import type { UserPalette } from "@/app/palettes/schemas";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
 import type { XYSpec } from "@/lib/chartSpec/types";
@@ -39,6 +40,7 @@ type Props = {
     readonly mode: "line" | "scatter" | "both";
     readonly showRegression: boolean;
     readonly showErrorBands?: boolean;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
@@ -51,13 +53,14 @@ export const XYChart = ({
     mode,
     showRegression,
     showErrorBands = false,
+    userPalettes = [],
     onSpecChange,
 }: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const longitudinal = isLongitudinal(data);
     const labels = resolveChartLabels(spec);
-    const palette = resolvePalette(spec);
+    const palette = resolvePalette(spec, userPalettes);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -113,10 +116,11 @@ export const XYChart = ({
 
             renderXYChartGroups(data, plotG, {
                 mode,
-                palette: resolvePalette(spec),
+                palette: resolvePalette(spec, userPalettes),
                 showRegression,
                 showErrorBands,
                 strokeWeight: spec.strokeWeight,
+                userPalettes,
                 xScale,
                 yScale,
             });
@@ -170,6 +174,7 @@ export const XYChart = ({
         spec.showGrid,
         spec.strokeWeight,
         spec,
+        userPalettes,
     ]);
 
     const innerWidth =
@@ -214,6 +219,7 @@ export const XYChart = ({
                 groups={data.groups}
                 mode={mode}
                 palette={palette}
+                userPalettes={userPalettes}
             />
         </div>
     );
