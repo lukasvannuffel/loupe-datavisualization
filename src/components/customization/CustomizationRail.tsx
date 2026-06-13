@@ -33,7 +33,7 @@ export const CustomizationRail = ({
     errorBandsAvailable = false,
     onSpecChange,
 }: CustomizationRailProps): JSX.Element => {
-    const [openSection, setOpenSection] = useState<string | null>("chart-options");
+    const [openSection, setOpenSection] = useState<string | null>("titles");
 
     return (
         <aside aria-label="Customize chart" className="customization-rail">
