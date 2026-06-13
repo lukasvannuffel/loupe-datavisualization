@@ -105,4 +105,48 @@ describe("PaletteManager", () => {
 
         expect(screen.getByRole("button", { name: "Save palette" })).toBeDisabled();
     });
+
+    it("resets name and hex fields when the form is closed", () => {
+        render(<PaletteManager initialPalettes={[]} />);
+
+        fireEvent.click(screen.getByRole("button", { name: "+ New palette" }));
+        fireEvent.change(screen.getByPlaceholderText("Arteveldehogeschool"), {
+            target: { value: "Draft" },
+        });
+        fireEvent.change(screen.getByPlaceholderText("#F37021, #7DBB42, #009FE3, #000000"), {
+            target: { value: "#003D6B" },
+        });
+        fireEvent.click(screen.getByLabelText("Close palette form"));
+        fireEvent.click(screen.getByRole("button", { name: "+ New palette" }));
+
+        expect(screen.getByPlaceholderText("Arteveldehogeschool")).toHaveValue("");
+        expect(screen.getByPlaceholderText("#F37021, #7DBB42, #009FE3, #000000")).toHaveValue("");
+    });
+
+    it("shows delete errors below the palette bar when the form is closed", async () => {
+        const confirmMock = vi.fn(() => true);
+        vi.stubGlobal("confirm", confirmMock);
+        deletePalette.mockResolvedValue({ success: false, error: "Delete failed" });
+
+        render(
+            <PaletteManager
+                initialPalettes={[
+                    {
+                        id: "00000000-0000-0000-0000-000000000001",
+                        name: "Brand",
+                        colors: ["#003D6B"],
+                    },
+                ]}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+        await waitFor(() => {
+            expect(screen.getByText("Delete failed")).toBeTruthy();
+        });
+        expect(screen.getByText("Delete failed").className).toContain("palette-bar__delete-error");
+
+        vi.unstubAllGlobals();
+    });
 });

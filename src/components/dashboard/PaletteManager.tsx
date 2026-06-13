@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
     createPalette,
@@ -25,16 +25,37 @@ export const PaletteManager = ({
     const [name, setName] = useState("");
     const [hexInput, setHexInput] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     const previewTokens = parseHexInput(hexInput);
     const validColors = parseValidHexColors(hexInput);
     const canSave = name.trim().length > 0 && validColors.length > 0 && saving === false;
 
-    const closeForm = (): void => {
+    const closeForm = useCallback((): void => {
         setFormOpen(false);
         setError(null);
-    };
+        setName("");
+        setHexInput("");
+    }, []);
+
+    useEffect(() => {
+        if (!formOpen) {
+            return;
+        }
+
+        const handler = (event: KeyboardEvent): void => {
+            if (event.key === "Escape") {
+                closeForm();
+            }
+        };
+
+        window.addEventListener("keydown", handler);
+
+        return () => {
+            window.removeEventListener("keydown", handler);
+        };
+    }, [closeForm, formOpen]);
 
     const onSave = async (): Promise<void> => {
         if (!canSave) {
@@ -69,13 +90,13 @@ export const PaletteManager = ({
         }
 
         const previous = palettes;
+        setDeleteError(null);
         setPalettes((items) => items.filter((palette) => palette.id !== id));
-        setError(null);
 
         const result = await deletePalette(id);
         if (!result.success) {
             setPalettes(previous);
-            setError(result.error);
+            setDeleteError(result.error);
         }
     };
 
@@ -116,6 +137,8 @@ export const PaletteManager = ({
                 </div>
                 <button
                     type="button"
+                    aria-controls="palette-create-form"
+                    aria-expanded={formOpen}
                     className="btn btn--quiet btn--sm palette-bar__new"
                     onClick={() => {
                         setFormOpen((open) => !open);
@@ -123,9 +146,18 @@ export const PaletteManager = ({
                 >
                     + New palette
                 </button>
+                {deleteError !== null ? (
+                    <p className="palette-bar__delete-error" role="alert">
+                        {deleteError}
+                    </p>
+                ) : null}
             </div>
 
-            <div className={`palette-bar__form${formOpen ? " is-open" : ""}`}>
+            <div
+                id="palette-create-form"
+                className={`palette-bar__form${formOpen ? " is-open" : ""}`}
+                inert={!formOpen}
+            >
                 <div className="palette-bar__form-inner">
                     <button
                         type="button"

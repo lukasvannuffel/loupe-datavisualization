@@ -3085,17 +3085,31 @@ body.ed-fieldnotes .hero-italic { font-style: italic; }
     font-size: 11px;
     color: var(--gray);
     cursor: pointer;
-    opacity: 0;
+    opacity: 1;
     transition: opacity 120ms var(--ease);
 }
-.palette-pill:hover .palette-pill__delete { opacity: 1; }
+@media (hover: hover) {
+    .palette-pill__delete {
+        opacity: 0;
+    }
+    .palette-pill:hover .palette-pill__delete,
+    .palette-pill:focus-within .palette-pill__delete {
+        opacity: 1;
+    }
+}
 .palette-bar__form {
     overflow: hidden;
     max-height: 0;
     transition: max-height 200ms ease;
 }
-.palette-bar__form.is-open { max-height: 200px; }
+.palette-bar__form.is-open { max-height: 320px; }
 .palette-bar__form-inner { position: relative; padding: 12px 0 4px; }
+.palette-bar__delete-error {
+    flex-basis: 100%;
+    font-size: 12px;
+    color: var(--error, #b91c1c);
+    margin: 4px 0 0;
+}
 .palette-bar__close {
     position: absolute;
     top: 8px;
