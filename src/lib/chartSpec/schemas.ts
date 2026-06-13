@@ -71,6 +71,8 @@ const paletteNameSchema = z.enum([
     "monochrome",
 ]);
 
+const paletteIdSchema = z.union([paletteNameSchema, z.string().uuid()]);
+
 const customizationsSchema = z
     .object({
         title: nonEmpty().optional(),
@@ -81,7 +83,7 @@ const customizationsSchema = z
             })
             .strict()
             .optional(),
-        palette: paletteNameSchema.optional(),
+        palette: paletteIdSchema.optional(),
     })
     .strict();
 

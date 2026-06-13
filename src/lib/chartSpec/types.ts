@@ -59,13 +59,16 @@ export type PaletteName =
     | "deuteranopia-tuned"
     | "monochrome";
 
+/** Built-in palette slug or a user-saved palette UUID. */
+export type PaletteId = PaletteName | string;
+
 export type Customizations = {
     readonly title?: string;
     readonly axes?: {
         readonly x?: AxisCustomization;
         readonly y?: AxisCustomization;
     };
-    readonly palette?: PaletteName;
+    readonly palette?: PaletteId;
 };
 
 /** Frame, typography, palette and stroke options shared by every Spec. */

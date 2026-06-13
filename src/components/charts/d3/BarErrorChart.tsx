@@ -10,6 +10,7 @@ import { select } from "d3-selection";
 import { useEffect, useState } from "react";
 
 import { computeErrorBar } from "@/lib/chartSpec/aggregators/errorBars";
+import type { UserPalette } from "@/app/palettes/schemas";
 import type { GroupStats } from "@/lib/chartSpec/aggregators/barError.types";
 import type { SpecUpdater } from "@/lib/chartSpec/customizations/patchSpec";
 import { resolveChartLabels } from "@/lib/chartSpec/labels/resolveChartLabels";
@@ -31,14 +32,20 @@ import { useResizeObserver } from "./useResizeObserver";
 type Props = {
     readonly spec: BarErrorSpec;
     readonly groups: ReadonlyArray<GroupStats>;
+    readonly userPalettes?: readonly UserPalette[];
     readonly onSpecChange?: (updater: SpecUpdater) => void;
 };
 
-export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Element => {
+export const BarErrorChart = ({
+    spec,
+    groups,
+    userPalettes = [],
+    onSpecChange,
+}: Props): JSX.Element => {
     const [containerRef, dims] = useResizeObserver<HTMLDivElement>();
     const [extraBottomPx, setExtraBottomPx] = useState(0);
     const labels = resolveChartLabels(spec);
-    const palette = resolvePalette(spec);
+    const palette = resolvePalette(spec, userPalettes);
     const editable = onSpecChange !== undefined;
     const labelMargin = marginWithLabels(DEFAULT_MARGIN);
 
@@ -89,7 +96,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                 .range([innerHeight, 0])
                 .nice();
             const baselineY = yScale(0);
-            const palette = resolvePalette(spec);
+            const palette = resolvePalette(spec, userPalettes);
             const groupCount = groups.length;
 
             if (spec.showGrid) {
@@ -107,7 +114,12 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                 .attr("width", xScale.bandwidth())
                 .attr("height", (d) => Math.abs(baselineY - yScale(d.mean)))
                 .attr("fill", (_d, index) =>
-                    colorByIndex(palette, Math.min(index, 3) as 0 | 1 | 2 | 3, groupCount),
+                    colorByIndex(
+                        palette,
+                        Math.min(index, 3) as 0 | 1 | 2 | 3,
+                        groupCount,
+                        userPalettes,
+                    ),
                 )
                 .attr("opacity", 0.85);
 
@@ -164,7 +176,7 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
         if (extraBottom > 0) {
             draw({ ...labelMargin, bottom: labelMargin.bottom + extraBottom });
         }
-    }, [dims, editable, groups, labels, palette, spec.errorBarType, spec.showGrid, spec.strokeWeight]);
+    }, [dims, editable, groups, labels, palette, spec.errorBarType, spec.showGrid, spec.strokeWeight, userPalettes]);
 
     const innerWidth =
         dims !== null ? Math.max(0, dims.width - labelMargin.left - labelMargin.right) : 0;
@@ -197,7 +209,12 @@ export const BarErrorChart = ({ spec, groups, onSpecChange }: Props): JSX.Elemen
                     </div>
                 ) : null}
             </div>
-            <ChartLegend chartKind="bar" groups={groups} palette={palette} />
+            <ChartLegend
+                chartKind="bar"
+                groups={groups}
+                palette={palette}
+                userPalettes={userPalettes}
+            />
         </div>
     );
 };

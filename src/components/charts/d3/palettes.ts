@@ -1,10 +1,14 @@
-import type { PaletteName } from "@/lib/chartSpec/types";
-import { resolvePalette } from "@/lib/chartSpec/resolvePalette";
+import type { UserPalette } from "@/app/palettes/schemas";
+import { isUuidPaletteId } from "@/app/palettes/schemas";
+import type { PaletteId, PaletteName } from "@/lib/chartSpec/types";
+import {
+    isBuiltinPaletteName,
+} from "@/lib/chartSpec/resolvePalette";
 
 import "./palettes.module.css";
 
-export type { PaletteName };
-export { resolvePalette };
+export type { PaletteId, PaletteName };
+export { resolvePalette, storedPaletteId } from "@/lib/chartSpec/resolvePalette";
 
 /** Swatch preview hex — must match `palettes.module.css` indices 0 and 1. */
 export const PALETTE_SWATCH_HEX: Record<PaletteName, readonly [string, string]> = {
@@ -59,14 +63,12 @@ const PALETTE_COLORS: Record<Exclude<PaletteName, "editorial">, readonly string[
     ],
 };
 
-export const colorByIndex = (
-    palette: PaletteName | undefined,
+const resolveBuiltinColor = (
+    palette: PaletteName,
     index: 0 | 1 | 2 | 3,
     groupCount: number,
 ): string => {
-    const resolved = palette ?? "monochrome";
-
-    if (resolved === "editorial") {
+    if (palette === "editorial") {
         if (groupCount === 2) {
             return index === 0 ? EDITORIAL_INK : EDITORIAL_GRAY;
         }
@@ -74,5 +76,35 @@ export const colorByIndex = (
         return EDITORIAL_INK;
     }
 
-    return PALETTE_COLORS[resolved][index] ?? PALETTE_COLORS[resolved][0];
+    return PALETTE_COLORS[palette][index] ?? PALETTE_COLORS[palette][0];
+};
+
+const findUserPalette = (
+    paletteId: string,
+    userPalettes?: readonly UserPalette[],
+): UserPalette | undefined =>
+    userPalettes?.find((palette) => palette.id === paletteId);
+
+export const colorByIndex = (
+    palette: PaletteId | undefined,
+    index: 0 | 1 | 2 | 3,
+    groupCount: number,
+    userPalettes?: readonly UserPalette[],
+): string => {
+    const resolved = palette ?? "monochrome";
+
+    if (isUuidPaletteId(resolved)) {
+        const userPalette = findUserPalette(resolved, userPalettes);
+        if (userPalette !== undefined && userPalette.colors.length > 0) {
+            return userPalette.colors[index % userPalette.colors.length] ?? userPalette.colors[0];
+        }
+
+        return resolveBuiltinColor("editorial", index, groupCount);
+    }
+
+    if (isBuiltinPaletteName(resolved)) {
+        return resolveBuiltinColor(resolved, index, groupCount);
+    }
+
+    return resolveBuiltinColor("editorial", index, groupCount);
 };

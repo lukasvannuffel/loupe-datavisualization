@@ -14,8 +14,9 @@ import type {
 import {
   PALETTE_SWATCH_HEX,
   resolvePalette,
+  storedPaletteId,
 } from "@/components/charts/d3/palettes";
-import type { PaletteName } from "@/lib/chartSpec/types";
+import type { PaletteId, PaletteName } from "@/lib/chartSpec/types";
 import { SpecChartPanel } from "@/components/charts/SpecChartPanel";
 import { CustomizationRail } from "@/components/customization/CustomizationRail";
 import { Eyebrow } from "@/components/primitives/Eyebrow";
@@ -52,6 +53,7 @@ import type {
 import { ChartFrameLoader } from "@/components/charts/ChartFrameLoader";
 import { saveChart } from "@/app/charts/actions";
 import type { ChartRow, GetChartResult } from "@/app/charts/actions";
+import type { UserPalette } from "@/app/palettes/schemas";
 import { exportPng } from "@/lib/export/exportPng";
 import {
   CHART_EXPORT_FONT,
@@ -158,7 +160,7 @@ const buildKmCaption = (hasLogRank: boolean): string => {
 const buildKmMetaLine = (plotData: KMPlotData): string => {
   const totalN = plotData.groups.reduce((sum, group) => sum + group.nTotal, 0);
   const censoredN = plotData.groups.reduce(
-    (sum, group) => sum + group.points.filter((point) => point.censored).length,
+    (sum, group) => sum + (group.nTotal - group.nEvents),
     0,
   );
 
@@ -587,12 +589,14 @@ type ExportProps = {
   readonly initialLoadReason?:
     | Extract<GetChartResult, { readonly ok: false }>["reason"]
     | null;
+  readonly userPalettes?: readonly UserPalette[];
 };
 
 export const Export = ({
   initialChart = null,
   initialChartId = null,
   initialLoadReason = null,
+  userPalettes = [],
 }: ExportProps): JSX.Element => {
   const router = useRouter();
   const { toast } = useToast();
@@ -960,7 +964,7 @@ export const Export = ({
     setReceiptBuilding(true);
     setReceiptBuildFailed(false);
 
-    const nextPalette: PaletteName = resolvePalette(liveSpec);
+    const nextPalette: PaletteId = storedPaletteId(liveSpec);
     const nRowsInput = useLoadedFigure
       ? (loadedReceipt?.n_rows_input ?? 0)
       : dataset !== null
@@ -1521,6 +1525,7 @@ export const Export = ({
                       <KaplanMeierChart
                         spec={liveSpec}
                         data={loadedPlotData as KMPlotData}
+                        userPalettes={userPalettes}
                         onSpecChange={onSpecChange}
                       />
                     ) : null}
@@ -1529,6 +1534,7 @@ export const Export = ({
                       <BarErrorChart
                         spec={liveSpec}
                         groups={(loadedPlotData as BarErrorPlotData).groups}
+                        userPalettes={userPalettes}
                         onSpecChange={onSpecChange}
                       />
                     ) : null}
@@ -1541,6 +1547,7 @@ export const Export = ({
                         mode={liveSpec.mode}
                         showRegression={liveSpec.showRegression}
                         showErrorBands={liveSpec.showErrorBands}
+                        userPalettes={userPalettes}
                         onSpecChange={onSpecChange}
                       />
                     ) : null}
@@ -1553,6 +1560,7 @@ export const Export = ({
                         dataset={dataset}
                         mapping={mapping}
                         spec={liveSpec}
+                        userPalettes={userPalettes}
                         onSpecChange={onSpecChange}
                       />
                     </ChartFrameLoader>
@@ -1574,35 +1582,34 @@ export const Export = ({
                 ) : null}
               </div>
             </div>
+
+            {viewOnlySnapshot === null ? (
+              <ExportFigureActions
+                copied={copied}
+                copying={copying}
+                exporting={exporting}
+                pngLoading={pngLoading}
+                onDownloadSvg={() => {
+                  void handleDownloadSvg();
+                }}
+                onPngExport={(dpi) => {
+                  void handlePngExport(dpi);
+                }}
+                onCopy={() => {
+                  void onCopy();
+                }}
+              />
+            ) : null}
           </div>
 
-          <div className="actions-panel export-panel">
-            <ExportFigureActions
-              copied={copied}
-              copying={copying}
-              exporting={exporting}
-              pngLoading={pngLoading}
-              onDownloadSvg={() => {
-                void handleDownloadSvg();
-              }}
-              onPngExport={(dpi) => {
-                void handlePngExport(dpi);
-              }}
-              onCopy={() => {
-                void onCopy();
-              }}
-            />
-
-            <hr className="actions-panel__divider" />
-
+          <div className="export-sections">
             <ReproducibilityReceiptPanel
               input={reproducibilityInput}
               variant="embedded"
             />
 
             {viewOnlySnapshot === null ? (
-              <>
-                <hr className="actions-panel__divider" />
+              <div className="export-project-section">
                 <ExportProjectActions
                   onRetryReceiptBuild={retryReceiptBuild}
                   onSave={handleSaveToProject}
@@ -1613,7 +1620,7 @@ export const Export = ({
                   receiptBuilding={receiptBuilding}
                   saving={saving}
                 />
-              </>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1651,6 +1658,7 @@ export const Export = ({
                 errorBandsAvailable={xyErrorBandsAvailable}
                 mapping={mapping}
                 spec={liveSpec}
+                userPalettes={userPalettes}
                 onSpecChange={onSpecChange}
               />
             ) : null}

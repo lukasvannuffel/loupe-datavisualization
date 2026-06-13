@@ -7,9 +7,16 @@ type DialogProps = {
     readonly onClose: () => void;
     readonly title: string;
     readonly children: ReactNode;
+    readonly variant?: "default" | "compact";
 };
 
-export const Dialog = ({ open, onClose, title, children }: DialogProps): JSX.Element | null => {
+export const Dialog = ({
+    open,
+    onClose,
+    title,
+    children,
+    variant = "default",
+}: DialogProps): JSX.Element | null => {
     const closeRef = useRef<HTMLButtonElement | null>(null);
     const triggerRef = useRef<HTMLElement | null>(null);
     const scrimPointerDownRef = useRef(false);
@@ -51,14 +58,17 @@ export const Dialog = ({ open, onClose, title, children }: DialogProps): JSX.Ele
         return null;
     }
 
+    const scrimClass = variant === "compact" ? "dialog-compact-scrim" : "rerun-scrim";
+    const panelClass = variant === "compact" ? "dialog-compact-panel" : "rerun-panel";
+
     return (
         <div
-            className="rerun-scrim"
+            className={scrimClass}
             onPointerDown={onScrimPointerDown}
             onClick={onScrimClick}
         >
             <div
-                className="rerun-panel"
+                className={panelClass}
                 role="dialog"
                 aria-modal="true"
                 aria-label={title}
