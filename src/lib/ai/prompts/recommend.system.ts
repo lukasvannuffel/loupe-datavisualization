@@ -4,6 +4,12 @@
 // aiResponseSchema enum updates correspondingly. The type-level assertion in
 // recommendChart.schemas.ts will fail compilation if these drift.
 
+import { AI_RESPONSE_MAX_LENGTH } from "@/lib/ai/recommendChart.schemas";
+
+const MAX_LENGTH_RULES: string = Object.entries(AI_RESPONSE_MAX_LENGTH)
+    .map(([field, max]) => `${field} ≤ ${max}`)
+    .join(", ");
+
 export const SYSTEM_PROMPT = `
 You are Loupe's chart advisor. Output one JSON object only (no markdown). Be concise.
 
@@ -28,5 +34,7 @@ alternatives: up to two other chart kinds from the whitelist with brief reasons 
 
 transformations: short bullet-style steps (verb + chart name) the user could apply.
 
-tests: at most three statistical bullets if applicable; omit invented p-values unless logically justified from described structure.
+tests: at most three statistical bullets if applicable; omit invented p-values unless logically justified from described structure. Each tests[].label is one short phrase naming what the test compares — not a full explanation.
+
+Hard character limits per string (responses exceeding any limit are rejected): ${MAX_LENGTH_RULES}.
 `.trim();

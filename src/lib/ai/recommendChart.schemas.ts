@@ -112,18 +112,37 @@ export const payloadSchema = z
         }
     });
 
+/** Max characters per AI response string, keyed by the field path the model sees. The gateway does not enforce `maxLength`, so the system prompt states these explicitly. */
+export const AI_RESPONSE_MAX_LENGTH = {
+    "recommendation.chartName": 80,
+    "recommendation.headline": 200,
+    "recommendation.becauseTitle": 80,
+    "recommendation.because": 600,
+    "recommendation.handlesTitle": 80,
+    "recommendation.handles": 400,
+    "alternatives[].name": 80,
+    "alternatives[].reason": 300,
+    "transformations[].verb": 40,
+    "transformations[].chart": 80,
+    testsTitle: 80,
+    "tests[].label": 120,
+} as const;
+
+const boundedText = (field: keyof typeof AI_RESPONSE_MAX_LENGTH): z.ZodString =>
+    z.string().min(1).max(AI_RESPONSE_MAX_LENGTH[field]);
+
 export const aiResponseSchema = z
     .object({
         chartType: z.enum(MVP_CHART_KINDS),
         confidence: z.number().min(0).max(1),
         recommendation: z
             .object({
-                chartName: z.string().min(1).max(80),
-                headline: z.string().min(1).max(200),
-                becauseTitle: z.string().min(1).max(80),
-                because: z.string().min(1).max(600),
-                handlesTitle: z.string().min(1).max(80),
-                handles: z.string().min(1).max(400),
+                chartName: boundedText("recommendation.chartName"),
+                headline: boundedText("recommendation.headline"),
+                becauseTitle: boundedText("recommendation.becauseTitle"),
+                because: boundedText("recommendation.because"),
+                handlesTitle: boundedText("recommendation.handlesTitle"),
+                handles: boundedText("recommendation.handles"),
             })
             .strict(),
         alternatives: z
@@ -131,8 +150,8 @@ export const aiResponseSchema = z
                 z
                     .object({
                         slug: z.enum(MVP_CHART_KINDS),
-                        name: z.string().min(1).max(80),
-                        reason: z.string().min(1).max(300),
+                        name: boundedText("alternatives[].name"),
+                        reason: boundedText("alternatives[].reason"),
                     })
                     .strict(),
             )
@@ -141,18 +160,18 @@ export const aiResponseSchema = z
             .array(
                 z
                     .object({
-                        verb: z.string().min(1).max(40),
-                        chart: z.string().min(1).max(80),
+                        verb: boundedText("transformations[].verb"),
+                        chart: boundedText("transformations[].chart"),
                     })
                     .strict(),
             )
             .max(5),
-        testsTitle: z.string().min(1).max(80),
+        testsTitle: boundedText("testsTitle"),
         tests: z
             .array(
                 z
                     .object({
-                        label: z.string().min(1).max(120),
+                        label: boundedText("tests[].label"),
                         name: z.string().optional(),
                         pValue: z.number().min(0).max(1).optional(),
                         statistic: z.number().optional(),
