@@ -1,3 +1,5 @@
+import { NoObjectGeneratedError } from "ai";
+import type { LanguageModelUsage } from "ai";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { ResolvedEnv } from "@/lib/ai/client.types";
@@ -8,7 +10,8 @@ import type { RecommendInput } from "../recommendChart.types";
 
 const generateObjectMock = vi.hoisted(() => vi.fn());
 
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("ai")>()),
     generateObject: generateObjectMock,
 }));
 
@@ -27,7 +30,9 @@ vi.mock("../client", () => ({
 }));
 
 const resolveActorKeyMock = vi.hoisted(() => vi.fn().mockResolvedValue("user:test-actor"));
-const checkAndRecordMock = vi.hoisted(() => vi.fn().mockResolvedValue({ allowed: true, remaining: 19 }));
+const RECORD_ID = 7;
+const checkAndRecordMock = vi.hoisted(() => vi.fn().mockResolvedValue({ allowed: true, recordId: 7, remaining: 19 }));
+const releaseSlotMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("../rateLimit/actorKey", () => ({
     resolveActorKey: resolveActorKeyMock,
@@ -35,6 +40,7 @@ vi.mock("../rateLimit/actorKey", () => ({
 
 vi.mock("../rateLimit/rateLimit", () => ({
     checkAndRecord: checkAndRecordMock,
+    releaseSlot: releaseSlotMock,
 }));
 
 const validPayload: RecommendInput = {
@@ -315,6 +321,45 @@ describe("recommendChart", () => {
             expect(result.message).not.toMatch(/502/i);
             expect(result.message.toLowerCase()).not.toContain("anthropic");
         }
+    });
+
+    it("releases the rate-limit slot when the gateway fails before generating", async () => {
+        generateObjectMock.mockRejectedValueOnce(new Error("Model 'anthropic/unknown' not found"));
+
+        const result = await recommendChart(validPayload);
+
+        expect(result.ok).toBe(false);
+        expect(releaseSlotMock).toHaveBeenCalledWith(RECORD_ID);
+    });
+
+    it("keeps the rate-limit slot when the model generated output that failed the schema", async () => {
+        generateObjectMock.mockRejectedValueOnce(
+            new NoObjectGeneratedError({
+                finishReason: "stop",
+                response: { id: "r", modelId: "m", timestamp: new Date() },
+                text: "{}",
+                usage: { inputTokens: 800, outputTokens: 400, totalTokens: 1200 } as LanguageModelUsage,
+            }),
+        );
+
+        const result = await recommendChart(validPayload);
+
+        expect(result.ok).toBe(false);
+        expect(releaseSlotMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps the rate-limit slot on timeout", async () => {
+        generateObjectMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
+
+        await recommendChart(validPayload);
+
+        expect(releaseSlotMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps the rate-limit slot on success", async () => {
+        await recommendChart(validPayload);
+
+        expect(releaseSlotMock).not.toHaveBeenCalled();
     });
 
     it("estimates cost from PRICING_PER_MILLION_USD for the active model", async () => {

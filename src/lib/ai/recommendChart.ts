@@ -2,7 +2,7 @@
 
 // File budget: keep this module under 160 lines.
 
-import { generateObject } from "ai";
+import { generateObject, NoObjectGeneratedError } from "ai";
 import type { ZodError } from "zod";
 
 import type { Receipt } from "@/lib/chartSpec/types";
@@ -18,7 +18,7 @@ import {
 } from "./recommendChart.schemas";
 import type { RecommendInput, RecommendPayload, RecommendResult } from "./recommendChart.types";
 import { resolveActorKey } from "./rateLimit/actorKey";
-import { checkAndRecord } from "./rateLimit/rateLimit";
+import { checkAndRecord, releaseSlot } from "./rateLimit/rateLimit";
 import { repairOverlongStrings } from "./repairOverlongStrings";
 import { SYSTEM_PROMPT } from "./prompts/recommend.system";
 import { buildUserPrompt } from "./prompts/recommend.user";
@@ -140,13 +140,16 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
         };
     } catch (err) {
         const aborted =
-            (typeof DOMException !== "undefined" &&
-                err instanceof DOMException &&
-                err.name === "AbortError") ||
+            (typeof DOMException !== "undefined" && err instanceof DOMException && err.name === "AbortError") ||
             (err instanceof Error && err.name === "AbortError");
 
         if (aborted) {
             return { ok: false, code: "TIMEOUT", message: "AI gateway timed out." };
+        }
+
+        // NoObjectGeneratedError means the model produced (billed) output; anything else failed before generation.
+        if (!NoObjectGeneratedError.isInstance(err)) {
+            await releaseSlot(limit.recordId);
         }
 
         console.error("[ai] recommend upstream failure", err);

@@ -7,7 +7,8 @@ import type { RecommendInput } from "../recommendChart.types";
 
 const generateObjectMock = vi.hoisted(() => vi.fn());
 
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("ai")>()),
     generateObject: generateObjectMock,
 }));
 
@@ -30,7 +31,8 @@ vi.mock("../rateLimit/actorKey", () => ({
 }));
 
 vi.mock("../rateLimit/rateLimit", () => ({
-    checkAndRecord: vi.fn().mockResolvedValue({ allowed: true, remaining: 19 }),
+    checkAndRecord: vi.fn().mockResolvedValue({ allowed: true, recordId: 1, remaining: 19 }),
+    releaseSlot: vi.fn().mockResolvedValue(undefined),
 }));
 
 const validPayload: RecommendInput = {
