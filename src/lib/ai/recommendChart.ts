@@ -19,6 +19,7 @@ import {
 import type { RecommendInput, RecommendPayload, RecommendResult } from "./recommendChart.types";
 import { resolveActorKey } from "./rateLimit/actorKey";
 import { checkAndRecord } from "./rateLimit/rateLimit";
+import { repairOverlongStrings } from "./repairOverlongStrings";
 import { SYSTEM_PROMPT } from "./prompts/recommend.system";
 import { buildUserPrompt } from "./prompts/recommend.user";
 
@@ -83,6 +84,7 @@ export const recommendChart = async (input: RecommendInput): Promise<RecommendRe
     try {
         const result = await generateObject({
             abortSignal: AbortSignal.timeout(30_000),
+            experimental_repairText: repairOverlongStrings,
             maxOutputTokens: 1200,
             model,
             prompt: buildUserPrompt(safePayload),
