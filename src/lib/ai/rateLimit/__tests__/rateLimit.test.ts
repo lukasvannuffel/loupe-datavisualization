@@ -1,21 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { checkAndRecord } from "../rateLimit";
+import { checkAndRecord, releaseSlot } from "../rateLimit";
 import type { ActorKey } from "../rateLimit.types";
 
 const ACTOR = "user:test-actor" as ActorKey;
+const RECORD_ID = 42;
 
 const selectMock = vi.fn();
 const insertMock = vi.fn();
+const insertSingleMock = vi.fn();
+const deleteEqMock = vi.fn();
+const deleteMock = vi.fn(() => ({ eq: deleteEqMock }));
 
-const createSupabaseAdminClientMock = vi.hoisted(() =>
-    vi.fn(() => ({
-        from: () => ({
-            insert: insertMock,
-            select: selectMock,
-        }),
-    })),
-);
+const tableMock = () => ({
+    delete: deleteMock,
+    insert: insertMock,
+    select: selectMock,
+});
+
+const createSupabaseAdminClientMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/utils/supabase/admin", () => ({
     createSupabaseAdminClient: createSupabaseAdminClientMock,
@@ -36,13 +39,9 @@ const chainSelect = (rows: { called_at: string }[]) => {
 describe("checkAndRecord", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        insertMock.mockResolvedValue({ error: null });
-        createSupabaseAdminClientMock.mockImplementation(() => ({
-            from: () => ({
-                insert: insertMock,
-                select: selectMock,
-            }),
-        }));
+        insertMock.mockReturnValue({ select: () => ({ single: insertSingleMock }) });
+        insertSingleMock.mockResolvedValue({ data: { id: RECORD_ID }, error: null });
+        createSupabaseAdminClientMock.mockImplementation(() => ({ from: tableMock }));
         vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
@@ -50,12 +49,12 @@ describe("checkAndRecord", () => {
         vi.restoreAllMocks();
     });
 
-    it("allows with remaining 19 when window is empty", async () => {
+    it("allows with remaining 19 when window is empty and returns the inserted record id", async () => {
         chainSelect([]);
 
         const result = await checkAndRecord(ACTOR);
 
-        expect(result).toEqual({ allowed: true, remaining: 19 });
+        expect(result).toEqual({ allowed: true, recordId: RECORD_ID, remaining: 19 });
         expect(insertMock).toHaveBeenCalledWith({ actor_key: ACTOR });
     });
 
@@ -67,7 +66,7 @@ describe("checkAndRecord", () => {
 
         const result = await checkAndRecord(ACTOR);
 
-        expect(result).toEqual({ allowed: true, remaining: 0 });
+        expect(result).toEqual({ allowed: true, recordId: RECORD_ID, remaining: 0 });
     });
 
     it("denies when 20 prior calls exist and computes retryAfterSeconds", async () => {
@@ -111,7 +110,7 @@ describe("checkAndRecord", () => {
 
         const result = await checkAndRecord(ACTOR);
 
-        expect(result).toEqual({ allowed: true, remaining: 20 });
+        expect(result).toEqual({ allowed: true, recordId: null, remaining: 20 });
         expect(console.error).toHaveBeenCalled();
         expect(insertMock).not.toHaveBeenCalled();
     });
@@ -123,7 +122,7 @@ describe("checkAndRecord", () => {
 
         const result = await checkAndRecord(ACTOR);
 
-        expect(result).toEqual({ allowed: true, remaining: 20 });
+        expect(result).toEqual({ allowed: true, recordId: null, remaining: 20 });
         expect(console.error).toHaveBeenCalledWith(
             "[ai] rate limit admin client unavailable",
             expect.any(Error),
@@ -131,13 +130,59 @@ describe("checkAndRecord", () => {
         expect(insertMock).not.toHaveBeenCalled();
     });
 
-    it("still allows when insert fails after count check", async () => {
+    it("still allows with a null record id when insert fails after count check", async () => {
         chainSelect([]);
-        insertMock.mockResolvedValue({ error: { message: "insert failed" } });
+        insertSingleMock.mockResolvedValue({ data: null, error: { message: "insert failed" } });
 
         const result = await checkAndRecord(ACTOR);
 
-        expect(result).toEqual({ allowed: true, remaining: 19 });
+        expect(result).toEqual({ allowed: true, recordId: null, remaining: 19 });
         expect(console.error).toHaveBeenCalled();
+    });
+});
+
+describe("releaseSlot", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        deleteEqMock.mockResolvedValue({ error: null });
+        createSupabaseAdminClientMock.mockImplementation(() => ({ from: tableMock }));
+        vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("deletes exactly the recorded row by id", async () => {
+        await releaseSlot(RECORD_ID);
+
+        expect(deleteMock).toHaveBeenCalledTimes(1);
+        expect(deleteEqMock).toHaveBeenCalledWith("id", RECORD_ID);
+    });
+
+    it("does nothing when no row was recorded", async () => {
+        await releaseSlot(null);
+
+        expect(createSupabaseAdminClientMock).not.toHaveBeenCalled();
+        expect(deleteMock).not.toHaveBeenCalled();
+    });
+
+    it("logs instead of throwing when the delete fails", async () => {
+        deleteEqMock.mockResolvedValue({ error: { message: "delete failed" } });
+
+        await expect(releaseSlot(RECORD_ID)).resolves.toBeUndefined();
+        expect(console.error).toHaveBeenCalledWith("[ai] rate limit release failed", { message: "delete failed" });
+    });
+
+    it("logs instead of throwing when the admin client cannot be created", async () => {
+        createSupabaseAdminClientMock.mockImplementationOnce(() => {
+            throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+        });
+
+        await expect(releaseSlot(RECORD_ID)).resolves.toBeUndefined();
+        expect(console.error).toHaveBeenCalledWith(
+            "[ai] rate limit admin client unavailable",
+            expect.any(Error),
+        );
     });
 });
